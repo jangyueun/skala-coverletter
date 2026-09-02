@@ -447,7 +447,7 @@ const DATA = {
       situation:'order-service · payment-service 등 5개 모듈과 docker-compose, Eureka 설정이 있습니다.',
       action:'Kafka 프로듀서와 OutboxEvent 엔티티, 스케줄러 릴레이 구현이 확인됩니다.',
       evidence:[{ type:'REPO', ref:'msa-order-service', quote:'@Scheduled(fixedDelay = 500) public void relay()' }],
-      questions:[], suggestedCompetencyIds:[1,2,8,9],
+      questions:[], suggestedCompetencyIds:[5,2,1,14],
     },
     {
       key:'oss', title:'오픈소스 라이브러리 버그 수정 기여', period:'2026.06', category:'개인 프로젝트',
@@ -464,7 +464,7 @@ const DATA = {
         { field:'result', q:'머지까지 얼마나 걸렸고, 리뷰에서 몇 번 수정 요청을 받았나요? 이 라이브러리를 쓰는 사용자 규모를 아신다면 함께 적어 주세요.',
           why:'오픈소스 기여는 규모가 곧 임팩트입니다. 저장소 스타 수나 다운로드 수는 읽었지만 본인이 체감한 것은 다를 수 있습니다.' },
       ],
-      suggestedCompetencyIds:[5,11,9,12],
+      suggestedCompetencyIds:[14,6,13,17],
     },
     {
       key:'algo', title:'알고리즘 스터디 12주 운영', period:'2025.09 – 2025.12', category:'대외활동',
@@ -481,7 +481,7 @@ const DATA = {
         { field:'result', q:'6주차에 방식을 바꾼 뒤 이탈률이나 참여율이 어떻게 달라졌나요? 숫자로 답해 주세요.',
           why:'방식을 바꾼 커밋은 있지만 그 효과를 측정한 기록이 없습니다. 이 숫자가 있어야 “운영했다”가 “개선했다”가 됩니다.' },
       ],
-      suggestedCompetencyIds:[12,9,18,13],
+      suggestedCompetencyIds:[11,13,18,12],
     },
     {
       key:'hack', title:'교내 해커톤 실시간 투표 서비스', period:'2025.05', category:'수상·자격',
@@ -498,7 +498,7 @@ const DATA = {
         { field:'result', q:'동시 투표를 몇 건까지 처리했고, 개선 전에는 얼마나 밀렸나요?',
           why:'Redis 를 쓴 것은 확인되지만 그것이 얼마나 효과가 있었는지는 측정 기록이 없습니다.' },
       ],
-      suggestedCompetencyIds:[1,8,14,12],
+      suggestedCompetencyIds:[9,4,2,3],
     },
     {
       key:'capstone', title:'학부 캡스톤 · 설비 센서 이상 탐지', period:'2025.03 – 2025.06', category:'팀 프로젝트',
@@ -515,7 +515,7 @@ const DATA = {
         { field:'result', q:'최종 재현율과 오탐률이 얼마였나요? 기존 방식이나 베이스라인과 비교할 수 있다면 함께 적어 주세요.',
           why:'평가 코드는 있지만 최종 수치가 저장소에 없습니다. 비교 대상 없는 단독 수치는 감점 사유입니다.' },
       ],
-      suggestedCompetencyIds:[5,11,9,16],
+      suggestedCompetencyIds:[4,14,15,12],
     },
   ],
 
