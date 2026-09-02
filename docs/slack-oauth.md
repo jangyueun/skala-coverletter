@@ -7,7 +7,7 @@
 ## 0. 프로젝트를 만든 다음 해야 할 것
 
 이 폴더에는 **auth 코드만** 있다. Spring Boot 프로젝트 자체(`build.gradle`, `gradlew`,
-메인 클래스)는 따로 만들어 `back/` 에 넣는다. 넣고 나서 아래 셋을 반드시 한다.
+메인 클래스)는 따로 만들어 `backend/` 에 넣는다. 넣고 나서 아래 셋을 반드시 한다.
 
 ### ① 의존성
 
@@ -62,13 +62,13 @@ Initializr 가 만들어 준다. 우리는 `application.yml` 을 쓰니 둘 다 
 ## 2. 로컬 실행
 
 ```bash
-cp back/src/main/resources/application-local.yml.example back/src/main/resources/application-local.yml
+cp backend/src/main/resources/application-local.yml.example backend/src/main/resources/application-local.yml
 ```
 
 복사한 파일에 Client ID / Secret 을 채운다. 이 파일은 `.gitignore` 되어 있다.
 
 ```bash
-cd back && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+cd backend && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
 ```
 
 브라우저에서 <http://localhost:8080/api/auth/slack/start> 로 들어가면 Slack 동의 화면이 뜬다.
