@@ -1,0 +1,37 @@
+# ⚠ Spring Initializr 로 프로젝트를 만들면 application.properties 가 생긴다.
+#    둘 다 두면 헷갈리니 properties 는 지우고 이 파일을 쓴다.
+
+spring:
+  application:
+    name: careerfit
+  jpa:
+    hibernate:
+      # 3일 프로젝트라 마이그레이션 도구 없이 간다. 운영에 올릴 거면 validate 로 바꾸고
+      # Flyway 를 붙여야 한다 — update 는 컬럼을 지우지 않아 스키마가 조용히 어긋난다.
+      ddl-auto: update
+    open-in-view: false
+
+  # 로그인 세션 쿠키. HttpOnly 는 JS 가 못 읽게 하는 것이고,
+  # SameSite=Lax 여야 Slack 콜백(외부 도메인 → 우리 서버)에 쿠키가 실린다.
+  # Strict 로 두면 콜백에서 state 대조가 항상 실패한다.
+server:
+  servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
+        secure: ${SESSION_COOKIE_SECURE:true}
+      timeout: 14d
+
+careerfit:
+  auth:
+    # 실제 값은 절대 여기 쓰지 않는다. 환경변수나 application-local.yml 로 준다.
+    client-id: ${SLACK_CLIENT_ID:}
+    client-secret: ${SLACK_CLIENT_SECRET:}
+    # 우리 워크스페이스. 이 값과 다른 워크스페이스 계정은 403 으로 막힌다.
+    allowed-team-id: ${SLACK_ALLOWED_TEAM_ID:T089ENT4A2D}
+    # 요청 헤더에서 유추하지 않고 이 값을 그대로 쓴다.
+    # Slack App 설정의 Redirect URL 과 문자 하나까지 같아야 한다.
+    redirect-uri: ${SLACK_REDIRECT_URI:}
+    cookie-secure: ${SESSION_COOKIE_SECURE:true}
+    session-ttl: 14d

@@ -1,0 +1,33 @@
+# ── 비밀값 ───────────────────────────────────────────────
+# Slack client secret 이 여기로 들어간다. 절대 커밋하지 않는다.
+.env
+.env.local
+**/application-local.yml
+**/application-secret.yml
+*.pem
+*.key
+
+# ── 빌드 산출물 ──────────────────────────────────────────
+build/
+out/
+target/
+bin/
+.gradle/
+!gradle/wrapper/gradle-wrapper.jar
+
+# Python (ai/)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# Node (frontend/)
+node_modules/
+dist/
+.next/
+
+# ── 편집기 · OS ──────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+.DS_Store
