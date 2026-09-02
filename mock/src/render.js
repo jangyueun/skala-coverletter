@@ -91,7 +91,6 @@ function renderS1(){
   $('#s1cnt').textContent = exps.length;
   const tagged = new Set(exps.flatMap(e => e.competencyIds));
   $('#s1cov').textContent = tagged.size;
-  $('#s1star').textContent = exps.filter(e => e.situation && e.task && e.action && e.result).length;
 
   $('#s1chips').innerHTML = DATA.competencies
     .filter(c => tagged.has(c.id))
