@@ -44,20 +44,34 @@ const appMatch    = app => { const p = postingOf(app); return p ? Math.round(com
 /* 공고 하나의 자소서 진행 — 카드·상세가 같은 함수를 쓴다 */
 function essayProgress(posting){
   const app = appOfPosting(posting);
-  if (!app) return { state:'NO_APP', label:'미지원', done:0, total:0, ratio:0, versions:0 };
+  if (!app) return { state:'NO_APP', label:'', done:0, total:0, ratio:0, thin:0 };
   const qs = DATA.questions.filter(q => q.applicationId === app.id);
-  if (!qs.length) return { state:'NO_Q', label:'문항 미등록', done:0, total:0, ratio:0, versions:0, app };
+  if (!qs.length) return { state:'NO_Q', label:'', done:0, total:0, ratio:0, thin:0, app };
   const done = qs.filter(q => (q.draft || '').trim()).length;
+  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
   return {
-    state: done === qs.length ? 'DONE' : 'WRITING',
+    state: done === qs.length ? 'DONE' : done === 0 ? 'EMPTY' : 'WRITING',
+    thin,
     label: `${done} / ${qs.length}문항`,
     done, total: qs.length, ratio: done / qs.length,
-    versions: qs.reduce((a, q) => a + (q.versions || []).length, 0), app,
+    app,
   };
 }
 const appQs       = app => DATA.questions.filter(q => q.applicationId === app.id);
 const appRemain   = app => { const qs = appQs(app); return qs.length ? `${qs.filter(q => !(q.draft||'').trim()).length} / ${qs.length}` : '— / —'; };
-const usedCount   = expId => DATA.questions.filter(q => (q.usedExperienceIds || []).includes(expId)).length;
+/* 이 경험이 실제로 쓰인 정도 — 관측 가능한 것만 센다.
+   ① 근거로 걸려 있고  ② 본문이 실제로 작성된 답변  ③ 서로 다른 공고 수
+   공고가 직무 단위라 같은 기업의 다른 직무에 쓰면 2건으로 센다.
+   체크만 하고 안 쓴 문항은 세지 않는다. 제출 여부는 알 수 없으므로 보지 않는다. */
+const usedIn = expId => {
+  const qs = DATA.questions.filter(q =>
+    (q.usedExperienceIds || []).includes(expId) && (q.draft || '').trim());
+  const postingIds = new Set(qs.map(q => {
+    const a = DATA.applications.find(x => x.id === q.applicationId);
+    return a ? a.postingId : null;
+  }).filter(Boolean));
+  return { questions: qs.length, postings: postingIds.size };
+};
 const postingOfQ  = q => postingOf(DATA.applications.find(a => a.id === q.applicationId)) || P();
 /* 오기 감지 대상 = 내가 아는 모든 기업 − 지금 쓰고 있는 그 기업.
    고정 배열로 두면 공고를 바꿀 때마다 어긋난다. */
@@ -103,7 +117,9 @@ function renderS1(){
         <div style="display:flex; gap:6px; margin-bottom:12px">
           <span class="pill mut">${esc(e.category)}</span>
           ${e.source === 'AI_INTAKE' ? `<span class="pill info" title="${esc((e.evidenceRefs||[]).join(', '))}">포폴 인테이크</span>` : ''}
-          ${usedCount(e.id) ? `<span class="pill acc">자소서 ${usedCount(e.id)}회 사용</span>` : ''}
+          ${(() => { const u = usedIn(e.id); return u.postings
+            ? `<span class="pill acc" title="본문이 작성된 답변에 근거로 걸린 공고 수. 공고는 직무 단위라 같은 기업의 다른 직무는 따로 센다.">자소서 ${u.postings}개 공고에 사용</span>`
+            : ''; })()}
         </div>
         <dl style="display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin:0">
           <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(e.situation)}</dd>
@@ -156,7 +172,7 @@ function toggleBm(id){
   toast(bookmarks.has(id) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
 }
 const bmIcon = on => `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.6 1.6h8.8v12.8L8 11.2 3.6 14.4z" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
-const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '저장됨' : '저장') : ''}</button>`;
+const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '즐겨찾기됨' : '즐겨찾기') : ''}</button>`;
 function bindBm(root){
   $$(`${root} [data-bm]`).forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleBm(+b.dataset.bm); }));
 }
@@ -175,7 +191,6 @@ function openDetail(id, tab){
 
 function renderDetail(){
   const p = P(), m = computeMatch(p), app = appOfPosting(p), ep = essayProgress(p);
-  const siblings = DATA.postings.filter(x => x.company === p.company && x.id !== p.id && dday(x.deadline) >= 0);
   const gaps = m.rows.filter(r => r.isGap).length;
   const mc = m.overall >= SCORE.RECOMMEND ? 'var(--matched)' : m.overall >= SCORE.WEAK ? 'var(--info)' : 'var(--gap)';
   const d = dday(p.deadline);
@@ -187,10 +202,6 @@ function renderDetail(){
       <div class="co">${esc(p.company)}</div>
       <h2 id="dth">${esc(p.position)}</h2>
       <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:var(--mono)">${esc(p.sourceUrl || '직접 입력')}</div>
-      ${siblings.length ? `<div style="display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap">
-        <span style="font-size:11.5px; color:var(--muted)">같은 기업 다른 직무</span>
-        ${siblings.map(x => `<button class="btn sm" data-sib="${x.id}">${esc(x.position)} · ${Math.round(computeMatch(x).overall*100)}%</button>`).join('')}
-      </div>` : ''}
     </div>
     <div class="nums">
       <div class="num"><b style="color:${mc}">${Math.round(m.overall*100)}%</b><span>매칭</span></div>
@@ -207,13 +218,9 @@ function renderDetail(){
         <span class="pill" style="color:${vc}">${vl}</span>
         <span style="font-size:12.5px; color:var(--ink)">${esc(a.headline)}</span>
         ${busy ? `<span class="pill mut">${ASSESS_LABEL[st.state]}</span>` : ''}
-        <button class="btn sm" id="dtToMatch" style="margin-left:auto">평가 보기 →</button>
       </div>`;
     })()}`;
   bindBm('#dtHead');
-  $$('#dtHead [data-sib]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.sib, dtTab)));
-  const tm = $('#dtToMatch');
-  if (tm) tm.addEventListener('click', () => { dtTab = 'match'; paintDtTab(); });
 
   $('#dtEssayBadge').innerHTML = ep.total
     ? `<span class="pill ${ep.state === 'DONE' ? 'ok' : 'mut'}">${ep.done}/${ep.total}</span>`
@@ -221,9 +228,14 @@ function renderDetail(){
     : p.questionsFromServer === false ? `<span class="pill warn">문항 없음</span>` : '';
 
   renderJD();
+  bindRelated();
   renderS3();
   renderEssay();
   paintDtTab();
+}
+
+function bindRelated(){
+  $$('#dtPost [data-rel]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.rel, 'post')));
 }
 
 function paintDtTab(){
@@ -248,6 +260,49 @@ function parseJD(raw){
   return { head, sections: out };
 }
 
+
+/* 관련 공고 — 같은 기업 다른 직무 / 다른 기업 같은 직무.
+   role 은 수집 시 분류하는 직무 계열 taxonomy 다 (기업이 쓰는 직무명은 제각각이라
+   문자열로는 못 묶는다 — "서버 개발"과 "백엔드 엔지니어"는 같은 계열이다). */
+const ROLE_LABEL = { BACKEND:'백엔드', FRONTEND:'프론트엔드', FULLSTACK:'풀스택', PLATFORM:'플랫폼·인프라' };
+
+function relatedHtml(p){
+  const live = DATA.postings.filter(x => x.id !== p.id && dday(x.deadline) >= 0);
+  const sameCo   = live.filter(x => x.company === p.company);
+  const sameRole = live.filter(x => x.role === p.role && x.company !== p.company);
+  if (!sameCo.length && !sameRole.length) return '';
+
+  const row = x => {
+    const m = Math.round(computeMatch(x).overall * 100);
+    const mc = m >= 85 ? 'var(--matched)' : m >= 70 ? 'var(--info)' : 'var(--gap)';
+    return `<button class="btn rel-post" data-rel="${x.id}" style="justify-content:flex-start; gap:10px; padding:9px 12px">
+      <span class="jc-logo" style="width:28px; height:28px; font-size:12px">${esc(x.company.slice(0,1))}</span>
+      <span style="text-align:left; line-height:1.4">
+        <span style="display:block; font-size:12.5px; color:var(--ink)">${esc(x.position)}</span>
+        <span style="display:block; font-size:11px; color:var(--muted)">${esc(x.company)} · D-${dday(x.deadline)}</span>
+      </span>
+      <span class="mono" style="margin-left:auto; font-weight:600; color:${mc}">${m}%</span>
+    </button>`;
+  };
+
+  return `<div class="card" data-note="GET /api/postings?company= / ?role=">
+    <div class="cardhead"><h3>관련 공고</h3><span class="n">지금 매칭 ${Math.round(computeMatch(p).overall*100)}%</span></div>
+    <div class="cardbody" style="display:grid; gap:16px">
+      ${sameCo.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">같은 기업 다른 직무</div>
+        <div style="display:grid; gap:7px">${sameCo.map(row).join('')}</div>
+      </div>` : ''}
+      ${sameRole.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">다른 기업 같은 직무 · ${esc(ROLE_LABEL[p.role] || p.role)}</div>
+        <div style="display:grid; gap:7px">${sameRole.map(row).join('')}</div>
+      </div>` : ''}
+      <p style="font-size:11.5px; color:var(--muted); border-top:1px dashed var(--border); padding-top:10px">
+        같은 직무라도 회사마다 요구 역량과 가중치가 달라 매칭이 갈린다. 공고는 기업이 아니라 <b>직무 단위 엔티티</b>다.
+      </p>
+    </div>
+  </div>`;
+}
+
 function renderJD(){
   const p = P(), { head, sections } = parseJD(p.rawText);
   $('#dtPost').innerHTML = `
@@ -263,14 +318,35 @@ function renderJD(){
       </div>
     </div>
 
-    <div class="card" data-note="posting_competency">
+    <div class="card" style="margin-bottom:16px" data-note="posting_competency">
       <div class="cardhead">
-        <h3>추출된 요구 역량</h3>
-        <span class="n" id="s2n">${p.required.length}건</span>
-        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출 · temperature 0.0</span>
+        <h3>요구 역량</h3>
+        <span class="n">${p.required.length}개</span>
+        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출</span>
       </div>
-      <div class="cardbody" id="s2out"></div>
+      <div class="cardbody">
+        <div class="chips">
+          ${[...p.required].sort((a, b) => b.weight - a.weight).map(r => {
+            const c = byId(r.competencyId);
+            return `<span class="chip ${CAT[c.category]}" title="${esc(r.evidence)}">${esc(c.name)}</span>`;
+          }).join('')}
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:10px">
+          공고 원문에서 뽑은 역량이다. 가중치와 내 경험의 커버리지는 <b>매칭</b> 탭에서 본다.
+        </p>
+
+        ${p.newCompetencies.length ? `
+          <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border)" data-note="newCompetencies">
+            <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:7px">
+              역량 사전에 없는 표현 ${p.newCompetencies.length}개 · 승인 필요
+            </div>
+            <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
+            <p style="font-size:11px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
+          </div>` : ''}
+      </div>
     </div>
+
+    ${relatedHtml(p)}
 
     <div class="noteonly" style="margin-top:12px">
       <div style="font-size:11px; color:var(--muted); margin-bottom:6px">수집 배치 기록 · 읽기 전용</div>
@@ -280,35 +356,6 @@ function renderJD(){
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="s2">200</span> <span class="t">{ required: ${p.required.length}, newCompetencies: ${p.newCompetencies.length}, latencyMs: 1240 }</span></div>
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">UPSERT</span> <span class="t">posting_competency × ${p.required.length}</span></div>
       </div>
-    </div>`;
-  paintS2Result();
-}
-
-function paintS2Result(){
-  const p = P();
-  $('#s2out').innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:10px">
-      ${p.required.map(r => { const c = byId(r.competencyId); const ev = DATA.experiences.filter(e => e.competencyIds.includes(r.competencyId)); return `
-        <div style="display:grid; grid-template-columns:118px 1fr auto; gap:12px; align-items:center">
-          <span class="chip ${ev.length ? CAT[c.category] : 'on-gap'}" style="justify-content:center">${esc(c.name)}</span>
-          <div>
-            <div class="meter ${ev.length ? '' : 'is-gap'}"><i style="width:${Math.round(r.weight*100)}%"></i></div>
-            <div style="font-size:11px; color:var(--faint); margin-top:4px">“${esc(r.evidence)}”</div>
-          </div>
-          <span class="mono" style="font-size:11.5px; color:var(--muted)">${r.weight.toFixed(1)}</span>
-        </div>`; }).join('')}
-    </div>
-
-    ${p.newCompetencies.length ? `
-      <div style="margin-top:18px; padding:12px 14px; background:var(--gap-soft); border:1px solid var(--gap); border-radius:3px" data-note="newCompetencies">
-        <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:6px">역량 사전에 없는 표현 ${p.newCompetencies.length}개 — 승인 필요</div>
-        <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
-        <p style="font-size:11.5px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
-      </div>` : ''}
-
-    <div style="margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--muted)">
-      이 목록은 <b>사용자가 요청해서 만든 것이 아니다.</b> 공고를 수집하는 배치가 적재 시점에 AX-1 추출까지 끝내 둔다 —
-      그래서 이 화면을 열 때 기다릴 일이 없고, 파서와 프롬프트는 서비스 운영자만 손댄다.
     </div>`;
 }
 
@@ -688,28 +735,20 @@ function paintS4Live(q, list){
       <span style="position:absolute; left:80%; top:-2px; width:1px; height:11px; background:var(--ink); opacity:.55"></span>
     </div>
     <span class="mono" style="font-size:12px; color:${over || thin ? 'var(--gap)' : 'var(--matched)'}; font-variant-numeric:tabular-nums">${s4text.length} / ${q.charLimit}자</span>`;
-  const side = $('#s4side');
-  if (side){ side.innerHTML = s4SideHtml(q, list); bindS4Side(list); }
+  const lint = $('#s4lint');
+  if (lint) lint.innerHTML = s4LintHtml(q);
 }
 
 function bindS4Side(list){
   $$('#s4side .s4ex').forEach(c => c.addEventListener('change', () => {
     s4used = $$('#s4side .s4ex').filter(x => x.checked).map(x => +x.value);
     const q2 = DATA.questions.find(x => x.id === s4qid); q2.usedExperienceIds = s4used;
+    const n = $('#s4side .cardhead .n'); if (n) n.textContent = `${s4used.length}건`;
     paintS4Live(q2, list);
-  }));
-  $$('#s4side [data-ver]').forEach(b => b.addEventListener('click', () => {
-    const q2 = DATA.questions.find(x => x.id === s4qid);
-    const v = q2.versions.find(x => x.v === +b.dataset.ver);
-    s4text = v.content; q2.draft = s4text; renderEssay();
-    toast(`v${v.v} 로 되돌렸습니다`);
   }));
 }
 
-function s4SideHtml(q, list){
-  const issues = lint(s4text, q);
-  const problems = issues.filter(i => i.level !== 'info');
-  const notes = issues.filter(i => i.level === 'info');
+function s4EvidenceHtml(q, list){
   return `
       <div class="card" data-note="answer_experience">
         <div class="cardhead"><h3>근거 경험</h3><span class="n">${s4used.length}건</span></div>
@@ -723,27 +762,20 @@ function s4SideHtml(q, list){
             체크한 경험의 id 가 <code>usedExperienceIds</code> 로 프롬프트에 들어가고, 저장 시 <code>answer_experience</code> 에 기록된다. AI가 무엇을 근거로 썼는지 DB가 기억한다.
           </p>
         </div>
-      </div>
+      </div>`;
+}
 
-      <div class="card" data-note="answer · version 이력">
-        <div class="cardhead"><h3>저장된 버전</h3><span class="n">${(q.versions||[]).length}개</span></div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:7px">
-          ${(q.versions||[]).length ? [...q.versions].reverse().map(v => `
-            <div style="display:flex; gap:8px; align-items:center; font-size:11.5px">
-              <span class="pill ${v.source === 'AI_DRAFT' ? 'acc' : 'mut'}">v${v.v}</span>
-              <span style="color:var(--muted)">${esc(v.at)} · ${v.len}자 · ${v.source === 'AI_DRAFT' ? 'AI 초안' : '직접 작성'}</span>
-              <button class="btn sm" data-ver="${v.v}" style="margin-left:auto">되돌리기</button>
-            </div>`).join('')
-          : '<p style="font-size:11.5px; color:var(--faint)">아직 저장한 버전이 없습니다. 자소서는 고쳐 쓰는 게 본질이라 덮어쓰지 않고 버전을 쌓습니다.</p>'}
-        </div>
-      </div>
-
+function s4LintHtml(q){
+  const issues = lint(s4text, q);
+  const problems = issues.filter(i => i.level !== 'info');
+  const notes = issues.filter(i => i.level === 'info');
+  return `
       <div class="card" data-note="문자열 규칙 · AI 아님">
         <div class="cardhead">
           <h3>문장 점검</h3>
           <span class="n" style="color:${problems.length ? 'var(--gap)' : 'var(--matched)'}">${problems.length ? problems.length + '건' : '이상 없음'}</span>
         </div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:10px">
+        <div class="cardbody" style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
           ${problems.length ? problems.map(i => `
             <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
@@ -754,16 +786,16 @@ function s4SideHtml(q, list){
             </div>`).join('')
           : '<p style="font-size:12px; color:var(--matched)">분량 · 기업명 · 금지 표현 · 정량 근거 · 비교 기준 · 요구사항 · 두괄식 모두 통과했습니다.</p>'}
           ${notes.map(i => `
-            <div style="display:flex; flex-direction:column; gap:3px; padding-top:9px; border-top:1px dashed var(--border)">
+            <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
                 <span class="pill info">${i.label}</span>
                 <span style="font-size:10px; color:var(--faint); font-family:var(--mono)">${esc(i.rank)}</span>
               </div>
               <span style="font-size:12px; color:var(--muted); padding-left:2px">${esc(i.msg)}</span>
             </div>`).join('')}
-          <p style="font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:9px">
-            여섯 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
-          </p>
+        </div>
+        <div style="padding:0 18px 14px; font-size:11px; color:var(--muted)">
+          여덟 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
         </div>
       </div>`;
 }
@@ -771,6 +803,7 @@ function s4SideHtml(q, list){
 function renderEssay(){
   const p = P();
   const app = appOfPosting(p);
+  const ep = essayProgress(p);
 
   if (!app){
     $('#dtEssay').innerHTML = `
@@ -782,7 +815,7 @@ function renderEssay(){
     $('#esMkApp').addEventListener('click', () => {
       openApp();
       $('#apCo').value = p.company; $('#apPos').value = p.position;
-      $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+      $('#apDday').value = dday(p.deadline);
     });
     return;
   }
@@ -824,15 +857,15 @@ function renderEssay(){
       <div class="cardhead"><h3>지원서</h3><span class="n">${list.length}문항</span></div>
       <div class="cardbody" style="padding:10px; display:flex; flex-direction:column; gap:10px">
         <div style="font-size:11px; color:var(--faint); display:flex; gap:8px; flex-wrap:wrap">
-          <span>${esc(STATUS[app.status].label)}</span>
-          <span>미작성 ${appRemain(app)}문항</span>
+          <span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>
+          <span>${esc(ep.label)}</span>
         </div>
         <button class="btn sm" data-addQ2="${app.id}" style="justify-content:center">＋ 문항 추가</button>
         <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:9px">
         ${list.map(x => `
           <button class="qitem" data-q="${x.id}" aria-current="${x.id === s4qid ? 'true' : 'false'}">
             <span style="font-size:12px; line-height:1.5">${esc(x.prompt.length > 44 ? x.prompt.slice(0,44) + '…' : x.prompt)}</span>
-            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}${(x.versions||[]).length ? ' · v' + x.versions.length : ''}</span>
+            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}</span>
           </button>`).join('')}
         </div>
       </div>
@@ -853,7 +886,7 @@ function renderEssay(){
         <textarea class="inp" id="s4ta" rows="13" spellcheck="false" placeholder="근거 경험을 고른 뒤 초안을 생성하거나, 직접 쓰세요">${esc(s4text)}</textarea>
         <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap">
           <button class="btn primary sm" id="s4gen" data-note="POST /answers/${q.id}/ai/draft → 202">초안 생성</button>
-          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">새 버전 저장</button>
+          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">저장</button>
           <span class="spacer" style="flex:1"></span>
           <div style="display:flex; align-items:center; gap:9px" id="s4count">
             <div style="position:relative; width:118px" title="80% 지점 눈금 — 그 아래는 무성의 감점 구간">
@@ -866,20 +899,20 @@ function renderEssay(){
       </div>
     </div>
 
-    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>`;
+    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>
+    </div>
 
-  $("#s4side").innerHTML = s4SideHtml(q, list);
+    <div id="s4lint" style="margin-top:16px"></div>`;
+
+  $('#s4side').innerHTML = s4EvidenceHtml(q, list);
+  $('#s4lint').innerHTML = s4LintHtml(q);
   $$('#dtEssay [data-addQ2]').forEach(b => b.addEventListener('click', () => openQ(+b.dataset.addq2)));
   $('#s4save').addEventListener('click', () => {
     const q2 = DATA.questions.find(x => x.id === s4qid);
-    const body = s4text.trim();
-    if (!body){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
-    q2.versions = q2.versions || [];
-    if (q2.versions.length && q2.versions[q2.versions.length-1].content === body){ toast('직전 버전과 같습니다'); return; }
-    q2.versions.push({ v: q2.versions.length + 1, content: body, len: body.length, at: stamp(),
-                       source: body === q2.aiDraft ? 'AI_DRAFT' : 'MANUAL' });
-    renderEssay(); renderHome();
-    toast(`v${q2.versions.length} 저장 · ${app.company} 지원서에 묶임`);
+    if (!s4text.trim()){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
+    q2.draft = s4text;
+    renderDetail(); renderHome();
+    toast(`저장했습니다 · ${app.company} 지원서에 묶임`);
   });
   $$('#dtEssay [data-ask]').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.ask;
@@ -919,12 +952,14 @@ function renderEssay(){
   });
 }
 
-const STATUS = {
-  PLANNED:   { label:'지원 예정', cls:'mut' },
-  WRITING:   { label:'작성 중',   cls:'warn' },
-  SUBMITTED: { label:'제출',      cls:'info' },
-  INTERVIEW: { label:'면접',      cls:'acc' },
-  RESULT:    { label:'결과 대기', cls:'ok' },
+/* 지원서 진행 상태는 저장하지 않는다 — questions 의 draft 유무에서 파생한다.
+   제출 여부는 우리가 관측할 수 없으므로 모델에 두지 않는다. */
+const ESSAY_STATE = {
+  NO_APP:  { label:'지원서 없음',  cls:'mut' },
+  NO_Q:    { label:'문항 미등록',  cls:'mut' },
+  EMPTY:   { label:'작성 전',      cls:'warn' },
+  WRITING: { label:'작성 중',      cls:'warn' },
+  DONE:    { label:'작성 완료',    cls:'ok' },
 };
 
 /* ============================================================
@@ -933,30 +968,16 @@ const STATUS = {
 let homeSort = 'match';
 let homeOnlyBm = false;
 
-function progressOf(posting){
-  const app = DATA.applications.find(a => a.postingId === posting.id);
-  if (!app) return { app:null, label:'지원서 없음', done:0, total:0, ratio:0, versions:0 };
-  const qs = qOf(app.id);
-  const done = qs.filter(q => (q.draft || '').trim().length > 0).length;
-  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
-  const versions = qs.reduce((a, q) => a + (q.versions || []).length, 0);
-  return {
-    app, done, total: qs.length, versions, thin,
-    ratio: qs.length ? done / qs.length : 0,
-    label: qs.length ? `${done} / ${qs.length}문항` : '문항 미등록',
-  };
-}
-
 function renderHome(){
   const all = DATA.postings.filter(p => dday(p.deadline) >= 0);
   const live = all.filter(p => !homeOnlyBm || isBm(p.id))
-    .map(p => ({ p, m: computeMatch(p), pr: progressOf(p), d: dday(p.deadline) }));
+    .map(p => ({ p, m: computeMatch(p), pr: essayProgress(p), d: dday(p.deadline) }));
 
   live.sort((a, b) => homeSort === 'match' ? b.m.overall - a.m.overall : a.d - b.d);
 
   const avg = live.length ? live.reduce((a, x) => a + x.m.overall, 0) / live.length : 0;
   const soon = live.filter(x => x.d <= 7).length;
-  const writing = live.filter(x => x.pr.app && x.pr.app.status === 'WRITING').length;
+  const writing = live.filter(x => x.pr.state === 'WRITING' || x.pr.state === 'EMPTY').length;
 
   $('#homeStats').innerHTML = [
     ['활성 공고', all.length, ''],
@@ -1003,8 +1024,7 @@ function renderHome(){
             ${ep.total
               ? `<div class="meter" style="width:52px"><i style="width:${Math.round(ep.ratio*100)}%"></i></div>
                  <span class="mono" style="font-size:11px; color:${ep.state === 'DONE' ? 'var(--matched)' : 'var(--ink-2)'}">자소서 ${ep.done}/${ep.total}</span>`
-              : `<span class="pill mut">자소서 ${esc(ep.label)}</span>`}
-            ${ep.versions ? `<span class="mono" style="font-size:10.5px; color:var(--faint)">${ep.versions}버전</span>` : ''}
+              : `<span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>`}
           </div>
         </div>
         <button class="btn primary sm" data-open="${p.id}" data-tab="essay">
@@ -1017,7 +1037,7 @@ function renderHome(){
   $('#homeNote').innerHTML = '정렬은 <b>매칭순</b>과 <b>마감 임박순</b> 두 가지다. 지원자 수 기준 인기순은 넣지 않았다 — 공고 사이트가 지원자 수를 공개할 때만 가능한 지표라, 없는 데이터를 있는 척할 수 없다.';
 
   $('#onlyBm').setAttribute('aria-pressed', String(homeOnlyBm));
-  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 저장 버튼을 눌러 담아 두세요.</p>';
+  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 즐겨찾기 버튼을 눌러 담아 두세요.</p>';
   bindBm('#homeList');
   $('#sortMatch').setAttribute('aria-pressed', String(homeSort === 'match'));
   $('#sortDday').setAttribute('aria-pressed', String(homeSort === 'dday'));
@@ -1031,7 +1051,7 @@ function renderHome(){
   $$('#homeList [data-mkApp]').forEach(b => b.addEventListener('click', () => {
     const p = DATA.postings.find(x => x.id === +b.dataset.mkapp);
     openApp(); $('#apCo').value = p.company; $('#apPos').value = p.position;
-    $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+    $('#apDday').value = dday(p.deadline);
   }));
 }
 $('#sortMatch').addEventListener('click', () => { homeSort = 'match'; renderHome(); });
@@ -1087,9 +1107,9 @@ const TABLES = [
   ['company',               'id, name, career_url',                                                             'career_url 이 수집 대상', ''],
   ['job_posting',           'id, company_id, position, raw_text, deadline, source, collected_at, questions_from_server', '직무 단위 · 기업 단위가 아니다', ''],
   ['posting_competency',    'posting_id, competency_id, weight, evidence_line, evidence_status',                'N:M', 'weight·인용줄·검증상태가 쌍의 속성'],
-  ['application',           'id, user_id, posting_id, status, submitted_at',                                    '', ''],
+  ['application',           'id, user_id, posting_id, created_at',                                              '', 'status·submitted_at 없음 — 제출 여부는 관측 불가라 모델에 두지 않는다'],
   ['question',              'id, application_id, seq, prompt_text, char_limit, asks[]',                         '', ''],
-  ['answer',                'id, question_id, version, content, char_count, is_final, source',                  '버전 누적 · 덮어쓰지 않는다', ''],
+  ['answer',                'id, question_id, content, char_count, source, updated_at',                        '문항당 1행', ''],
   ['answer_experience',     'answer_id, experience_id',                                                         'N:M', '이 문장이 어떤 경험을 근거로 썼는가'],
   ['assessment',            'id, application_id, verdict, headline, summary, state, input_sig, computed_at',    '이벤트로 갱신 · 화면은 읽기만', ''],
   ['assessment_action',     'id, assessment_id, seq, effort, tag, title',                                       '', ''],
@@ -1126,11 +1146,11 @@ function buildSeedSql(){
 
   L.push('', '-- application · question · answer');
   DATA.applications.filter(a => a.id).forEach(a =>
-    L.push(`INSERT INTO application (id, user_id, posting_id, status) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'}, ${sq(a.status)});`));
+    L.push(`INSERT INTO application (id, user_id, posting_id) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'});`));
   DATA.questions.forEach((q, i) => {
     L.push(`INSERT INTO question (id, application_id, seq, prompt_text, char_limit) VALUES (${q.id}, ${q.applicationId}, ${i + 1}, ${sq(q.prompt)}, ${q.charLimit});`);
-    (q.versions || []).forEach(v =>
-      L.push(`INSERT INTO answer (question_id, version, content, char_count, is_final, source) VALUES (${q.id}, ${v.v}, ${sq(v.content)}, ${v.len}, ${v.v === (q.versions.length)}, ${sq(v.source)});`));
+    if ((q.draft || '').trim())
+      L.push(`INSERT INTO answer (question_id, content, char_count, source) VALUES (${q.id}, ${sq(q.draft)}, ${q.draft.length}, 'MANUAL');`);
   });
 
   L.push('', 'COMMIT;');
@@ -1236,12 +1256,12 @@ function renderSpec(){
   const enums = [
     ['competency.category', ['TECH','SOFT','DOMAIN','VALUE'], '역량 범주'],
     ['posting.source', ['CRAWLED','MANUAL'], '공고가 어떻게 들어왔나'],
-    ['application.status', Object.keys(STATUS), '지원 진행 상태'],
+    ['(파생) 자소서 진행', Object.keys(ESSAY_STATE), '컬럼이 아니다 — questions 의 draft 유무에서 계산한다'],
     ['assessment.state', ['FRESH','QUEUED','RUNNING'], '평가 재계산 상태'],
     ['assessment.verdict', ['RECOMMEND','CONDITIONAL','HOLD'], '지원 판정'],
     ['action.effort', Object.keys(EFFORT), '액션 난이도'],
     ['experience.source', ['MANUAL','AI_INTAKE'], '경험을 어떻게 만들었나'],
-    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 버전 출처'],
+    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 본문 출처'],
     ['intake.question.field', ['task','result'], 'AI 가 되물을 STAR 필드'],
   ];
 
@@ -1401,17 +1421,6 @@ function renderSpec(){
 /* ============================================================
    부트
    ============================================================ */
-DATA.questions.forEach(q => {
-  if (!q.versionsSeed || !q.draft) return;
-  q.versions = Array.from({ length: q.versionsSeed }, (_, i) => ({
-    v: i + 1,
-    content: q.draft,
-    len: q.draft.length,
-    at: `8/${28 + i} 21:0${i}`,
-    source: i === 0 ? 'AI_DRAFT' : 'MANUAL',
-  }));
-});
-seedAssess();
 renderS1(); renderHome(); renderSpec();
 (() => {
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -1566,7 +1575,7 @@ function saveExp(){
 /* ---------- 지원 등록 ---------- */
 function openApp(){
   ['apCo','apPos'].forEach(id => $('#' + id).value = '');
-  $('#apSt').selectedIndex = 0; $('#apDday').value = 14; $('#apQ').value = 4;
+  $('#apDday').value = 14; $('#apQ').value = 4;
   $('#apErr').innerHTML = '';
   $('#appDlg').showModal();
   $('#apCo').focus();
@@ -1588,10 +1597,8 @@ function saveApp(){
     id: Math.max(100, ...DATA.applications.map(a => a.id || 0)) + 1,
     postingId: DATA.postings.find(p => p.company === company)?.id ?? null,
     company, position,
-    status: $('#apSt').value,
     dday: Math.max(0, +$('#apDday').value || 0),
     match: null,
-    remainingQuestions: `— / ${q}`,
   });
   $('#appDlg').close();
   renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
@@ -1852,7 +1859,6 @@ $('#qSave').addEventListener('click', () => {
   DATA.questions.push({
     id: Math.max(0, ...DATA.questions.map(q => q.id)) + 1,
     applicationId: qDlgApp,
-    versions: [],
     charLimit: Math.max(100, +$('#qLimit').value || 700),
     prompt,
     intent: '직접 등록한 문항입니다. 공고의 평가 포인트를 확인해 의도를 채워 두면 점검이 정확해집니다.',

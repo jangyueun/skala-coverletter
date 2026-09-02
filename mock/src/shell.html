@@ -294,6 +294,9 @@ figure.fig figcaption{margin-top:12px; font-size:12px; color:var(--muted); max-w
 .dia rect.hub{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
 .dia .rel{stroke:currentColor; stroke-width:1.4; opacity:.5; fill:none}
 .dia .nmline{stroke:var(--accent); stroke-width:2.6; fill:none}
+#s4lint .cardbody{padding-top:14px}
+.rel-post{width:100%; align-items:center; background:var(--surface); border-color:var(--border)}
+.rel-post:hover{border-color:var(--accent); background:var(--surface-2)}
 .spec-sec{margin-bottom:22px}
 .spec-sec > h3{display:flex; align-items:baseline; gap:9px; margin-bottom:4px}
 .spec-sec > h3 .no{font-family:var(--mono); font-size:11px; color:var(--accent); border:1px solid currentColor; padding:1px 5px; border-radius:2px}
@@ -614,13 +617,7 @@ https://drive.example/해커톤_발표자료.pdf</textarea>
       <div class="field"><label for="apCo">기업명 *</label><input class="inp" id="apCo" placeholder="예) 세움테크"></div>
       <div class="field"><label for="apPos">직무 *</label><input class="inp" id="apPos" placeholder="예) 백엔드 엔지니어"></div>
     </div>
-    <div class="frow f3">
-      <div class="field"><label for="apSt">상태</label>
-        <select class="inp" id="apSt">
-          <option value="PLANNED">지원 예정</option><option value="WRITING">작성 중</option>
-          <option value="SUBMITTED">제출</option><option value="INTERVIEW">면접</option><option value="RESULT">결과 대기</option>
-        </select>
-      </div>
+    <div class="frow">
       <div class="field"><label for="apDday">마감까지 (일)</label><input class="inp" id="apDday" type="number" min="0" max="365" value="14"></div>
       <div class="field"><label for="apQ">문항 수</label><input class="inp" id="apQ" type="number" min="1" max="12" value="4"></div>
     </div>
