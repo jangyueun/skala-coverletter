@@ -1812,8 +1812,7 @@ function paintStep1(){
           <div style="flex:1">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
               <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
-              ${dup ? `<span class="pill mut">이미 등록됨</span>`
-                    : `<span class="pill warn">직접 쓸 칸 ${mineOf(c).length}</span>`}
+              ${dup ? `<span class="pill mut">이미 등록됨</span>` : ''}
               ${started ? `<span class="pill acc" title="체크를 풀어도 쓰던 내용은 남아 있습니다">작성 중</span>` : ''}
               <span class="pill mut">${esc(c.category)}</span>
             </div>
