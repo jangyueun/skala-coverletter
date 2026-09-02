@@ -86,7 +86,7 @@ const DATA = {
   activePostingId: 9,
   postings: [
     {
-      id: 9, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
+      id: 9, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
       collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'백엔드 엔지니어 (신입)', deadline:'2026-09-12',
     rawText:
@@ -129,7 +129,7 @@ const DATA = {
     },
 
     {
-      id: 10, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
+      id: 10, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
       collectedAt:'2026-09-01 04:12',
       company:'다온소프트', position:'서버 개발 (신입)', deadline:'2026-09-15',
       rawText:
@@ -164,7 +164,7 @@ const DATA = {
     },
 
     {
-      id: 11, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
+      id: 11, role:'PLATFORM', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
       collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21',
       rawText:
@@ -198,7 +198,7 @@ const DATA = {
     },
 
     {
-      id: 12, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
+      id: 12, role:'BACKEND', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
       company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28',
       rawText:
 `[코어링크] AI 프로덕트 백엔드 엔지니어 (신입)
@@ -226,7 +226,7 @@ const DATA = {
     },
 
     {
-      id: 13, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
+      id: 13, role:'FULLSTACK', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
       company:'리버트리', position:'풀스택 엔지니어 (신입)', deadline:'2026-09-08',
       rawText:
 `[리버트리] 풀스택 엔지니어 신입 채용
@@ -254,7 +254,7 @@ const DATA = {
     },
 
     {
-      id: 14, questionsFromServer: true, source:'CRAWLED',
+      id: 14, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://careers.seumtech.example/jobs/2026-fe', collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-09-12',
       rawText:
@@ -288,7 +288,7 @@ const DATA = {
     },
 
     {
-      id: 15, questionsFromServer: true, source:'CRAWLED',
+      id: 15, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://hanbit-sys.example/careers/sre', collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'SRE (신입)', deadline:'2026-09-25',
       rawText:
@@ -324,7 +324,7 @@ const DATA = {
      SKALA 서류 전형 문항 구조를 가상 공고에 맞춰 각색했다. */
   questions: [
     {
-      id: 31, applicationId: 101, versions: [], charLimit: 700,
+      id: 31, applicationId: 101, charLimit: 700,
       prompt:'현재 본인이 어떤 갈림길에 서 있다고 느끼는지 구체적으로 설명하고, 당사 지원이 그 선택에 어떤 영향을 주는지 기술해 주십시오.',
       intent:'로열티와 산업 관심도. 회사 이름만 바꾸면 어디든 낼 수 있는 글인지 본다. 진짜로 방향이 갈리는 두 경로여야 한다 — "운영이냐 개발이냐"는 갈림길이 아니다.',
       asks:['지금 서 있는 갈림길', '당사 지원이 그 선택에 주는 영향'],
@@ -333,7 +333,7 @@ const DATA = {
       aiDraft:'정해진 답이 없는 문제를 시스템 구조로 해결하는 백엔드 엔지니어가 되기 위해 세움테크에 지원합니다. 저는 통계를 전공해 데이터 분석 직무를 준비하던 중, 부트캠프에서 MSA 주문·결제 서비스를 구축하며 방향을 바꾸었습니다. 모놀리식 서비스를 5개 마이크로서비스로 분리하는 과정에서 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 로그를 거슬러 올라가며 원인을 추적한 끝에 결제 이벤트가 이중 발행되는 문제임을 확인했고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 이 과정에서 분석 결과를 해석하는 일보다, 문제의 원인을 구조에서 찾아 다시 일어나지 않게 만드는 일이 제게 맞는다는 것을 알았습니다. 대학원에 진학해 분석을 더 깊이 파고들 것인가, 서비스를 직접 만드는 개발자가 될 것인가 사이에서 고민하던 갈림길은 이때 정리되었습니다. 세움테크의 물류 플랫폼 주문·정산 도메인은 숫자 하나가 틀리면 고객의 신뢰가 무너지는 영역이고, 정해진 답이 없는 문제에 스스로 뛰어드는 사람을 찾는다고 이해했습니다. 제가 겪은 정합성 문제와 그것을 구조로 해결한 경험을 주문·정산 도메인에서 이어가겠습니다. 입사 후 1년은 도메인 용어와 정산 로직을 정확히 익히는 데 쓰고, 3년 안에는 정합성 검증을 자동화해 장애를 사전에 잡아내는 사람이 되겠습니다.',
     },
     {
-      id: 32, applicationId: 101, versions: [], charLimit: 700,
+      id: 32, applicationId: 101, charLimit: 700,
       prompt:'본인을 가장 크게 성장시킨 경험은 무엇이며, 그 과정에서 본인의 태도에 어떤 변화가 있었는지 기술해 주십시오.',
       intent:'직무 경험은 자소서 평가 요소 1위(34%)다. STAR로 쓰되 결과에 반드시 수치가 있어야 한다.',
       asks:['가장 크게 성장시킨 경험', '그 과정에서 태도에 생긴 변화'],
@@ -342,7 +342,7 @@ const DATA = {
       aiDraft:'코드가 돌아가는 것과 서비스가 되는 것은 다르다는 것을 EKS 배포 파이프라인을 만들며 배웠습니다. 로컬에서만 돌던 서비스를 팀 공용 쿠버네티스 클러스터에 올리는 과제를 맡았을 때, 배포할 때마다 약 4분간 서비스가 끊겼습니다. 원인은 새 파드가 요청을 받을 준비를 마치기 전에 기존 파드가 종료되는 것이었습니다. readinessProbe와 롤링 업데이트 전략을 설정해 다운타임을 0초로 줄였고, 멀티 스테이지 빌드로 이미지 크기를 780MB에서 210MB로 줄여 배포 시간 자체도 단축했습니다. 같은 조의 다른 팀들이 평균 2분대 다운타임에 머물렀던 것과 비교하면, 무중단에 도달한 것은 저희 조가 유일했습니다. 이 과정에서 이미지 태그를 불변으로 관리하지 않으면 지금 어떤 버전이 떠 있는지 아무도 모른다는 것을 직접 겪었고, 이후 Harbor에 고유 태그 규칙을 세워 팀 전체가 따르도록 제안했습니다. 그전까지 저는 기능이 동작하면 제 몫이 끝났다고 생각했습니다. 지금은 배포와 운영까지가 설계의 일부라고 생각하며, 기능을 만들 때부터 이것이 어떻게 배포되고 어떻게 롤백될지를 먼저 확인하는 습관이 생겼습니다.',
     },
     {
-      id: 33, applicationId: 101, versions: [], charLimit: 700,
+      id: 33, applicationId: 101, charLimit: 700,
       prompt:'낯선 환경에서 자발적으로 최고 수준의 성과를 만들어 낸 경험을 서술하고, 그 과정에서 세운 목표와 전략을 기술해 주십시오.',
       intent:'인재상 "자발적 도전 · 높은 목표 설정"을 직접 검증하는 문항이다. 목표를 명확히 정의했는지, 비교 가능한 수치로 최고 수준임을 증명했는지를 본다.',
       asks:['낯선 환경에서의 자발적 성과', '세운 목표', '세운 전략'],
@@ -351,7 +351,7 @@ const DATA = {
       aiDraft:'남들이 통과 기준으로 삼는 지점을 시작점으로 잡는 것이 제 방식입니다. 쿠버네티스를 처음 접한 실습에서 과제 기준은 “파드가 정상적으로 뜰 것” 하나였습니다. 저는 여기에 “배포 중 요청이 단 한 건도 실패하지 않을 것”이라는 기준을 스스로 더했습니다. 낯선 환경이었고 참고할 팀도 없었기 때문에, 먼저 무엇이 다운타임을 만드는지부터 측정했습니다. 배포 중 1초 간격으로 헬스 체크를 걸어 로그를 남겼더니 평균 4분 12초 동안 요청이 실패하고 있었습니다. 원인을 파드 교체 순서로 좁힌 뒤 readinessProbe와 maxUnavailable 설정을 바꿔 가며 여덟 번을 다시 배포했고, 마지막에는 실패 요청 0건으로 무중단 배포에 도달했습니다. 덤으로 멀티 스테이지 빌드를 적용해 이미지를 780MB에서 210MB로 줄여 배포 자체를 3분에서 50초로 단축했습니다. 과제 기준만 맞췄다면 30분이면 끝났을 일이었지만, 기준을 올려 잡은 덕분에 지금은 어떤 서비스를 봐도 “이건 배포 중에 안 끊기나”를 먼저 묻게 되었습니다. 세움테크에서도 주어진 요구사항을 완성이 아니라 시작점으로 삼고, 그 위에 제가 세운 기준을 하나씩 더해 가겠습니다.',
     },
     {
-      id: 34, applicationId: 101, versions: [], charLimit: 1000,
+      id: 34, applicationId: 101, charLimit: 1000,
       prompt:'수행한 프로젝트에서 본인이 맡은 역할과, 프로젝트를 하며 아쉬웠던 점 및 그 개선 방향을 기술해 주십시오.',
       intent:'성공 결과만 나열하면 안 되는 문항. 내 역할의 구체성과, 아쉬움을 직면하고 개선한 태도를 본다.',
       asks:['내가 맡은 역할', '아쉬웠던 점', '개선 방향'],
@@ -360,7 +360,7 @@ const DATA = {
       aiDraft:'MSA 주문·결제 서비스에서 저는 결제 도메인과 서비스 간 통신 설계를 맡았습니다. 5인 팀이 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하는 과제였고, 저는 주문과 결제 사이의 정합성을 책임졌습니다. 초기 구현에서는 결제 완료 이벤트를 서비스가 직접 호출로 전달했는데, 결제 서비스가 잠시 죽으면 주문이 통째로 유실됐습니다. Kafka로 이벤트를 비동기 발행하도록 바꾸었지만 이번에는 이중 발행으로 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 것이 원인이었고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 아쉬웠던 점은 이 문제를 설계 단계가 아니라 통합 테스트에서야 발견했다는 것입니다. 저는 “서비스를 나눈다”는 결정에만 집중했고, 나눈 뒤에 트랜잭션이 어디서 끊기는지는 코드를 다 짜고 나서 확인했습니다. 그 결과 3일치 작업을 되돌려야 했습니다. 이후 프론트엔드 대시보드 프로젝트에서는 화면을 그리기 전에 API 계약과 상태 흐름을 먼저 문서로 고정했고, 그 덕분에 중복 API 호출을 24회에서 7회로 줄이며 초기 렌더 시간을 2.4초에서 0.9초로 단축할 수 있었습니다. 경계를 나누는 일은 나누는 순간이 아니라 나눈 뒤 무엇이 끊기는지를 먼저 그려 봐야 한다는 것이 이 프로젝트에서 얻은 교훈입니다. 지금은 새로운 기능을 설계할 때 가장 먼저 트랜잭션 경계와 실패 지점을 그림으로 그린 뒤 코드를 시작합니다. 세움테크의 주문·정산 도메인처럼 여러 시스템이 하나의 숫자를 함께 책임지는 환경에서는, 이 습관이 장애를 사후에 수습하는 대신 사전에 없애는 데 쓰일 수 있다고 생각합니다.',
     },
     {
-      id: 51, applicationId: 102, versions: [], charLimit: 800,
+      id: 51, applicationId: 102, charLimit: 800,
       prompt:'데이터 정합성이 중요한 시스템을 다뤄 본 경험과, 정합성을 어떻게 보장했는지 기술해 주십시오.',
       intent:'이 회사의 핵심 업무가 청구 정산이다. 정합성을 “신경 썼다”가 아니라 어떤 장치로 보장했는지를 본다.',
       asks:['정합성이 중요했던 상황', '정합성을 보장한 방법'],
@@ -369,7 +369,7 @@ const DATA = {
       aiDraft:'정합성은 주의 깊게 짜는 것이 아니라 구조로 보장해야 한다는 것을 MSA 주문·결제 서비스에서 배웠습니다. 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하자 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 원인은 DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 데 있었습니다. 애플리케이션 코드에서 순서를 조정하는 방식으로는 재현 조건을 줄일 수 있을 뿐 없앨 수 없다고 판단해, Transactional Outbox 패턴을 도입했습니다. 이벤트를 같은 트랜잭션 안에서 Outbox 테이블에 적재하고 별도 릴레이가 발행하도록 바꾸자 불일치가 0건이 되었습니다. 주식 거래 API 에서도 같은 관점으로 접근해, 엔드포인트 18개의 에러 응답 형식을 1종으로 통일하고 DTO 검증을 표준화해 연동 시 문의를 9건에서 1건으로 줄였습니다. 청구 정산처럼 숫자 하나가 곧 신뢰인 도메인에서는, 사람이 조심하는 대신 구조가 막아 주도록 설계하겠습니다.',
     },
     {
-      id: 52, applicationId: 102, versions: [], charLimit: 600,
+      id: 52, applicationId: 102, charLimit: 600,
       prompt:'맡은 일을 끝까지 마무리한 경험을 기술해 주십시오.',
       intent:'책임감 문항. 끝까지 했다는 서술이 아니라, 중간에 그만둘 이유가 있었는데도 끝낸 근거를 본다.',
       asks:['끝까지 마무리한 경험'],
@@ -378,27 +378,25 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 41, applicationId: 105, versions: [], charLimit: 800,
+      id: 41, applicationId: 105, charLimit: 800,
       prompt:'화면과 API 를 함께 개발한 경험과, 그 과정에서 두 쪽을 어떻게 맞췄는지 기술해 주십시오.',
       intent:'풀스택 지원자에게 가장 중요한 문항. 두 영역을 다 만졌다는 나열이 아니라, 경계에서 무엇을 합의했는지를 본다.',
       asks:['화면과 API 를 함께 개발한 경험', '두 쪽을 맞춘 방법'],
       usedExperienceIds: [3],
       draft:'화면을 그리기 전에 API 계약을 먼저 고정하는 것이 두 영역을 맞추는 가장 빠른 길이었습니다. Vue 3 관리자 대시보드를 맡았을 때, 화면 7개가 각자 필요한 데이터를 그때그때 호출하면서 같은 API 를 중복으로 부르고 있었습니다. 초기 렌더에만 24회의 요청이 나갔고 첫 화면이 뜨는 데 2.4초가 걸렸습니다. 저는 화면별 요구 데이터를 표로 정리해 백엔드와 함께 응답 스키마를 하나로 합의한 뒤, Pinia 로 전역 상태를 통합하고 Axios 인터셉터에서 인증과 에러를 한 곳으로 모았습니다. 그 결과 요청을 7회로 줄이고 초기 렌더 시간을 0.9초로 단축했습니다. 같은 기간 다른 조들이 평균 1.8초에 머물렀던 것과 비교하면 눈에 띄는 차이였습니다. 이 경험 이후로는 화면과 API 중 어느 쪽을 먼저 잡느냐가 아니라, 둘 사이의 계약을 언제 고정하느냐가 일정을 결정한다고 생각하게 되었습니다.',
       aiDraft:'',
-      versionsSeed: 2,
     },
     {
-      id: 42, applicationId: 105, versions: [], charLimit: 600,
+      id: 42, applicationId: 105, charLimit: 600,
       prompt:'기획·디자인과 의견이 달랐을 때 범위를 조정한 경험을 기술해 주십시오.',
       intent:'갈등 조율 문항. 감정 대립을 피했는지, 근거를 놓고 좁혔는지를 본다.',
       asks:['의견이 달랐던 상황', '범위를 조정한 방법'],
       usedExperienceIds: [6],
       draft:'이견은 주장으로 좁히는 것이 아니라 측정 가능한 기준으로 좁혔습니다. 학과 학회 운영진 8명이 정기 세미나 일정을 두고 두 편으로 갈려 3주간 결론을 내지 못했습니다. 양쪽 모두 참석률이 오를 것이라 주장했지만 근거는 각자의 경험뿐이었습니다. 저는 두 안을 각각 참석 가능 인원수로 환산해 표로 만든 뒤, 어느 쪽이 맞는지 말로 정하지 말고 4주간 시범 운영한 다음 출석률로 결정하자고 제안했습니다. 시범 운영 결과 한 안의 출석률이 62%에서 84%로 올랐고, 그 안이 만장일치로 채택되어 이후 학회 규칙이 되었습니다. 의견이 다를 때 필요한 것은 설득이 아니라 양쪽이 함께 인정할 수 있는 측정 기준이라는 것을 이때 배웠습니다.',
       aiDraft:'',
-      versionsSeed: 1,
     },
     {
-      id: 61, applicationId: 109, versions: [], charLimit: 700,
+      id: 61, applicationId: 109, charLimit: 700,
       prompt:'서비스가 멈췄을 때 원인을 끝까지 추적해 본 경험을 기술해 주십시오.',
       intent:'SRE 의 핵심 문항. 복구했다가 아니라 원인을 어디까지 좁혔는지를 본다.',
       asks:['장애 상황', '원인을 추적한 방법'],
@@ -407,7 +405,7 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 62, applicationId: 109, versions: [], charLimit: 600,
+      id: 62, applicationId: 109, charLimit: 600,
       prompt:'개선 결과를 수치로 증명해 본 경험을 기술해 주십시오.',
       intent:'비교 대상 없는 단독 수치는 감점이다. 무엇 대비 얼마나인지를 본다.',
       asks:['개선한 것', '수치로 증명한 방법'],
@@ -418,16 +416,16 @@ const DATA = {
   ],
 
   /* --- 지원 현황 ------------------------------------------- */
+  /* --- 지원서 -------------------------------------------------
+     status·제출 여부·면접 결과를 두지 않는다. 우리는 알 수 없다.
+     진행 상태는 questions 의 draft 유무에서 파생한다. */
   applications: [
-    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어',   status:'WRITING',   dday:3,  match:69, remainingQuestions:'2 / 4' },
-    { id:102, postingId:10, company:'다온소프트', position:'서버 개발',         status:'WRITING',   dday:6,  match:68, remainingQuestions:'2 / 2' },
-    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어',   status:'PLANNED',   dday:12, match:null, remainingQuestions:'— / 4' },
-    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입',     status:'PLANNED',   dday:19, match:null, remainingQuestions:'— / 3' },
-    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어',   status:'SUBMITTED', dday:2,  match:86, remainingQuestions:'0 / 2' },
-    { id:106, postingId:null, company:'미르테크',   position:'백엔드 엔지니어',   status:'SUBMITTED', dday:5,  match:72, remainingQuestions:'0 / 3' },
-    { id:107, postingId:null, company:'아라시스템', position:'클라우드 엔지니어', status:'INTERVIEW', dday:4,  match:79, remainingQuestions:'0 / 4' },
-    { id:109, postingId:15, company:'한빛시스템', position:'SRE',            status:'WRITING',   dday:23, match:null, remainingQuestions:'1 / 2' },
-    { id:108, postingId:null, company:'세진데이터', position:'데이터 엔지니어',   status:'RESULT',    dday:9,  match:64, remainingQuestions:'0 / 3' },
+    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어' },
+    { id:102, postingId:10, company:'다온소프트', position:'서버 개발' },
+    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어' },
+    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입' },
+    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어' },
+    { id:109, postingId:15, company:'한빛시스템', position:'SRE' },
   ],
 
 

@@ -294,6 +294,9 @@ figure.fig figcaption{margin-top:12px; font-size:12px; color:var(--muted); max-w
 .dia rect.hub{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
 .dia .rel{stroke:currentColor; stroke-width:1.4; opacity:.5; fill:none}
 .dia .nmline{stroke:var(--accent); stroke-width:2.6; fill:none}
+#s4lint .cardbody{padding-top:14px}
+.rel-post{width:100%; align-items:center; background:var(--surface); border-color:var(--border)}
+.rel-post:hover{border-color:var(--accent); background:var(--surface-2)}
 .spec-sec{margin-bottom:22px}
 .spec-sec > h3{display:flex; align-items:baseline; gap:9px; margin-bottom:4px}
 .spec-sec > h3 .no{font-family:var(--mono); font-size:11px; color:var(--accent); border:1px solid currentColor; padding:1px 5px; border-radius:2px}
@@ -460,10 +463,9 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
         </div>
       </div>
 
-      <div class="grid g3" style="margin-bottom:18px">
+      <div class="grid g2" style="margin-bottom:18px">
         <div class="card pad" data-note="GET /api/experiences"><div class="stat"><span class="v" id="s1cnt">0</span><span class="l">등록한 경험</span></div></div>
         <div class="card pad" data-note="experience_competency"><div class="stat"><span class="v" id="s1cov">0</span><span class="l">태그된 역량 (전체 20개 중)</span></div></div>
-        <div class="card pad"><div class="stat"><span class="v" id="s1star">0</span><span class="l">STAR 4필드가 모두 채워진 경험</span></div></div>
       </div>
 
       <div class="card" style="margin-bottom:16px" data-note="competency 마스터">
@@ -614,13 +616,7 @@ https://drive.example/해커톤_발표자료.pdf</textarea>
       <div class="field"><label for="apCo">기업명 *</label><input class="inp" id="apCo" placeholder="예) 세움테크"></div>
       <div class="field"><label for="apPos">직무 *</label><input class="inp" id="apPos" placeholder="예) 백엔드 엔지니어"></div>
     </div>
-    <div class="frow f3">
-      <div class="field"><label for="apSt">상태</label>
-        <select class="inp" id="apSt">
-          <option value="PLANNED">지원 예정</option><option value="WRITING">작성 중</option>
-          <option value="SUBMITTED">제출</option><option value="INTERVIEW">면접</option><option value="RESULT">결과 대기</option>
-        </select>
-      </div>
+    <div class="frow">
       <div class="field"><label for="apDday">마감까지 (일)</label><input class="inp" id="apDday" type="number" min="0" max="365" value="14"></div>
       <div class="field"><label for="apQ">문항 수</label><input class="inp" id="apQ" type="number" min="1" max="12" value="4"></div>
     </div>
@@ -722,7 +718,7 @@ const DATA = {
   activePostingId: 9,
   postings: [
     {
-      id: 9, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
+      id: 9, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
       collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'백엔드 엔지니어 (신입)', deadline:'2026-09-12',
     rawText:
@@ -765,7 +761,7 @@ const DATA = {
     },
 
     {
-      id: 10, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
+      id: 10, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
       collectedAt:'2026-09-01 04:12',
       company:'다온소프트', position:'서버 개발 (신입)', deadline:'2026-09-15',
       rawText:
@@ -800,7 +796,7 @@ const DATA = {
     },
 
     {
-      id: 11, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
+      id: 11, role:'PLATFORM', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
       collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21',
       rawText:
@@ -834,7 +830,7 @@ const DATA = {
     },
 
     {
-      id: 12, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
+      id: 12, role:'BACKEND', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
       company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28',
       rawText:
 `[코어링크] AI 프로덕트 백엔드 엔지니어 (신입)
@@ -862,7 +858,7 @@ const DATA = {
     },
 
     {
-      id: 13, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
+      id: 13, role:'FULLSTACK', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
       company:'리버트리', position:'풀스택 엔지니어 (신입)', deadline:'2026-09-08',
       rawText:
 `[리버트리] 풀스택 엔지니어 신입 채용
@@ -890,7 +886,7 @@ const DATA = {
     },
 
     {
-      id: 14, questionsFromServer: true, source:'CRAWLED',
+      id: 14, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://careers.seumtech.example/jobs/2026-fe', collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-09-12',
       rawText:
@@ -924,7 +920,7 @@ const DATA = {
     },
 
     {
-      id: 15, questionsFromServer: true, source:'CRAWLED',
+      id: 15, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://hanbit-sys.example/careers/sre', collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'SRE (신입)', deadline:'2026-09-25',
       rawText:
@@ -960,7 +956,7 @@ const DATA = {
      SKALA 서류 전형 문항 구조를 가상 공고에 맞춰 각색했다. */
   questions: [
     {
-      id: 31, applicationId: 101, versions: [], charLimit: 700,
+      id: 31, applicationId: 101, charLimit: 700,
       prompt:'현재 본인이 어떤 갈림길에 서 있다고 느끼는지 구체적으로 설명하고, 당사 지원이 그 선택에 어떤 영향을 주는지 기술해 주십시오.',
       intent:'로열티와 산업 관심도. 회사 이름만 바꾸면 어디든 낼 수 있는 글인지 본다. 진짜로 방향이 갈리는 두 경로여야 한다 — "운영이냐 개발이냐"는 갈림길이 아니다.',
       asks:['지금 서 있는 갈림길', '당사 지원이 그 선택에 주는 영향'],
@@ -969,7 +965,7 @@ const DATA = {
       aiDraft:'정해진 답이 없는 문제를 시스템 구조로 해결하는 백엔드 엔지니어가 되기 위해 세움테크에 지원합니다. 저는 통계를 전공해 데이터 분석 직무를 준비하던 중, 부트캠프에서 MSA 주문·결제 서비스를 구축하며 방향을 바꾸었습니다. 모놀리식 서비스를 5개 마이크로서비스로 분리하는 과정에서 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 로그를 거슬러 올라가며 원인을 추적한 끝에 결제 이벤트가 이중 발행되는 문제임을 확인했고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 이 과정에서 분석 결과를 해석하는 일보다, 문제의 원인을 구조에서 찾아 다시 일어나지 않게 만드는 일이 제게 맞는다는 것을 알았습니다. 대학원에 진학해 분석을 더 깊이 파고들 것인가, 서비스를 직접 만드는 개발자가 될 것인가 사이에서 고민하던 갈림길은 이때 정리되었습니다. 세움테크의 물류 플랫폼 주문·정산 도메인은 숫자 하나가 틀리면 고객의 신뢰가 무너지는 영역이고, 정해진 답이 없는 문제에 스스로 뛰어드는 사람을 찾는다고 이해했습니다. 제가 겪은 정합성 문제와 그것을 구조로 해결한 경험을 주문·정산 도메인에서 이어가겠습니다. 입사 후 1년은 도메인 용어와 정산 로직을 정확히 익히는 데 쓰고, 3년 안에는 정합성 검증을 자동화해 장애를 사전에 잡아내는 사람이 되겠습니다.',
     },
     {
-      id: 32, applicationId: 101, versions: [], charLimit: 700,
+      id: 32, applicationId: 101, charLimit: 700,
       prompt:'본인을 가장 크게 성장시킨 경험은 무엇이며, 그 과정에서 본인의 태도에 어떤 변화가 있었는지 기술해 주십시오.',
       intent:'직무 경험은 자소서 평가 요소 1위(34%)다. STAR로 쓰되 결과에 반드시 수치가 있어야 한다.',
       asks:['가장 크게 성장시킨 경험', '그 과정에서 태도에 생긴 변화'],
@@ -978,7 +974,7 @@ const DATA = {
       aiDraft:'코드가 돌아가는 것과 서비스가 되는 것은 다르다는 것을 EKS 배포 파이프라인을 만들며 배웠습니다. 로컬에서만 돌던 서비스를 팀 공용 쿠버네티스 클러스터에 올리는 과제를 맡았을 때, 배포할 때마다 약 4분간 서비스가 끊겼습니다. 원인은 새 파드가 요청을 받을 준비를 마치기 전에 기존 파드가 종료되는 것이었습니다. readinessProbe와 롤링 업데이트 전략을 설정해 다운타임을 0초로 줄였고, 멀티 스테이지 빌드로 이미지 크기를 780MB에서 210MB로 줄여 배포 시간 자체도 단축했습니다. 같은 조의 다른 팀들이 평균 2분대 다운타임에 머물렀던 것과 비교하면, 무중단에 도달한 것은 저희 조가 유일했습니다. 이 과정에서 이미지 태그를 불변으로 관리하지 않으면 지금 어떤 버전이 떠 있는지 아무도 모른다는 것을 직접 겪었고, 이후 Harbor에 고유 태그 규칙을 세워 팀 전체가 따르도록 제안했습니다. 그전까지 저는 기능이 동작하면 제 몫이 끝났다고 생각했습니다. 지금은 배포와 운영까지가 설계의 일부라고 생각하며, 기능을 만들 때부터 이것이 어떻게 배포되고 어떻게 롤백될지를 먼저 확인하는 습관이 생겼습니다.',
     },
     {
-      id: 33, applicationId: 101, versions: [], charLimit: 700,
+      id: 33, applicationId: 101, charLimit: 700,
       prompt:'낯선 환경에서 자발적으로 최고 수준의 성과를 만들어 낸 경험을 서술하고, 그 과정에서 세운 목표와 전략을 기술해 주십시오.',
       intent:'인재상 "자발적 도전 · 높은 목표 설정"을 직접 검증하는 문항이다. 목표를 명확히 정의했는지, 비교 가능한 수치로 최고 수준임을 증명했는지를 본다.',
       asks:['낯선 환경에서의 자발적 성과', '세운 목표', '세운 전략'],
@@ -987,7 +983,7 @@ const DATA = {
       aiDraft:'남들이 통과 기준으로 삼는 지점을 시작점으로 잡는 것이 제 방식입니다. 쿠버네티스를 처음 접한 실습에서 과제 기준은 “파드가 정상적으로 뜰 것” 하나였습니다. 저는 여기에 “배포 중 요청이 단 한 건도 실패하지 않을 것”이라는 기준을 스스로 더했습니다. 낯선 환경이었고 참고할 팀도 없었기 때문에, 먼저 무엇이 다운타임을 만드는지부터 측정했습니다. 배포 중 1초 간격으로 헬스 체크를 걸어 로그를 남겼더니 평균 4분 12초 동안 요청이 실패하고 있었습니다. 원인을 파드 교체 순서로 좁힌 뒤 readinessProbe와 maxUnavailable 설정을 바꿔 가며 여덟 번을 다시 배포했고, 마지막에는 실패 요청 0건으로 무중단 배포에 도달했습니다. 덤으로 멀티 스테이지 빌드를 적용해 이미지를 780MB에서 210MB로 줄여 배포 자체를 3분에서 50초로 단축했습니다. 과제 기준만 맞췄다면 30분이면 끝났을 일이었지만, 기준을 올려 잡은 덕분에 지금은 어떤 서비스를 봐도 “이건 배포 중에 안 끊기나”를 먼저 묻게 되었습니다. 세움테크에서도 주어진 요구사항을 완성이 아니라 시작점으로 삼고, 그 위에 제가 세운 기준을 하나씩 더해 가겠습니다.',
     },
     {
-      id: 34, applicationId: 101, versions: [], charLimit: 1000,
+      id: 34, applicationId: 101, charLimit: 1000,
       prompt:'수행한 프로젝트에서 본인이 맡은 역할과, 프로젝트를 하며 아쉬웠던 점 및 그 개선 방향을 기술해 주십시오.',
       intent:'성공 결과만 나열하면 안 되는 문항. 내 역할의 구체성과, 아쉬움을 직면하고 개선한 태도를 본다.',
       asks:['내가 맡은 역할', '아쉬웠던 점', '개선 방향'],
@@ -996,7 +992,7 @@ const DATA = {
       aiDraft:'MSA 주문·결제 서비스에서 저는 결제 도메인과 서비스 간 통신 설계를 맡았습니다. 5인 팀이 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하는 과제였고, 저는 주문과 결제 사이의 정합성을 책임졌습니다. 초기 구현에서는 결제 완료 이벤트를 서비스가 직접 호출로 전달했는데, 결제 서비스가 잠시 죽으면 주문이 통째로 유실됐습니다. Kafka로 이벤트를 비동기 발행하도록 바꾸었지만 이번에는 이중 발행으로 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 것이 원인이었고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 아쉬웠던 점은 이 문제를 설계 단계가 아니라 통합 테스트에서야 발견했다는 것입니다. 저는 “서비스를 나눈다”는 결정에만 집중했고, 나눈 뒤에 트랜잭션이 어디서 끊기는지는 코드를 다 짜고 나서 확인했습니다. 그 결과 3일치 작업을 되돌려야 했습니다. 이후 프론트엔드 대시보드 프로젝트에서는 화면을 그리기 전에 API 계약과 상태 흐름을 먼저 문서로 고정했고, 그 덕분에 중복 API 호출을 24회에서 7회로 줄이며 초기 렌더 시간을 2.4초에서 0.9초로 단축할 수 있었습니다. 경계를 나누는 일은 나누는 순간이 아니라 나눈 뒤 무엇이 끊기는지를 먼저 그려 봐야 한다는 것이 이 프로젝트에서 얻은 교훈입니다. 지금은 새로운 기능을 설계할 때 가장 먼저 트랜잭션 경계와 실패 지점을 그림으로 그린 뒤 코드를 시작합니다. 세움테크의 주문·정산 도메인처럼 여러 시스템이 하나의 숫자를 함께 책임지는 환경에서는, 이 습관이 장애를 사후에 수습하는 대신 사전에 없애는 데 쓰일 수 있다고 생각합니다.',
     },
     {
-      id: 51, applicationId: 102, versions: [], charLimit: 800,
+      id: 51, applicationId: 102, charLimit: 800,
       prompt:'데이터 정합성이 중요한 시스템을 다뤄 본 경험과, 정합성을 어떻게 보장했는지 기술해 주십시오.',
       intent:'이 회사의 핵심 업무가 청구 정산이다. 정합성을 “신경 썼다”가 아니라 어떤 장치로 보장했는지를 본다.',
       asks:['정합성이 중요했던 상황', '정합성을 보장한 방법'],
@@ -1005,7 +1001,7 @@ const DATA = {
       aiDraft:'정합성은 주의 깊게 짜는 것이 아니라 구조로 보장해야 한다는 것을 MSA 주문·결제 서비스에서 배웠습니다. 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하자 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 원인은 DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 데 있었습니다. 애플리케이션 코드에서 순서를 조정하는 방식으로는 재현 조건을 줄일 수 있을 뿐 없앨 수 없다고 판단해, Transactional Outbox 패턴을 도입했습니다. 이벤트를 같은 트랜잭션 안에서 Outbox 테이블에 적재하고 별도 릴레이가 발행하도록 바꾸자 불일치가 0건이 되었습니다. 주식 거래 API 에서도 같은 관점으로 접근해, 엔드포인트 18개의 에러 응답 형식을 1종으로 통일하고 DTO 검증을 표준화해 연동 시 문의를 9건에서 1건으로 줄였습니다. 청구 정산처럼 숫자 하나가 곧 신뢰인 도메인에서는, 사람이 조심하는 대신 구조가 막아 주도록 설계하겠습니다.',
     },
     {
-      id: 52, applicationId: 102, versions: [], charLimit: 600,
+      id: 52, applicationId: 102, charLimit: 600,
       prompt:'맡은 일을 끝까지 마무리한 경험을 기술해 주십시오.',
       intent:'책임감 문항. 끝까지 했다는 서술이 아니라, 중간에 그만둘 이유가 있었는데도 끝낸 근거를 본다.',
       asks:['끝까지 마무리한 경험'],
@@ -1014,27 +1010,25 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 41, applicationId: 105, versions: [], charLimit: 800,
+      id: 41, applicationId: 105, charLimit: 800,
       prompt:'화면과 API 를 함께 개발한 경험과, 그 과정에서 두 쪽을 어떻게 맞췄는지 기술해 주십시오.',
       intent:'풀스택 지원자에게 가장 중요한 문항. 두 영역을 다 만졌다는 나열이 아니라, 경계에서 무엇을 합의했는지를 본다.',
       asks:['화면과 API 를 함께 개발한 경험', '두 쪽을 맞춘 방법'],
       usedExperienceIds: [3],
       draft:'화면을 그리기 전에 API 계약을 먼저 고정하는 것이 두 영역을 맞추는 가장 빠른 길이었습니다. Vue 3 관리자 대시보드를 맡았을 때, 화면 7개가 각자 필요한 데이터를 그때그때 호출하면서 같은 API 를 중복으로 부르고 있었습니다. 초기 렌더에만 24회의 요청이 나갔고 첫 화면이 뜨는 데 2.4초가 걸렸습니다. 저는 화면별 요구 데이터를 표로 정리해 백엔드와 함께 응답 스키마를 하나로 합의한 뒤, Pinia 로 전역 상태를 통합하고 Axios 인터셉터에서 인증과 에러를 한 곳으로 모았습니다. 그 결과 요청을 7회로 줄이고 초기 렌더 시간을 0.9초로 단축했습니다. 같은 기간 다른 조들이 평균 1.8초에 머물렀던 것과 비교하면 눈에 띄는 차이였습니다. 이 경험 이후로는 화면과 API 중 어느 쪽을 먼저 잡느냐가 아니라, 둘 사이의 계약을 언제 고정하느냐가 일정을 결정한다고 생각하게 되었습니다.',
       aiDraft:'',
-      versionsSeed: 2,
     },
     {
-      id: 42, applicationId: 105, versions: [], charLimit: 600,
+      id: 42, applicationId: 105, charLimit: 600,
       prompt:'기획·디자인과 의견이 달랐을 때 범위를 조정한 경험을 기술해 주십시오.',
       intent:'갈등 조율 문항. 감정 대립을 피했는지, 근거를 놓고 좁혔는지를 본다.',
       asks:['의견이 달랐던 상황', '범위를 조정한 방법'],
       usedExperienceIds: [6],
       draft:'이견은 주장으로 좁히는 것이 아니라 측정 가능한 기준으로 좁혔습니다. 학과 학회 운영진 8명이 정기 세미나 일정을 두고 두 편으로 갈려 3주간 결론을 내지 못했습니다. 양쪽 모두 참석률이 오를 것이라 주장했지만 근거는 각자의 경험뿐이었습니다. 저는 두 안을 각각 참석 가능 인원수로 환산해 표로 만든 뒤, 어느 쪽이 맞는지 말로 정하지 말고 4주간 시범 운영한 다음 출석률로 결정하자고 제안했습니다. 시범 운영 결과 한 안의 출석률이 62%에서 84%로 올랐고, 그 안이 만장일치로 채택되어 이후 학회 규칙이 되었습니다. 의견이 다를 때 필요한 것은 설득이 아니라 양쪽이 함께 인정할 수 있는 측정 기준이라는 것을 이때 배웠습니다.',
       aiDraft:'',
-      versionsSeed: 1,
     },
     {
-      id: 61, applicationId: 109, versions: [], charLimit: 700,
+      id: 61, applicationId: 109, charLimit: 700,
       prompt:'서비스가 멈췄을 때 원인을 끝까지 추적해 본 경험을 기술해 주십시오.',
       intent:'SRE 의 핵심 문항. 복구했다가 아니라 원인을 어디까지 좁혔는지를 본다.',
       asks:['장애 상황', '원인을 추적한 방법'],
@@ -1043,7 +1037,7 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 62, applicationId: 109, versions: [], charLimit: 600,
+      id: 62, applicationId: 109, charLimit: 600,
       prompt:'개선 결과를 수치로 증명해 본 경험을 기술해 주십시오.',
       intent:'비교 대상 없는 단독 수치는 감점이다. 무엇 대비 얼마나인지를 본다.',
       asks:['개선한 것', '수치로 증명한 방법'],
@@ -1054,16 +1048,16 @@ const DATA = {
   ],
 
   /* --- 지원 현황 ------------------------------------------- */
+  /* --- 지원서 -------------------------------------------------
+     status·제출 여부·면접 결과를 두지 않는다. 우리는 알 수 없다.
+     진행 상태는 questions 의 draft 유무에서 파생한다. */
   applications: [
-    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어',   status:'WRITING',   dday:3,  match:69, remainingQuestions:'2 / 4' },
-    { id:102, postingId:10, company:'다온소프트', position:'서버 개발',         status:'WRITING',   dday:6,  match:68, remainingQuestions:'2 / 2' },
-    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어',   status:'PLANNED',   dday:12, match:null, remainingQuestions:'— / 4' },
-    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입',     status:'PLANNED',   dday:19, match:null, remainingQuestions:'— / 3' },
-    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어',   status:'SUBMITTED', dday:2,  match:86, remainingQuestions:'0 / 2' },
-    { id:106, postingId:null, company:'미르테크',   position:'백엔드 엔지니어',   status:'SUBMITTED', dday:5,  match:72, remainingQuestions:'0 / 3' },
-    { id:107, postingId:null, company:'아라시스템', position:'클라우드 엔지니어', status:'INTERVIEW', dday:4,  match:79, remainingQuestions:'0 / 4' },
-    { id:109, postingId:15, company:'한빛시스템', position:'SRE',            status:'WRITING',   dday:23, match:null, remainingQuestions:'1 / 2' },
-    { id:108, postingId:null, company:'세진데이터', position:'데이터 엔지니어',   status:'RESULT',    dday:9,  match:64, remainingQuestions:'0 / 3' },
+    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어' },
+    { id:102, postingId:10, company:'다온소프트', position:'서버 개발' },
+    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어' },
+    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입' },
+    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어' },
+    { id:109, postingId:15, company:'한빛시스템', position:'SRE' },
   ],
 
 
@@ -1211,20 +1205,34 @@ const appMatch    = app => { const p = postingOf(app); return p ? Math.round(com
 /* 공고 하나의 자소서 진행 — 카드·상세가 같은 함수를 쓴다 */
 function essayProgress(posting){
   const app = appOfPosting(posting);
-  if (!app) return { state:'NO_APP', label:'미지원', done:0, total:0, ratio:0, versions:0 };
+  if (!app) return { state:'NO_APP', label:'', done:0, total:0, ratio:0, thin:0 };
   const qs = DATA.questions.filter(q => q.applicationId === app.id);
-  if (!qs.length) return { state:'NO_Q', label:'문항 미등록', done:0, total:0, ratio:0, versions:0, app };
+  if (!qs.length) return { state:'NO_Q', label:'', done:0, total:0, ratio:0, thin:0, app };
   const done = qs.filter(q => (q.draft || '').trim()).length;
+  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
   return {
-    state: done === qs.length ? 'DONE' : 'WRITING',
+    state: done === qs.length ? 'DONE' : done === 0 ? 'EMPTY' : 'WRITING',
+    thin,
     label: `${done} / ${qs.length}문항`,
     done, total: qs.length, ratio: done / qs.length,
-    versions: qs.reduce((a, q) => a + (q.versions || []).length, 0), app,
+    app,
   };
 }
 const appQs       = app => DATA.questions.filter(q => q.applicationId === app.id);
 const appRemain   = app => { const qs = appQs(app); return qs.length ? `${qs.filter(q => !(q.draft||'').trim()).length} / ${qs.length}` : '— / —'; };
-const usedCount   = expId => DATA.questions.filter(q => (q.usedExperienceIds || []).includes(expId)).length;
+/* 이 경험이 실제로 쓰인 정도 — 관측 가능한 것만 센다.
+   ① 근거로 걸려 있고  ② 본문이 실제로 작성된 답변  ③ 서로 다른 공고 수
+   공고가 직무 단위라 같은 기업의 다른 직무에 쓰면 2건으로 센다.
+   체크만 하고 안 쓴 문항은 세지 않는다. 제출 여부는 알 수 없으므로 보지 않는다. */
+const usedIn = expId => {
+  const qs = DATA.questions.filter(q =>
+    (q.usedExperienceIds || []).includes(expId) && (q.draft || '').trim());
+  const postingIds = new Set(qs.map(q => {
+    const a = DATA.applications.find(x => x.id === q.applicationId);
+    return a ? a.postingId : null;
+  }).filter(Boolean));
+  return { questions: qs.length, postings: postingIds.size };
+};
 const postingOfQ  = q => postingOf(DATA.applications.find(a => a.id === q.applicationId)) || P();
 /* 오기 감지 대상 = 내가 아는 모든 기업 − 지금 쓰고 있는 그 기업.
    고정 배열로 두면 공고를 바꿀 때마다 어긋난다. */
@@ -1244,7 +1252,6 @@ function renderS1(){
   $('#s1cnt').textContent = exps.length;
   const tagged = new Set(exps.flatMap(e => e.competencyIds));
   $('#s1cov').textContent = tagged.size;
-  $('#s1star').textContent = exps.filter(e => e.situation && e.task && e.action && e.result).length;
 
   $('#s1chips').innerHTML = DATA.competencies
     .filter(c => tagged.has(c.id))
@@ -1270,7 +1277,9 @@ function renderS1(){
         <div style="display:flex; gap:6px; margin-bottom:12px">
           <span class="pill mut">${esc(e.category)}</span>
           ${e.source === 'AI_INTAKE' ? `<span class="pill info" title="${esc((e.evidenceRefs||[]).join(', '))}">포폴 인테이크</span>` : ''}
-          ${usedCount(e.id) ? `<span class="pill acc">자소서 ${usedCount(e.id)}회 사용</span>` : ''}
+          ${(() => { const u = usedIn(e.id); return u.postings
+            ? `<span class="pill acc" title="본문이 작성된 답변에 근거로 걸린 공고 수. 공고는 직무 단위라 같은 기업의 다른 직무는 따로 센다.">자소서 ${u.postings}개 공고에 사용</span>`
+            : ''; })()}
         </div>
         <dl style="display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin:0">
           <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(e.situation)}</dd>
@@ -1323,7 +1332,7 @@ function toggleBm(id){
   toast(bookmarks.has(id) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
 }
 const bmIcon = on => `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.6 1.6h8.8v12.8L8 11.2 3.6 14.4z" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
-const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '저장됨' : '저장') : ''}</button>`;
+const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '즐겨찾기됨' : '즐겨찾기') : ''}</button>`;
 function bindBm(root){
   $$(`${root} [data-bm]`).forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleBm(+b.dataset.bm); }));
 }
@@ -1342,7 +1351,6 @@ function openDetail(id, tab){
 
 function renderDetail(){
   const p = P(), m = computeMatch(p), app = appOfPosting(p), ep = essayProgress(p);
-  const siblings = DATA.postings.filter(x => x.company === p.company && x.id !== p.id && dday(x.deadline) >= 0);
   const gaps = m.rows.filter(r => r.isGap).length;
   const mc = m.overall >= SCORE.RECOMMEND ? 'var(--matched)' : m.overall >= SCORE.WEAK ? 'var(--info)' : 'var(--gap)';
   const d = dday(p.deadline);
@@ -1354,10 +1362,6 @@ function renderDetail(){
       <div class="co">${esc(p.company)}</div>
       <h2 id="dth">${esc(p.position)}</h2>
       <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:var(--mono)">${esc(p.sourceUrl || '직접 입력')}</div>
-      ${siblings.length ? `<div style="display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap">
-        <span style="font-size:11.5px; color:var(--muted)">같은 기업 다른 직무</span>
-        ${siblings.map(x => `<button class="btn sm" data-sib="${x.id}">${esc(x.position)} · ${Math.round(computeMatch(x).overall*100)}%</button>`).join('')}
-      </div>` : ''}
     </div>
     <div class="nums">
       <div class="num"><b style="color:${mc}">${Math.round(m.overall*100)}%</b><span>매칭</span></div>
@@ -1374,13 +1378,9 @@ function renderDetail(){
         <span class="pill" style="color:${vc}">${vl}</span>
         <span style="font-size:12.5px; color:var(--ink)">${esc(a.headline)}</span>
         ${busy ? `<span class="pill mut">${ASSESS_LABEL[st.state]}</span>` : ''}
-        <button class="btn sm" id="dtToMatch" style="margin-left:auto">평가 보기 →</button>
       </div>`;
     })()}`;
   bindBm('#dtHead');
-  $$('#dtHead [data-sib]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.sib, dtTab)));
-  const tm = $('#dtToMatch');
-  if (tm) tm.addEventListener('click', () => { dtTab = 'match'; paintDtTab(); });
 
   $('#dtEssayBadge').innerHTML = ep.total
     ? `<span class="pill ${ep.state === 'DONE' ? 'ok' : 'mut'}">${ep.done}/${ep.total}</span>`
@@ -1388,9 +1388,14 @@ function renderDetail(){
     : p.questionsFromServer === false ? `<span class="pill warn">문항 없음</span>` : '';
 
   renderJD();
+  bindRelated();
   renderS3();
   renderEssay();
   paintDtTab();
+}
+
+function bindRelated(){
+  $$('#dtPost [data-rel]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.rel, 'post')));
 }
 
 function paintDtTab(){
@@ -1415,6 +1420,49 @@ function parseJD(raw){
   return { head, sections: out };
 }
 
+
+/* 관련 공고 — 같은 기업 다른 직무 / 다른 기업 같은 직무.
+   role 은 수집 시 분류하는 직무 계열 taxonomy 다 (기업이 쓰는 직무명은 제각각이라
+   문자열로는 못 묶는다 — "서버 개발"과 "백엔드 엔지니어"는 같은 계열이다). */
+const ROLE_LABEL = { BACKEND:'백엔드', FRONTEND:'프론트엔드', FULLSTACK:'풀스택', PLATFORM:'플랫폼·인프라' };
+
+function relatedHtml(p){
+  const live = DATA.postings.filter(x => x.id !== p.id && dday(x.deadline) >= 0);
+  const sameCo   = live.filter(x => x.company === p.company);
+  const sameRole = live.filter(x => x.role === p.role && x.company !== p.company);
+  if (!sameCo.length && !sameRole.length) return '';
+
+  const row = x => {
+    const m = Math.round(computeMatch(x).overall * 100);
+    const mc = m >= 85 ? 'var(--matched)' : m >= 70 ? 'var(--info)' : 'var(--gap)';
+    return `<button class="btn rel-post" data-rel="${x.id}" style="justify-content:flex-start; gap:10px; padding:9px 12px">
+      <span class="jc-logo" style="width:28px; height:28px; font-size:12px">${esc(x.company.slice(0,1))}</span>
+      <span style="text-align:left; line-height:1.4">
+        <span style="display:block; font-size:12.5px; color:var(--ink)">${esc(x.position)}</span>
+        <span style="display:block; font-size:11px; color:var(--muted)">${esc(x.company)} · D-${dday(x.deadline)}</span>
+      </span>
+      <span class="mono" style="margin-left:auto; font-weight:600; color:${mc}">${m}%</span>
+    </button>`;
+  };
+
+  return `<div class="card" data-note="GET /api/postings?company= / ?role=">
+    <div class="cardhead"><h3>관련 공고</h3><span class="n">지금 매칭 ${Math.round(computeMatch(p).overall*100)}%</span></div>
+    <div class="cardbody" style="display:grid; gap:16px">
+      ${sameCo.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">같은 기업 다른 직무</div>
+        <div style="display:grid; gap:7px">${sameCo.map(row).join('')}</div>
+      </div>` : ''}
+      ${sameRole.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">다른 기업 같은 직무 · ${esc(ROLE_LABEL[p.role] || p.role)}</div>
+        <div style="display:grid; gap:7px">${sameRole.map(row).join('')}</div>
+      </div>` : ''}
+      <p style="font-size:11.5px; color:var(--muted); border-top:1px dashed var(--border); padding-top:10px">
+        같은 직무라도 회사마다 요구 역량과 가중치가 달라 매칭이 갈린다. 공고는 기업이 아니라 <b>직무 단위 엔티티</b>다.
+      </p>
+    </div>
+  </div>`;
+}
+
 function renderJD(){
   const p = P(), { head, sections } = parseJD(p.rawText);
   $('#dtPost').innerHTML = `
@@ -1430,14 +1478,35 @@ function renderJD(){
       </div>
     </div>
 
-    <div class="card" data-note="posting_competency">
+    <div class="card" style="margin-bottom:16px" data-note="posting_competency">
       <div class="cardhead">
-        <h3>추출된 요구 역량</h3>
-        <span class="n" id="s2n">${p.required.length}건</span>
-        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출 · temperature 0.0</span>
+        <h3>요구 역량</h3>
+        <span class="n">${p.required.length}개</span>
+        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출</span>
       </div>
-      <div class="cardbody" id="s2out"></div>
+      <div class="cardbody">
+        <div class="chips">
+          ${[...p.required].sort((a, b) => b.weight - a.weight).map(r => {
+            const c = byId(r.competencyId);
+            return `<span class="chip ${CAT[c.category]}" title="${esc(r.evidence)}">${esc(c.name)}</span>`;
+          }).join('')}
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:10px">
+          공고 원문에서 뽑은 역량이다. 가중치와 내 경험의 커버리지는 <b>매칭</b> 탭에서 본다.
+        </p>
+
+        ${p.newCompetencies.length ? `
+          <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border)" data-note="newCompetencies">
+            <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:7px">
+              역량 사전에 없는 표현 ${p.newCompetencies.length}개 · 승인 필요
+            </div>
+            <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
+            <p style="font-size:11px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
+          </div>` : ''}
+      </div>
     </div>
+
+    ${relatedHtml(p)}
 
     <div class="noteonly" style="margin-top:12px">
       <div style="font-size:11px; color:var(--muted); margin-bottom:6px">수집 배치 기록 · 읽기 전용</div>
@@ -1447,35 +1516,6 @@ function renderJD(){
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="s2">200</span> <span class="t">{ required: ${p.required.length}, newCompetencies: ${p.newCompetencies.length}, latencyMs: 1240 }</span></div>
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">UPSERT</span> <span class="t">posting_competency × ${p.required.length}</span></div>
       </div>
-    </div>`;
-  paintS2Result();
-}
-
-function paintS2Result(){
-  const p = P();
-  $('#s2out').innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:10px">
-      ${p.required.map(r => { const c = byId(r.competencyId); const ev = DATA.experiences.filter(e => e.competencyIds.includes(r.competencyId)); return `
-        <div style="display:grid; grid-template-columns:118px 1fr auto; gap:12px; align-items:center">
-          <span class="chip ${ev.length ? CAT[c.category] : 'on-gap'}" style="justify-content:center">${esc(c.name)}</span>
-          <div>
-            <div class="meter ${ev.length ? '' : 'is-gap'}"><i style="width:${Math.round(r.weight*100)}%"></i></div>
-            <div style="font-size:11px; color:var(--faint); margin-top:4px">“${esc(r.evidence)}”</div>
-          </div>
-          <span class="mono" style="font-size:11.5px; color:var(--muted)">${r.weight.toFixed(1)}</span>
-        </div>`; }).join('')}
-    </div>
-
-    ${p.newCompetencies.length ? `
-      <div style="margin-top:18px; padding:12px 14px; background:var(--gap-soft); border:1px solid var(--gap); border-radius:3px" data-note="newCompetencies">
-        <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:6px">역량 사전에 없는 표현 ${p.newCompetencies.length}개 — 승인 필요</div>
-        <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
-        <p style="font-size:11.5px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
-      </div>` : ''}
-
-    <div style="margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--muted)">
-      이 목록은 <b>사용자가 요청해서 만든 것이 아니다.</b> 공고를 수집하는 배치가 적재 시점에 AX-1 추출까지 끝내 둔다 —
-      그래서 이 화면을 열 때 기다릴 일이 없고, 파서와 프롬프트는 서비스 운영자만 손댄다.
     </div>`;
 }
 
@@ -1855,28 +1895,20 @@ function paintS4Live(q, list){
       <span style="position:absolute; left:80%; top:-2px; width:1px; height:11px; background:var(--ink); opacity:.55"></span>
     </div>
     <span class="mono" style="font-size:12px; color:${over || thin ? 'var(--gap)' : 'var(--matched)'}; font-variant-numeric:tabular-nums">${s4text.length} / ${q.charLimit}자</span>`;
-  const side = $('#s4side');
-  if (side){ side.innerHTML = s4SideHtml(q, list); bindS4Side(list); }
+  const lint = $('#s4lint');
+  if (lint) lint.innerHTML = s4LintHtml(q);
 }
 
 function bindS4Side(list){
   $$('#s4side .s4ex').forEach(c => c.addEventListener('change', () => {
     s4used = $$('#s4side .s4ex').filter(x => x.checked).map(x => +x.value);
     const q2 = DATA.questions.find(x => x.id === s4qid); q2.usedExperienceIds = s4used;
+    const n = $('#s4side .cardhead .n'); if (n) n.textContent = `${s4used.length}건`;
     paintS4Live(q2, list);
-  }));
-  $$('#s4side [data-ver]').forEach(b => b.addEventListener('click', () => {
-    const q2 = DATA.questions.find(x => x.id === s4qid);
-    const v = q2.versions.find(x => x.v === +b.dataset.ver);
-    s4text = v.content; q2.draft = s4text; renderEssay();
-    toast(`v${v.v} 로 되돌렸습니다`);
   }));
 }
 
-function s4SideHtml(q, list){
-  const issues = lint(s4text, q);
-  const problems = issues.filter(i => i.level !== 'info');
-  const notes = issues.filter(i => i.level === 'info');
+function s4EvidenceHtml(q, list){
   return `
       <div class="card" data-note="answer_experience">
         <div class="cardhead"><h3>근거 경험</h3><span class="n">${s4used.length}건</span></div>
@@ -1890,27 +1922,20 @@ function s4SideHtml(q, list){
             체크한 경험의 id 가 <code>usedExperienceIds</code> 로 프롬프트에 들어가고, 저장 시 <code>answer_experience</code> 에 기록된다. AI가 무엇을 근거로 썼는지 DB가 기억한다.
           </p>
         </div>
-      </div>
+      </div>`;
+}
 
-      <div class="card" data-note="answer · version 이력">
-        <div class="cardhead"><h3>저장된 버전</h3><span class="n">${(q.versions||[]).length}개</span></div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:7px">
-          ${(q.versions||[]).length ? [...q.versions].reverse().map(v => `
-            <div style="display:flex; gap:8px; align-items:center; font-size:11.5px">
-              <span class="pill ${v.source === 'AI_DRAFT' ? 'acc' : 'mut'}">v${v.v}</span>
-              <span style="color:var(--muted)">${esc(v.at)} · ${v.len}자 · ${v.source === 'AI_DRAFT' ? 'AI 초안' : '직접 작성'}</span>
-              <button class="btn sm" data-ver="${v.v}" style="margin-left:auto">되돌리기</button>
-            </div>`).join('')
-          : '<p style="font-size:11.5px; color:var(--faint)">아직 저장한 버전이 없습니다. 자소서는 고쳐 쓰는 게 본질이라 덮어쓰지 않고 버전을 쌓습니다.</p>'}
-        </div>
-      </div>
-
+function s4LintHtml(q){
+  const issues = lint(s4text, q);
+  const problems = issues.filter(i => i.level !== 'info');
+  const notes = issues.filter(i => i.level === 'info');
+  return `
       <div class="card" data-note="문자열 규칙 · AI 아님">
         <div class="cardhead">
           <h3>문장 점검</h3>
           <span class="n" style="color:${problems.length ? 'var(--gap)' : 'var(--matched)'}">${problems.length ? problems.length + '건' : '이상 없음'}</span>
         </div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:10px">
+        <div class="cardbody" style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
           ${problems.length ? problems.map(i => `
             <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
@@ -1921,16 +1946,16 @@ function s4SideHtml(q, list){
             </div>`).join('')
           : '<p style="font-size:12px; color:var(--matched)">분량 · 기업명 · 금지 표현 · 정량 근거 · 비교 기준 · 요구사항 · 두괄식 모두 통과했습니다.</p>'}
           ${notes.map(i => `
-            <div style="display:flex; flex-direction:column; gap:3px; padding-top:9px; border-top:1px dashed var(--border)">
+            <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
                 <span class="pill info">${i.label}</span>
                 <span style="font-size:10px; color:var(--faint); font-family:var(--mono)">${esc(i.rank)}</span>
               </div>
               <span style="font-size:12px; color:var(--muted); padding-left:2px">${esc(i.msg)}</span>
             </div>`).join('')}
-          <p style="font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:9px">
-            여섯 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
-          </p>
+        </div>
+        <div style="padding:0 18px 14px; font-size:11px; color:var(--muted)">
+          여덟 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
         </div>
       </div>`;
 }
@@ -1938,6 +1963,7 @@ function s4SideHtml(q, list){
 function renderEssay(){
   const p = P();
   const app = appOfPosting(p);
+  const ep = essayProgress(p);
 
   if (!app){
     $('#dtEssay').innerHTML = `
@@ -1949,7 +1975,7 @@ function renderEssay(){
     $('#esMkApp').addEventListener('click', () => {
       openApp();
       $('#apCo').value = p.company; $('#apPos').value = p.position;
-      $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+      $('#apDday').value = dday(p.deadline);
     });
     return;
   }
@@ -1991,15 +2017,15 @@ function renderEssay(){
       <div class="cardhead"><h3>지원서</h3><span class="n">${list.length}문항</span></div>
       <div class="cardbody" style="padding:10px; display:flex; flex-direction:column; gap:10px">
         <div style="font-size:11px; color:var(--faint); display:flex; gap:8px; flex-wrap:wrap">
-          <span>${esc(STATUS[app.status].label)}</span>
-          <span>미작성 ${appRemain(app)}문항</span>
+          <span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>
+          <span>${esc(ep.label)}</span>
         </div>
         <button class="btn sm" data-addQ2="${app.id}" style="justify-content:center">＋ 문항 추가</button>
         <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:9px">
         ${list.map(x => `
           <button class="qitem" data-q="${x.id}" aria-current="${x.id === s4qid ? 'true' : 'false'}">
             <span style="font-size:12px; line-height:1.5">${esc(x.prompt.length > 44 ? x.prompt.slice(0,44) + '…' : x.prompt)}</span>
-            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}${(x.versions||[]).length ? ' · v' + x.versions.length : ''}</span>
+            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}</span>
           </button>`).join('')}
         </div>
       </div>
@@ -2020,7 +2046,7 @@ function renderEssay(){
         <textarea class="inp" id="s4ta" rows="13" spellcheck="false" placeholder="근거 경험을 고른 뒤 초안을 생성하거나, 직접 쓰세요">${esc(s4text)}</textarea>
         <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap">
           <button class="btn primary sm" id="s4gen" data-note="POST /answers/${q.id}/ai/draft → 202">초안 생성</button>
-          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">새 버전 저장</button>
+          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">저장</button>
           <span class="spacer" style="flex:1"></span>
           <div style="display:flex; align-items:center; gap:9px" id="s4count">
             <div style="position:relative; width:118px" title="80% 지점 눈금 — 그 아래는 무성의 감점 구간">
@@ -2033,20 +2059,20 @@ function renderEssay(){
       </div>
     </div>
 
-    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>`;
+    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>
+    </div>
 
-  $("#s4side").innerHTML = s4SideHtml(q, list);
+    <div id="s4lint" style="margin-top:16px"></div>`;
+
+  $('#s4side').innerHTML = s4EvidenceHtml(q, list);
+  $('#s4lint').innerHTML = s4LintHtml(q);
   $$('#dtEssay [data-addQ2]').forEach(b => b.addEventListener('click', () => openQ(+b.dataset.addq2)));
   $('#s4save').addEventListener('click', () => {
     const q2 = DATA.questions.find(x => x.id === s4qid);
-    const body = s4text.trim();
-    if (!body){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
-    q2.versions = q2.versions || [];
-    if (q2.versions.length && q2.versions[q2.versions.length-1].content === body){ toast('직전 버전과 같습니다'); return; }
-    q2.versions.push({ v: q2.versions.length + 1, content: body, len: body.length, at: stamp(),
-                       source: body === q2.aiDraft ? 'AI_DRAFT' : 'MANUAL' });
-    renderEssay(); renderHome();
-    toast(`v${q2.versions.length} 저장 · ${app.company} 지원서에 묶임`);
+    if (!s4text.trim()){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
+    q2.draft = s4text;
+    renderDetail(); renderHome();
+    toast(`저장했습니다 · ${app.company} 지원서에 묶임`);
   });
   $$('#dtEssay [data-ask]').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.ask;
@@ -2086,12 +2112,14 @@ function renderEssay(){
   });
 }
 
-const STATUS = {
-  PLANNED:   { label:'지원 예정', cls:'mut' },
-  WRITING:   { label:'작성 중',   cls:'warn' },
-  SUBMITTED: { label:'제출',      cls:'info' },
-  INTERVIEW: { label:'면접',      cls:'acc' },
-  RESULT:    { label:'결과 대기', cls:'ok' },
+/* 지원서 진행 상태는 저장하지 않는다 — questions 의 draft 유무에서 파생한다.
+   제출 여부는 우리가 관측할 수 없으므로 모델에 두지 않는다. */
+const ESSAY_STATE = {
+  NO_APP:  { label:'지원서 없음',  cls:'mut' },
+  NO_Q:    { label:'문항 미등록',  cls:'mut' },
+  EMPTY:   { label:'작성 전',      cls:'warn' },
+  WRITING: { label:'작성 중',      cls:'warn' },
+  DONE:    { label:'작성 완료',    cls:'ok' },
 };
 
 /* ============================================================
@@ -2100,30 +2128,16 @@ const STATUS = {
 let homeSort = 'match';
 let homeOnlyBm = false;
 
-function progressOf(posting){
-  const app = DATA.applications.find(a => a.postingId === posting.id);
-  if (!app) return { app:null, label:'지원서 없음', done:0, total:0, ratio:0, versions:0 };
-  const qs = qOf(app.id);
-  const done = qs.filter(q => (q.draft || '').trim().length > 0).length;
-  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
-  const versions = qs.reduce((a, q) => a + (q.versions || []).length, 0);
-  return {
-    app, done, total: qs.length, versions, thin,
-    ratio: qs.length ? done / qs.length : 0,
-    label: qs.length ? `${done} / ${qs.length}문항` : '문항 미등록',
-  };
-}
-
 function renderHome(){
   const all = DATA.postings.filter(p => dday(p.deadline) >= 0);
   const live = all.filter(p => !homeOnlyBm || isBm(p.id))
-    .map(p => ({ p, m: computeMatch(p), pr: progressOf(p), d: dday(p.deadline) }));
+    .map(p => ({ p, m: computeMatch(p), pr: essayProgress(p), d: dday(p.deadline) }));
 
   live.sort((a, b) => homeSort === 'match' ? b.m.overall - a.m.overall : a.d - b.d);
 
   const avg = live.length ? live.reduce((a, x) => a + x.m.overall, 0) / live.length : 0;
   const soon = live.filter(x => x.d <= 7).length;
-  const writing = live.filter(x => x.pr.app && x.pr.app.status === 'WRITING').length;
+  const writing = live.filter(x => x.pr.state === 'WRITING' || x.pr.state === 'EMPTY').length;
 
   $('#homeStats').innerHTML = [
     ['활성 공고', all.length, ''],
@@ -2170,8 +2184,7 @@ function renderHome(){
             ${ep.total
               ? `<div class="meter" style="width:52px"><i style="width:${Math.round(ep.ratio*100)}%"></i></div>
                  <span class="mono" style="font-size:11px; color:${ep.state === 'DONE' ? 'var(--matched)' : 'var(--ink-2)'}">자소서 ${ep.done}/${ep.total}</span>`
-              : `<span class="pill mut">자소서 ${esc(ep.label)}</span>`}
-            ${ep.versions ? `<span class="mono" style="font-size:10.5px; color:var(--faint)">${ep.versions}버전</span>` : ''}
+              : `<span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>`}
           </div>
         </div>
         <button class="btn primary sm" data-open="${p.id}" data-tab="essay">
@@ -2184,7 +2197,7 @@ function renderHome(){
   $('#homeNote').innerHTML = '정렬은 <b>매칭순</b>과 <b>마감 임박순</b> 두 가지다. 지원자 수 기준 인기순은 넣지 않았다 — 공고 사이트가 지원자 수를 공개할 때만 가능한 지표라, 없는 데이터를 있는 척할 수 없다.';
 
   $('#onlyBm').setAttribute('aria-pressed', String(homeOnlyBm));
-  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 저장 버튼을 눌러 담아 두세요.</p>';
+  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 즐겨찾기 버튼을 눌러 담아 두세요.</p>';
   bindBm('#homeList');
   $('#sortMatch').setAttribute('aria-pressed', String(homeSort === 'match'));
   $('#sortDday').setAttribute('aria-pressed', String(homeSort === 'dday'));
@@ -2198,7 +2211,7 @@ function renderHome(){
   $$('#homeList [data-mkApp]').forEach(b => b.addEventListener('click', () => {
     const p = DATA.postings.find(x => x.id === +b.dataset.mkapp);
     openApp(); $('#apCo').value = p.company; $('#apPos').value = p.position;
-    $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+    $('#apDday').value = dday(p.deadline);
   }));
 }
 $('#sortMatch').addEventListener('click', () => { homeSort = 'match'; renderHome(); });
@@ -2254,9 +2267,9 @@ const TABLES = [
   ['company',               'id, name, career_url',                                                             'career_url 이 수집 대상', ''],
   ['job_posting',           'id, company_id, position, raw_text, deadline, source, collected_at, questions_from_server', '직무 단위 · 기업 단위가 아니다', ''],
   ['posting_competency',    'posting_id, competency_id, weight, evidence_line, evidence_status',                'N:M', 'weight·인용줄·검증상태가 쌍의 속성'],
-  ['application',           'id, user_id, posting_id, status, submitted_at',                                    '', ''],
+  ['application',           'id, user_id, posting_id, created_at',                                              '', 'status·submitted_at 없음 — 제출 여부는 관측 불가라 모델에 두지 않는다'],
   ['question',              'id, application_id, seq, prompt_text, char_limit, asks[]',                         '', ''],
-  ['answer',                'id, question_id, version, content, char_count, is_final, source',                  '버전 누적 · 덮어쓰지 않는다', ''],
+  ['answer',                'id, question_id, content, char_count, source, updated_at',                        '문항당 1행', ''],
   ['answer_experience',     'answer_id, experience_id',                                                         'N:M', '이 문장이 어떤 경험을 근거로 썼는가'],
   ['assessment',            'id, application_id, verdict, headline, summary, state, input_sig, computed_at',    '이벤트로 갱신 · 화면은 읽기만', ''],
   ['assessment_action',     'id, assessment_id, seq, effort, tag, title',                                       '', ''],
@@ -2293,11 +2306,11 @@ function buildSeedSql(){
 
   L.push('', '-- application · question · answer');
   DATA.applications.filter(a => a.id).forEach(a =>
-    L.push(`INSERT INTO application (id, user_id, posting_id, status) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'}, ${sq(a.status)});`));
+    L.push(`INSERT INTO application (id, user_id, posting_id) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'});`));
   DATA.questions.forEach((q, i) => {
     L.push(`INSERT INTO question (id, application_id, seq, prompt_text, char_limit) VALUES (${q.id}, ${q.applicationId}, ${i + 1}, ${sq(q.prompt)}, ${q.charLimit});`);
-    (q.versions || []).forEach(v =>
-      L.push(`INSERT INTO answer (question_id, version, content, char_count, is_final, source) VALUES (${q.id}, ${v.v}, ${sq(v.content)}, ${v.len}, ${v.v === (q.versions.length)}, ${sq(v.source)});`));
+    if ((q.draft || '').trim())
+      L.push(`INSERT INTO answer (question_id, content, char_count, source) VALUES (${q.id}, ${sq(q.draft)}, ${q.draft.length}, 'MANUAL');`);
   });
 
   L.push('', 'COMMIT;');
@@ -2403,12 +2416,12 @@ function renderSpec(){
   const enums = [
     ['competency.category', ['TECH','SOFT','DOMAIN','VALUE'], '역량 범주'],
     ['posting.source', ['CRAWLED','MANUAL'], '공고가 어떻게 들어왔나'],
-    ['application.status', Object.keys(STATUS), '지원 진행 상태'],
+    ['(파생) 자소서 진행', Object.keys(ESSAY_STATE), '컬럼이 아니다 — questions 의 draft 유무에서 계산한다'],
     ['assessment.state', ['FRESH','QUEUED','RUNNING'], '평가 재계산 상태'],
     ['assessment.verdict', ['RECOMMEND','CONDITIONAL','HOLD'], '지원 판정'],
     ['action.effort', Object.keys(EFFORT), '액션 난이도'],
     ['experience.source', ['MANUAL','AI_INTAKE'], '경험을 어떻게 만들었나'],
-    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 버전 출처'],
+    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 본문 출처'],
     ['intake.question.field', ['task','result'], 'AI 가 되물을 STAR 필드'],
   ];
 
@@ -2568,17 +2581,6 @@ function renderSpec(){
 /* ============================================================
    부트
    ============================================================ */
-DATA.questions.forEach(q => {
-  if (!q.versionsSeed || !q.draft) return;
-  q.versions = Array.from({ length: q.versionsSeed }, (_, i) => ({
-    v: i + 1,
-    content: q.draft,
-    len: q.draft.length,
-    at: `8/${28 + i} 21:0${i}`,
-    source: i === 0 ? 'AI_DRAFT' : 'MANUAL',
-  }));
-});
-seedAssess();
 renderS1(); renderHome(); renderSpec();
 (() => {
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2733,7 +2735,7 @@ function saveExp(){
 /* ---------- 지원 등록 ---------- */
 function openApp(){
   ['apCo','apPos'].forEach(id => $('#' + id).value = '');
-  $('#apSt').selectedIndex = 0; $('#apDday').value = 14; $('#apQ').value = 4;
+  $('#apDday').value = 14; $('#apQ').value = 4;
   $('#apErr').innerHTML = '';
   $('#appDlg').showModal();
   $('#apCo').focus();
@@ -2755,10 +2757,8 @@ function saveApp(){
     id: Math.max(100, ...DATA.applications.map(a => a.id || 0)) + 1,
     postingId: DATA.postings.find(p => p.company === company)?.id ?? null,
     company, position,
-    status: $('#apSt').value,
     dday: Math.max(0, +$('#apDday').value || 0),
     match: null,
-    remainingQuestions: `— / ${q}`,
   });
   $('#appDlg').close();
   renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
@@ -3019,7 +3019,6 @@ $('#qSave').addEventListener('click', () => {
   DATA.questions.push({
     id: Math.max(0, ...DATA.questions.map(q => q.id)) + 1,
     applicationId: qDlgApp,
-    versions: [],
     charLimit: Math.max(100, +$('#qLimit').value || 700),
     prompt,
     intent: '직접 등록한 문항입니다. 공고의 평가 포인트를 확인해 의도를 채워 두면 점검이 정확해집니다.',
