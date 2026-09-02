@@ -1271,8 +1271,8 @@ function renderSpec(){
     { id:'AX-2', name:'매칭 평가 요약', trigger:'경험 변경 이벤트 · 야간 배치', temp:'0.2', sync:'이벤트 · 사용자 대기 없음',
       ep:'POST /internal/ai/match',
       out:{ verdict:'CONDITIONAL', headline:'기술 역량은 채웠지만 인재상 키워드가 비어 있습니다',
-            summary:'요구 역량 9개 중 7개를 덮어 매칭 69%입니다. …',
-            actions:[{ effort:'LOW', tag:'높은 목표 설정', title:'MSA 프로젝트를 “기존 대비 더 높은 기준” 관점으로 다시 서술하세요.' }] } },
+            summary:'요구 역량 10개 중 8개를 덮어 매칭 73%입니다. …',
+            actions:[{ effort:'LOW', tag:'AI 도구 활용', title:'MSA 프로젝트에서 AI 도구를 어떻게 썼는지 한 문단 보강하세요.' }] } },
     { id:'AX-3', name:'자소서 초안', trigger:'사용자 버튼', temp:'0.6', sync:'202 + 폴링',
       ep:'POST /api/answers/{id}/ai/draft',
       out:{ draft:'…', charCount:668, usedExperienceIds:[1], cautions:['결과에 정량 수치가 없습니다.'] } },
@@ -1291,7 +1291,7 @@ function renderSpec(){
       <p class="lead">
         AX-1(공고) · AX-2(평가) · AX-4(인테이크) 가 역량을 지목할 때 <b>반드시 이 ${DATA.competencies.length}개 안에서만</b> 고른다.
         사전 밖 표현은 <code>newCompetencies</code> 로 격리해 사람이 승인해야 들어온다 — 그래야 “협업”과 “팀워크”가 따로 쌓이지 않는다.
-        <code>aliases</code> 는 자소서 본문에서 키워드 포함 여부를 볼 때 쓰는 동의어다(“클라우드 인프라” ← 쿠버네티스 · Docker · 배포).
+        <code>aliases</code> 는 자소서 본문에서 키워드 포함 여부를 볼 때 쓰는 동의어다(“클라우드 인프라 운영” ← AWS · 쿠버네티스 · Docker · 리눅스).
       </p>
       ${['TECH','SOFT','DOMAIN','VALUE'].map(cat => `
         <div class="card" style="margin-bottom:12px">
