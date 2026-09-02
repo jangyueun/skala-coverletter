@@ -399,6 +399,29 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
 .qrow{display:flex; flex-direction:column; gap:5px; padding:9px 0; border-top:1px dashed var(--border)}
 .qrow .q{font-size:12px; color:var(--ink)}
 .qrow .why{font-size:10.5px; color:var(--faint)}
+
+/* 인테이크 에디터 — 좌 후보 레일 + 우 STAR 에디터 */
+.inwrap{display:grid; grid-template-columns:168px 1fr; gap:12px; align-items:start}
+.inwrap > #inRail{
+  position:sticky; top:0; z-index:1; display:flex; flex-direction:column; gap:7px;
+  background:var(--surface); padding-bottom:6px; min-width:0;
+}
+.inwrap.solo{grid-template-columns:1fr}
+.inwrap.solo > #inRail{position:static; flex-direction:row; align-items:center; flex-wrap:wrap}
+@media(max-width:640px){
+  .inwrap{grid-template-columns:1fr}
+  .inwrap > #inRail{position:static; flex-direction:row; overflow-x:auto}
+  .inwrap > #inRail .cand{min-width:150px; flex:none}
+}
+
+/* 이 문장을 누가 썼는가 — 필드 왼쪽 스트라이프 */
+.fsrc{border-left:3px solid var(--border-strong); padding-left:10px}
+.fsrc-you{border-left-color:var(--gap)}
+.fsrc-todo{border-left-width:5px}          /* 아직 비어 있다 — 채우면 두께만 돌아온다 */
+.fsrc-edited{border-left-color:var(--accent)}
+
+/* 근거 인용 한 줄 — 전문은 title 속성 */
+.evq{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -512,7 +535,7 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     <div class="dlghead">
       <h3 id="expDlgH">경험 등록</h3>
       <span class="sub" id="expDlgSub">STAR 4필드 · 역량 태그</span>
-      <button class="btn sm x" value="cancel">닫기</button>
+      <button type="button" class="btn sm x" id="exClose">닫기</button>
     </div>
   </form>
   <div class="dlgbody">
@@ -522,12 +545,16 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     </div>
 
     <div id="exIntake" hidden>
-      <div class="field" style="margin-bottom:10px">
+      <div class="field" id="inLinkBox" style="margin-bottom:10px">
         <label for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
         <textarea class="inp" id="inUrl" rows="4" spellcheck="false">https://github.com/jhyun/msa-order-service
 https://github.com/jhyun/algo-study-2025
 https://jhyun.dev/portfolio
 https://drive.example/해커톤_발표자료.pdf</textarea>
+      </div>
+      <div class="hint" id="inLinkFold" hidden style="margin-bottom:10px">
+        링크 <b id="inLinkN">4</b>개를 분석했습니다
+        <button type="button" class="btn sm" id="inLinkEdit" style="margin-left:6px">링크 고치기</button>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
         <button type="button" class="btn primary sm" id="inRun" data-note="POST /experiences/ai/intake → 202">분석</button>
