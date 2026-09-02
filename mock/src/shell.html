@@ -1,0 +1,635 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>커리어맵 · 경험 역량 매핑</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Noto+Serif+KR:wght@600;700&family=IBM+Plex+Sans+KR:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --sans:"IBM Plex Sans KR","Apple SD Gothic Neo","Malgun Gothic",system-ui,sans-serif;
+  --serif:"Noto Serif KR","Apple SD Gothic Neo",Georgia,serif;
+  --mono:"IBM Plex Mono","SFMono-Regular",Menlo,monospace;
+
+  --ground:#F4F3F7; --surface:#FFFFFF; --surface-2:#EDECF2; --surface-3:#E4E2EB;
+  --border:#DCDAE4; --border-strong:#BEBBCB;
+  --ink:#171820; --ink-2:#42414F; --muted:#6B6979; --faint:#918FA0;
+
+  --accent:#6E3A57; --accent-soft:#F2E6EE; --accent-ink:#FFFFFF;
+  --matched:#2C6E52; --matched-soft:#E1F0E8;
+  --gap:#8A4E0F; --gap-soft:#F8ECDC;
+  --info:#33528C; --info-soft:#E5EAF5;
+
+  --shadow-1:0 1px 2px rgba(23,24,32,.06);
+  --shadow-2:0 1px 2px rgba(23,24,32,.05),0 12px 28px -18px rgba(23,24,32,.4);
+  --radius:4px;
+}
+@media (prefers-color-scheme:dark){
+  :root:not([data-theme="light"]){
+    --ground:#121318; --surface:#1A1B22; --surface-2:#22232C; --surface-3:#2B2C37;
+    --border:#2D2E39; --border-strong:#464858;
+    --ink:#EAE9EF; --ink-2:#C4C2CE; --muted:#9C9AAA; --faint:#918FA0;
+    --accent:#D18FB4; --accent-soft:#32202B; --accent-ink:#1A1B22;
+    --matched:#63B98D; --matched-soft:#15281F;
+    --gap:#D9A05A; --gap-soft:#2C2214;
+    --info:#8AAAE0; --info-soft:#1A2334;
+    --shadow-1:0 1px 2px rgba(0,0,0,.5);
+    --shadow-2:0 1px 2px rgba(0,0,0,.5),0 14px 34px -20px rgba(0,0,0,.95);
+  }
+}
+:root[data-theme="dark"]{
+  --ground:#121318; --surface:#1A1B22; --surface-2:#22232C; --surface-3:#2B2C37;
+  --border:#2D2E39; --border-strong:#464858;
+  --ink:#EAE9EF; --ink-2:#C4C2CE; --muted:#9C9AAA; --faint:#918FA0;
+  --accent:#D18FB4; --accent-soft:#32202B; --accent-ink:#1A1B22;
+  --matched:#63B98D; --matched-soft:#15281F;
+  --gap:#D9A05A; --gap-soft:#2C2214;
+  --info:#8AAAE0; --info-soft:#1A2334;
+  --shadow-1:0 1px 2px rgba(0,0,0,.5);
+  --shadow-2:0 1px 2px rgba(0,0,0,.5),0 14px 34px -20px rgba(0,0,0,.95);
+}
+
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+html,body{height:100%}
+body{
+  margin:0; background:var(--ground); color:var(--ink-2);
+  font-family:var(--sans); font-size:14px; line-height:1.65;
+  -webkit-font-smoothing:antialiased;
+}
+button,input,textarea,select{font:inherit; color:inherit}
+h1,h2,h3,h4{margin:0; color:var(--ink); font-weight:600; line-height:1.35}
+p{margin:0}
+:focus-visible{outline:2px solid var(--accent); outline-offset:2px}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+
+/* ============ app shell ============ */
+.app{display:grid; grid-template-columns:212px 1fr; grid-template-rows:auto 1fr; min-height:100vh}
+.app > *{min-width:0}
+.topbar{
+  grid-column:1/-1; display:flex; align-items:center; gap:16px;
+  padding:0 18px; height:56px; background:var(--surface);
+  border-bottom:1px solid var(--border); position:sticky; top:0; z-index:30;
+}
+.brand{display:flex; align-items:baseline; gap:9px; font-family:var(--serif); font-weight:700; font-size:17px; color:var(--ink)}
+.brand .dot{width:9px; height:9px; border-radius:50%; background:var(--accent); transform:translateY(-1px)}
+.brand small{font-family:var(--sans); font-weight:400; font-size:11px; color:var(--faint); letter-spacing:.04em}
+.topbar .spacer{flex:1}
+.mockbadge{
+  font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase;
+  color:var(--gap); background:var(--gap-soft); border:1px solid currentColor;
+  padding:3px 8px; border-radius:2px; white-space:nowrap;
+}
+.who{display:flex; align-items:center; gap:8px; font-size:12.5px; color:var(--muted)}
+.avatar{
+  width:26px; height:26px; border-radius:50%; background:var(--accent-soft); color:var(--accent);
+  display:grid; place-items:center; font-size:11px; font-weight:600; border:1px solid var(--border);
+}
+.toggle{
+  display:inline-flex; align-items:center; gap:7px; font-size:12px; color:var(--muted);
+  background:var(--surface-2); border:1px solid var(--border); border-radius:2px;
+  padding:5px 10px; cursor:pointer;
+}
+.toggle:hover{color:var(--ink); border-color:var(--border-strong)}
+.toggle[aria-pressed="true"]{background:var(--accent-soft); color:var(--accent); border-color:currentColor}
+.toggle .sw{width:22px; height:12px; border-radius:7px; background:var(--border-strong); position:relative; flex:none}
+.toggle .sw::after{content:""; position:absolute; top:2px; left:2px; width:8px; height:8px; border-radius:50%; background:var(--surface); transition:left .15s}
+.toggle[aria-pressed="true"] .sw{background:var(--accent)}
+.toggle[aria-pressed="true"] .sw::after{left:12px}
+
+.side{
+  background:var(--surface); border-right:1px solid var(--border);
+  padding:16px 10px; display:flex; flex-direction:column; gap:2px;
+}
+.side .grouplab{
+  font-size:10px; font-weight:600; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--faint); padding:10px 10px 6px;
+}
+.navitem{
+  display:flex; align-items:center; gap:10px; width:100%; text-align:left;
+  padding:8px 10px; border-radius:3px; border:1px solid transparent; background:none;
+  color:var(--ink-2); cursor:pointer; font-size:13.5px;
+}
+.navitem:hover{background:var(--surface-2)}
+.navitem[aria-current="page"]{background:var(--accent-soft); color:var(--accent); border-color:var(--border); font-weight:600}
+.navitem .sid{font-family:var(--mono); font-size:10.5px; color:var(--faint); flex:none; width:18px}
+.navitem[aria-current="page"] .sid{color:var(--accent)}
+.qitem{
+  display:flex; flex-direction:column; align-items:flex-start; gap:3px; width:100%; text-align:left;
+  padding:8px 10px; border-radius:3px; border:1px solid transparent; background:none;
+  color:var(--ink-2); cursor:pointer; font-size:12px; line-height:1.5; white-space:normal;
+}
+.qitem:hover{background:var(--surface-2)}
+.qitem[aria-current="true"]{background:var(--accent-soft); color:var(--accent); border-color:var(--border); font-weight:600}
+.navitem .core{
+  margin-left:auto; font-size:9.5px; font-weight:600; color:var(--matched);
+  border:1px solid currentColor; padding:0 4px; border-radius:2px;
+}
+.side .foot{margin-top:auto; padding:12px 10px 0; border-top:1px solid var(--border); font-size:11px; color:var(--faint); line-height:1.6}
+
+.main{padding:26px 30px 60px; min-width:0; overflow-x:hidden}
+@media(max-width:880px){
+  .app{grid-template-columns:1fr}
+  .side{flex-direction:row; overflow-x:auto; min-width:0; border-right:none; border-bottom:1px solid var(--border); padding:8px; gap:4px}
+  .side .grouplab,.side .foot{display:none}
+  .navitem{width:auto; white-space:nowrap}
+  .main{padding:20px 16px 48px}
+}
+@media(max-width:560px){
+  .topbar{gap:9px; padding:0 12px}
+  .brand small{display:none}
+  .mockbadge{display:none}
+  .toggle{font-size:0; gap:0; padding:6px 8px}
+  .toggle .sw{font-size:12px}
+  .who{font-size:0; gap:0}
+  .who .avatar{font-size:11px}
+}
+
+/* ============ screen ============ */
+.screen{display:none}
+.screen.on{display:block; animation:fade .18s ease-out}
+@keyframes fade{from{opacity:0; transform:translateY(4px)}to{opacity:1; transform:none}}
+.shead{display:flex; align-items:flex-start; gap:14px; flex-wrap:wrap; margin-bottom:22px}
+.shead h2{font-size:20px}
+.shead .sub{font-size:12.5px; color:var(--muted); margin-top:4px; max-width:62ch}
+.shead .right{margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap}
+
+/* ============ primitives ============ */
+.card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow-1)}
+.card.pad{padding:18px 20px}
+.cardhead{display:flex; align-items:center; gap:10px; padding:13px 18px; border-bottom:1px solid var(--border)}
+.cardhead h3{font-size:13.5px}
+.cardhead .n{margin-left:auto; font-size:11.5px; color:var(--faint); font-family:var(--mono)}
+.cardbody{padding:16px 18px}
+
+.btn{
+  display:inline-flex; align-items:center; gap:7px; padding:7px 13px; border-radius:3px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--ink);
+  cursor:pointer; font-size:12.5px; font-weight:500; white-space:nowrap;
+}
+.btn:hover{background:var(--surface-2)}
+.btn.primary{background:var(--accent); border-color:var(--accent); color:var(--accent-ink)}
+.btn.primary:hover{filter:brightness(1.08)}
+.btn.sm{padding:4px 9px; font-size:11.5px}
+.btn:disabled{opacity:.5; cursor:not-allowed}
+.btn .spin{width:11px; height:11px; border:2px solid currentColor; border-right-color:transparent; border-radius:50%; animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+.chip{
+  display:inline-flex; align-items:center; gap:5px; font-size:11.5px; padding:2px 9px;
+  border-radius:11px; border:1px solid var(--border-strong); background:var(--surface);
+  color:var(--ink-2); cursor:default; white-space:nowrap;
+}
+button.chip{cursor:pointer}
+button.chip:hover{border-color:var(--accent); color:var(--accent)}
+.chip[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); font-weight:600}
+.chip.tech{border-color:var(--info); color:var(--info)}
+.chip.soft{border-color:var(--accent); color:var(--accent)}
+.chip.domain{border-color:var(--muted); color:var(--muted)}
+.chip.value{border-color:var(--gap); color:var(--gap)}
+.chip.on-matched{background:var(--matched-soft); border-color:var(--matched); color:var(--matched); font-weight:600}
+.chip.on-gap{background:var(--gap-soft); border-color:var(--gap); color:var(--gap); font-weight:600}
+.chips{display:flex; flex-wrap:wrap; gap:6px}
+
+.pill{
+  font-size:10.5px; font-weight:600; padding:1px 7px; border-radius:2px;
+  border:1px solid currentColor; white-space:nowrap;
+}
+.pill.ok{color:var(--matched)} .pill.warn{color:var(--gap)} .pill.info{color:var(--info)}
+.pill.mut{color:var(--faint)} .pill.acc{color:var(--accent)}
+
+.meter{height:7px; border-radius:4px; background:var(--surface-3); overflow:hidden; min-width:70px}
+.meter i{display:block; height:100%; border-radius:4px; background:var(--matched)}
+.meter.is-gap i{background:var(--gap)}
+
+.stat{display:flex; flex-direction:column; gap:2px}
+.stat .v{font-family:var(--serif); font-weight:700; font-size:28px; color:var(--ink); line-height:1; font-variant-numeric:tabular-nums}
+.stat .l{font-size:11px; color:var(--muted)}
+
+.field{display:flex; flex-direction:column; gap:5px}
+.field label{font-size:11.5px; font-weight:600; color:var(--muted)}
+.inp,textarea.inp{
+  width:100%; padding:8px 11px; border:1px solid var(--border-strong); border-radius:3px;
+  background:var(--surface); color:var(--ink); font-size:13px; line-height:1.6;
+}
+textarea.inp{resize:vertical; font-family:var(--sans)}
+.inp::placeholder{color:var(--faint)}
+
+.grid{display:grid; gap:16px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{display:grid; grid-template-columns:repeat(4,1fr); gap:16px}
+@media(max-width:980px){.g4{grid-template-columns:repeat(2,1fr)}}
+.jobgrid{display:grid; grid-template-columns:repeat(auto-fill,minmax(296px,1fr)); gap:16px}
+.jobcard{
+  background:var(--surface); border:1px solid var(--border); border-radius:12px;
+  padding:20px; display:flex; flex-direction:column; gap:13px;
+  box-shadow:var(--shadow-1); min-height:252px;
+}
+.jobcard:hover{box-shadow:var(--shadow-2); border-color:var(--border-strong)}
+.jc-top{display:flex; align-items:flex-start; justify-content:space-between; gap:10px}
+.jc-logo{
+  width:44px; height:44px; border-radius:50%; display:grid; place-items:center; flex:none;
+  background:var(--surface-2); border:1px solid var(--border);
+  font-family:var(--serif); font-weight:700; font-size:16px; color:var(--accent);
+}
+.jc-match{
+  display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:600;
+  padding:4px 11px; border-radius:999px; border:1px solid currentColor; white-space:nowrap;
+  font-variant-numeric:tabular-nums;
+}
+.bm{
+  display:inline-flex; align-items:center; gap:5px; padding:4px 9px; border-radius:999px;
+  border:1px solid var(--border-strong); background:var(--surface); color:var(--muted);
+  font-size:11.5px; cursor:pointer; white-space:nowrap;
+}
+.bm:hover{color:var(--accent); border-color:var(--accent)}
+.bm[aria-pressed="true"]{background:var(--accent-soft); border-color:var(--accent); color:var(--accent); font-weight:600}
+.jc-co{font-size:12.5px; color:var(--ink); font-weight:600}
+.jc-co em{color:var(--faint); font-weight:400; font-size:11px; font-style:normal; margin-left:6px}
+.jc-title{font-family:var(--serif); font-size:17px; font-weight:700; color:var(--ink); line-height:1.35; text-wrap:balance}
+.jc-tags{display:flex; flex-wrap:wrap; gap:6px}
+.jc-foot{
+  margin-top:auto; padding-top:14px; border-top:1px solid var(--border);
+  display:flex; align-items:flex-end; justify-content:space-between; gap:10px;
+}
+.jc-dday{font-family:var(--mono); font-size:18px; font-weight:600; color:var(--ink); line-height:1.1}
+.jc-dday.soon{color:var(--gap)}
+.jc-sub{font-size:11px; color:var(--muted); margin-top:4px}
+.dthead{display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap}
+.dthead .meta{flex:1; min-width:200px}
+.dthead .co{font-size:13px; color:var(--muted); font-weight:500}
+.dthead h2{font-family:var(--serif); font-size:22px; font-weight:700; margin-top:3px}
+.dthead .nums{display:flex; gap:22px; align-items:flex-start}
+.dthead .num{text-align:right}
+.dthead .num b{display:block; font-family:var(--mono); font-size:19px; font-weight:600; color:var(--ink); line-height:1.15}
+.dthead .num span{font-size:10.5px; color:var(--muted)}
+.jd{display:grid; grid-template-columns:150px 1fr; gap:8px 20px; align-items:start}
+.jd dt{font-size:11.5px; font-weight:600; color:var(--accent); padding-top:2px}
+.jd dd{margin:0; font-size:13px; color:var(--ink-2)}
+.jd dd ul{margin:0; padding-left:17px}
+.jd dd li{margin:3px 0}
+.jd + .jd{margin-top:16px; padding-top:16px; border-top:1px solid var(--border)}
+@media(max-width:680px){.jd{grid-template-columns:1fr; gap:4px}}
+.emptystate{
+  text-align:center; padding:44px 24px; border:1px dashed var(--border-strong);
+  border-radius:var(--radius); background:var(--surface);
+}
+.emptystate h3{font-size:15px; margin-bottom:8px}
+.callout{border:1px solid var(--border); border-left:3px solid var(--accent); background:var(--surface); padding:14px 18px; border-radius:3px}
+.callout.warn{border-left-color:var(--gap); background:var(--gap-soft)}
+.callout .lab{font-size:10.5px; font-weight:600; letter-spacing:.09em; text-transform:uppercase; color:var(--gap)}
+.callout p{margin-top:6px; font-size:12.5px; line-height:1.7}
+figure.fig{margin:0; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:18px}
+figure.fig figcaption{margin-top:12px; font-size:12px; color:var(--muted); max-width:78ch; line-height:1.7}
+.dia{width:100%; height:auto; color:var(--ink-2); display:block}
+.dia text{font-family:var(--sans); fill:currentColor}
+.dia .n{font-family:var(--mono); font-size:12px; font-weight:500; fill:var(--ink)}
+.dia .e{font-size:10.5px; fill:var(--muted)}
+.dia .k{font-size:10.5px; font-weight:600; fill:var(--accent)}
+.dia .b{font-family:var(--mono); font-size:9.5px; fill:var(--accent)}
+.dia rect.node{fill:var(--surface); stroke:var(--border-strong); stroke-width:1.2}
+.dia rect.hub{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
+.dia .rel{stroke:currentColor; stroke-width:1.4; opacity:.5; fill:none}
+.dia .nmline{stroke:var(--accent); stroke-width:2.6; fill:none}
+.spec-sec{margin-bottom:22px}
+.spec-sec > h3{display:flex; align-items:baseline; gap:9px; margin-bottom:4px}
+.spec-sec > h3 .no{font-family:var(--mono); font-size:11px; color:var(--accent); border:1px solid currentColor; padding:1px 5px; border-radius:2px}
+.spec-sec > p.lead{font-size:12.5px; color:var(--muted); margin-bottom:12px; max-width:76ch}
+.copybtn{position:absolute; top:8px; right:8px; z-index:2}
+.prewrap{position:relative}
+.rule{display:grid; grid-template-columns:150px 1fr; gap:6px 16px; font-size:12.5px}
+.rule dt{color:var(--accent); font-weight:600}
+.rule dd{margin:0}
+.emptystate p{font-size:12.5px; color:var(--muted); max-width:46ch; margin:0 auto 16px}
+.split{display:grid; grid-template-columns:1fr 1fr; gap:16px; align-items:start}
+.split3{display:grid; grid-template-columns:200px 1fr 240px; gap:16px; align-items:start}
+@media(max-width:980px){.g2,.g3,.split,.split3{grid-template-columns:1fr}}
+
+table.tb{width:100%; border-collapse:collapse; font-size:12.5px}
+table.tb th{
+  text-align:left; padding:8px 12px; font-size:10.5px; font-weight:600; letter-spacing:.06em;
+  text-transform:uppercase; color:var(--faint); border-bottom:1px solid var(--border); background:var(--surface-2);
+}
+table.tb td{padding:9px 12px; border-bottom:1px solid var(--border); vertical-align:middle}
+table.tb tr:last-child td{border-bottom:none}
+.tw{overflow-x:auto}
+
+/* ============ design annotations ============ */
+[data-note]{position:relative}
+body.notes [data-note]{outline:1px dashed var(--info); outline-offset:3px}
+body.notes [data-note]::after{
+  content:attr(data-note); position:absolute; top:-9px; right:6px; z-index:5;
+  font-family:var(--mono); font-size:9.5px; line-height:1.5; padding:0 5px;
+  background:var(--info); color:var(--surface); border-radius:2px; white-space:nowrap; pointer-events:none;
+}
+.noteonly{display:none!important}
+body.notes .noteonly{display:block!important}
+.noteonly-i{display:none!important}
+body.notes .noteonly-i{display:inline!important}
+
+/* ============ network log ============ */
+.netlog{
+  font-family:var(--mono); font-size:11px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:3px; padding:10px 12px;
+  max-height:132px; overflow:auto; line-height:1.75;
+}
+.netlog div{white-space:nowrap; color:var(--muted)}
+.netlog .m{color:var(--info); font-weight:500}
+.netlog .s2{color:var(--matched)} .netlog .s1{color:var(--gap)}
+.netlog .t{color:var(--faint)}
+.mono{font-family:var(--mono); font-variant-numeric:tabular-nums}
+pre.code{
+  margin:0; padding:12px 14px; background:var(--surface-2);
+  border:1px solid var(--border); border-radius:3px;
+  font-family:var(--mono); font-size:11px; line-height:1.6; color:var(--ink-2);
+  overflow:auto; white-space:pre; tab-size:2;
+}
+.empty{color:var(--faint); font-size:12px; padding:14px 0; text-align:center}
+
+/* ============ dialog · form · toast ============ */
+dialog{
+  border:none; padding:0; border-radius:5px; background:var(--surface); color:var(--ink-2);
+  box-shadow:var(--shadow-2); width:min(700px,94vw); max-width:none;
+}
+dialog::backdrop{background:rgba(8,8,12,.55)}
+.dlghead{display:flex; align-items:baseline; gap:10px; padding:16px 20px; border-bottom:1px solid var(--border)}
+.dlghead h3{font-size:15px}
+.dlghead .sub{font-size:11.5px; color:var(--faint)}
+.dlghead .x{margin-left:auto}
+.dlgbody{padding:18px 20px; display:flex; flex-direction:column; gap:15px; max-height:min(66vh,600px); overflow-y:auto}
+.dlgfoot{display:flex; gap:8px; align-items:center; padding:13px 20px; border-top:1px solid var(--border); background:var(--surface-2)}
+.dlgfoot .push{flex:1}
+.frow{display:grid; grid-template-columns:1fr 1fr; gap:12px}
+.frow.f3{grid-template-columns:1fr 1fr 1fr}
+@media(max-width:620px){.frow,.frow.f3{grid-template-columns:1fr}}
+select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 50%,var(--muted) 50%),linear-gradient(135deg,var(--muted) 50%,transparent 50%); background-position:calc(100% - 15px) 15px,calc(100% - 10px) 15px; background-size:5px 5px,5px 5px; background-repeat:no-repeat; padding-right:30px}
+.hint{font-size:11px; color:var(--faint); line-height:1.55}
+.err{font-size:11.5px; color:var(--gap); display:flex; gap:6px; align-items:flex-start}
+.fieldset{border:1px solid var(--border); border-radius:3px; padding:13px 15px; display:flex; flex-direction:column; gap:11px}
+.fieldset > .lg{font-size:11.5px; font-weight:600; color:var(--muted); display:flex; align-items:center; gap:8px}
+.strchip{
+  display:inline-flex; align-items:center; gap:6px; font-size:11.5px; padding:2px 6px 2px 9px;
+  border-radius:11px; border:1px solid var(--accent); background:var(--accent-soft); color:var(--accent); font-weight:600;
+}
+.strchip button{border:none; background:var(--accent); color:var(--accent-ink); font-family:var(--mono); font-size:9.5px; font-weight:600; padding:1px 5px; border-radius:8px; cursor:pointer}
+.strchip .rm{background:none; color:var(--accent); font-size:13px; padding:0 2px; line-height:1}
+.toast{
+  position:fixed; left:50%; bottom:26px; transform:translateX(-50%);
+  background:var(--ink); color:var(--ground); padding:10px 18px; border-radius:3px;
+  font-size:12.5px; z-index:60; box-shadow:var(--shadow-2); pointer-events:none;
+}
+.starbar{display:flex; gap:3px; align-items:center}
+.starbar span{width:22px; height:4px; border-radius:2px; background:var(--surface-3)}
+.starbar span.on{background:var(--matched)}
+.tabs{display:flex; gap:4px; border-bottom:1px solid var(--border); margin:-4px 0 4px}
+.tab{
+  background:none; border:none; border-bottom:2px solid transparent; padding:7px 12px;
+  font-size:12.5px; color:var(--muted); cursor:pointer; display:flex; align-items:center; gap:7px;
+}
+.tab:hover{color:var(--ink)}
+.tab.on{color:var(--accent); border-bottom-color:var(--accent); font-weight:600}
+.cand{border:1px solid var(--border); border-radius:3px; padding:12px 14px; display:flex; flex-direction:column; gap:8px; background:var(--surface-2)}
+.cand.sel{border-color:var(--accent); background:var(--accent-soft)}
+.qrow{display:flex; flex-direction:column; gap:5px; padding:9px 0; border-top:1px dashed var(--border)}
+.qrow .q{font-size:12px; color:var(--ink)}
+.qrow .why{font-size:10.5px; color:var(--faint)}
+</style>
+</head>
+<body>
+<div class="app">
+
+  <div class="topbar">
+    <div class="brand"><span class="dot"></span>커리어맵<small>경험 · 역량 매핑</small></div>
+    <span class="mockbadge">Mockup</span>
+    <div class="spacer"></div>
+    <button class="toggle" id="noteBtn" aria-pressed="false" title="각 UI 요소가 어떤 API·테이블에 대응하는지 표시합니다">
+      <span class="sw"></span>설계 주석
+    </button>
+    <button class="toggle" id="themeBtn" aria-pressed="false" title="라이트 / 다크 전환">
+      <span class="sw"></span>다크
+    </button>
+    <div class="who"><span class="avatar">하윤</span>정하윤</div>
+  </div>
+
+  <nav class="side" aria-label="화면 이동">
+    <div class="grouplab">화면</div>
+    <button class="navitem" data-go="home"><span class="sid">공고</span>공고 찾기</button>
+    <button class="navitem" data-go="s1"><span class="sid">경험</span>경험 라이브러리</button>
+    <div class="grouplab" style="margin-top:10px">개발</div>
+    <button class="navitem" data-go="spec"><span class="sid">스펙</span>개발 참고</button>
+    <div class="foot">
+      SKALA 8주차 미니프로젝트<br>
+      AI-Ready 웹 서비스 설계<br>
+      <span style="color:var(--muted)">데이터는 전부 목업입니다</span>
+    </div>
+  </nav>
+
+  <main class="main">
+
+    <!-- ==================== 홈 ==================== -->
+    <section class="screen" id="home" aria-labelledby="homeh">
+      <div class="shead">
+        <div>
+          <h2 id="homeh">대시보드</h2>
+          <p class="sub">지원 가능한 공고를 <b>나와의 매칭도</b>와 <b>자소서 진행 상태</b>로 한 판에 놓는다. 오늘 무엇부터 손대야 하는지가 이 화면에서 끝나야 한다.</p>
+        </div>
+        <div class="right">
+          <button class="btn sm" id="sortMatch" aria-pressed="true">매칭순</button>
+          <button class="btn sm" id="onlyBm" aria-pressed="false">즐겨찾기만</button>
+          <button class="btn sm" id="sortDday" aria-pressed="false">마감 임박순</button>
+        </div>
+      </div>
+      <div class="grid g4" id="homeStats" style="margin-bottom:18px"></div>
+      <div id="homeList" class="jobgrid"></div>
+      <p class="hint" id="homeNote" style="margin-top:16px"></p>
+    </section>
+
+    <!-- ==================== S1 경험 라이브러리 ==================== -->
+    <section class="screen" id="s1" aria-labelledby="s1h">
+      <div class="shead">
+        <div>
+          <h2 id="s1h">경험 라이브러리</h2>
+          <p class="sub">지원할 때마다 새로 쓰는 게 아니라, 한 번 구조화해 두고 계속 꺼내 쓴다. <b>AI가 하나도 없어도 이 화면은 그 자체로 도구다.</b></p>
+        </div>
+        <div class="right">
+          <button class="btn sm" id="s1reset">필터 초기화</button>
+          <button class="btn primary sm" id="s1add" data-note="POST /api/experiences">＋ 경험 등록</button>
+        </div>
+      </div>
+
+      <div class="grid g3" style="margin-bottom:18px">
+        <div class="card pad" data-note="GET /api/experiences"><div class="stat"><span class="v" id="s1cnt">0</span><span class="l">등록한 경험</span></div></div>
+        <div class="card pad" data-note="experience_competency"><div class="stat"><span class="v" id="s1cov">0</span><span class="l">태그된 역량 (전체 20개 중)</span></div></div>
+        <div class="card pad"><div class="stat"><span class="v" id="s1star">0</span><span class="l">STAR 4필드가 모두 채워진 경험</span></div></div>
+      </div>
+
+      <div class="card" style="margin-bottom:16px" data-note="competency 마스터">
+        <div class="cardhead"><h3>역량으로 좁히기</h3><span class="n" id="s1filtern">전체</span></div>
+        <div class="cardbody"><div class="chips" id="s1chips"></div></div>
+      </div>
+
+      <div class="grid g2" id="s1list"></div>
+    </section>
+
+    <!-- ==================== 개발 참고 ==================== -->
+    <section class="screen" id="spec" aria-labelledby="spech">
+      <div class="shead">
+        <div>
+          <h2 id="spech">개발 참고</h2>
+          <p class="sub">구현할 때 찾아보는 값들. <b>이 화면은 목업이 실제로 쓰는 데이터에서 그려진다</b> — 문서와 구현이 어긋날 수 없다.</p>
+        </div>
+      </div>
+      <div id="specBody"></div>
+    </section>
+
+    <!-- ==================== 공고 상세 ==================== -->
+    <section class="screen" id="detail" aria-labelledby="dth">
+      <button class="btn sm" id="dtBack" style="margin-bottom:16px">← 공고 목록</button>
+
+      <div class="card pad" id="dtHead" style="margin-bottom:16px"></div>
+
+      <div class="tabs" id="dtTabs" style="margin-bottom:18px">
+        <button type="button" class="tab on" data-dt="post">공고 내용</button>
+        <button type="button" class="tab" data-dt="match">매칭</button>
+        <button type="button" class="tab" data-dt="essay">자소서 <span id="dtEssayBadge"></span></button>
+      </div>
+
+      <div id="dtPost"></div>
+      <div id="s3body" hidden></div>
+      <div id="dtEssay" hidden></div>
+    </section>
+
+  </main>
+</div>
+
+<dialog id="expDlg" aria-labelledby="expDlgH">
+  <form method="dialog">
+    <div class="dlghead">
+      <h3 id="expDlgH">경험 등록</h3>
+      <span class="sub" id="expDlgSub">STAR 4필드 · 역량 태그</span>
+      <button class="btn sm x" value="cancel">닫기</button>
+    </div>
+  </form>
+  <div class="dlgbody">
+    <div class="tabs" id="exTabs">
+      <button type="button" class="tab on" data-tab="manual">직접 입력</button>
+      <button type="button" class="tab" data-tab="intake">포트폴리오에서 가져오기 <span class="pill acc">AX-4</span></button>
+    </div>
+
+    <div id="exIntake" hidden>
+      <div class="field" style="margin-bottom:10px">
+        <label for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
+        <textarea class="inp" id="inUrl" rows="4" spellcheck="false">https://github.com/jhyun/msa-order-service
+https://github.com/jhyun/algo-study-2025
+https://jhyun.dev/portfolio
+https://drive.example/해커톤_발표자료.pdf</textarea>
+      </div>
+      <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
+        <button type="button" class="btn primary sm" id="inRun" data-note="POST /experiences/ai/intake → 202">분석</button>
+        <span class="pill mut" id="inState">대기</span>
+        <span class="hint" style="margin-left:auto">첨부 PDF·마크다운은 텍스트를 추출해 함께 읽는다</span>
+      </div>
+      <div class="noteonly" style="margin-top:10px"><div class="netlog" id="inLog"><div class="t">요청 없음</div></div></div>
+      <div id="inOut" style="margin-top:12px"></div>
+    </div>
+
+    <div id="exManual">
+    <div class="frow f3">
+      <div class="field"><label for="exTitle">제목 *</label><input class="inp" id="exTitle" placeholder="예) MSA 주문·결제 서비스 구축"></div>
+      <div class="field"><label for="exPeriod">기간</label><input class="inp" id="exPeriod" placeholder="2026.08"></div>
+      <div class="field"><label for="exCat">분류</label>
+        <select class="inp" id="exCat">
+          <option>팀 프로젝트</option><option>개인 프로젝트</option><option>실습 프로젝트</option>
+          <option>대외활동</option><option>인턴·근무</option><option>수상·자격</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="fieldset" data-note="experience (STAR)">
+      <div class="lg">STAR <span class="starbar" id="exStarBar"><span></span><span></span><span></span><span></span></span>
+        <span class="hint" id="exStarN">0 / 4</span></div>
+      <div class="field"><label for="exS">S · 어떤 상황이었나</label><textarea class="inp" id="exS" rows="2"></textarea></div>
+      <div class="field"><label for="exT">T · 무엇을 목표로 삼았나</label><textarea class="inp" id="exT" rows="2"></textarea></div>
+      <div class="field"><label for="exA">A · 내가 한 행동과 적용한 방식</label><textarea class="inp" id="exA" rows="3"></textarea></div>
+      <div class="field"><label for="exR">R · 결과 (숫자로)</label><textarea class="inp" id="exR" rows="2" placeholder="예) 불일치를 100건 중 12건에서 0건으로 줄였다"></textarea>
+        <div class="hint" id="exRHint"></div></div>
+    </div>
+
+    <div class="fieldset" data-note="experience_competency">
+      <div class="lg">이 경험이 증명하는 역량 <span class="hint">역량 사전 20개 중에서만 고른다 · 강도를 눌러 약 / 중 / 강 전환</span></div>
+      <div class="chips" id="exPicked"></div>
+      <div class="chips" id="exPool" style="padding-top:9px; border-top:1px dashed var(--border)"></div>
+    </div>
+
+    <div id="exErr"></div>
+    </div>
+  </div>
+  <div class="dlgfoot">
+    <span class="hint push" id="exGapHint"></span>
+    <button class="btn" id="exCancel">취소</button>
+    <button class="btn primary" id="exSave">등록</button>
+  </div>
+</dialog>
+
+
+<dialog id="qDlg" aria-labelledby="qDlgH">
+  <form method="dialog">
+    <div class="dlghead">
+      <h3 id="qDlgH">문항 추가</h3>
+      <span class="sub" id="qDlgSub"></span>
+      <button class="btn sm x" value="cancel">닫기</button>
+    </div>
+  </form>
+  <div class="dlgbody">
+    <div class="field">
+      <label for="qPrompt">문항 *</label>
+      <textarea class="inp" id="qPrompt" rows="3" placeholder="공고 사이트의 자소서 문항을 그대로 옮겨 적으세요"></textarea>
+    </div>
+    <div class="frow">
+      <div class="field"><label for="qLimit">글자 수 제한</label><input class="inp" id="qLimit" type="number" min="100" max="3000" step="100" value="700"></div>
+      <div class="field"><label for="qAsks">이 문항이 묻는 것 (쉼표로 구분)</label><input class="inp" id="qAsks" placeholder="예) 갈등 상황, 조율한 방법"></div>
+    </div>
+    <p class="hint">묻는 것을 쪼개 두면 에디터에서 <b>물어본 개수만큼 답했는지</b> 체크할 수 있다. 두 개 물어봤는데 하나만 적는 것이 흔한 감점 사유다.</p>
+    <div id="qErr"></div>
+  </div>
+  <div class="dlgfoot"><span class="push"></span>
+    <button class="btn" id="qCancel">취소</button>
+    <button class="btn primary" id="qSave">추가</button>
+  </div>
+</dialog>
+
+<dialog id="appDlg" aria-labelledby="appDlgH">
+  <form method="dialog">
+    <div class="dlghead">
+      <h3 id="appDlgH">지원 등록</h3>
+      <span class="sub">기업 · 직무 · 마감</span>
+      <button class="btn sm x" value="cancel">닫기</button>
+    </div>
+  </form>
+  <div class="dlgbody">
+    <div class="frow">
+      <div class="field"><label for="apCo">기업명 *</label><input class="inp" id="apCo" placeholder="예) 세움테크"></div>
+      <div class="field"><label for="apPos">직무 *</label><input class="inp" id="apPos" placeholder="예) 백엔드 엔지니어"></div>
+    </div>
+    <div class="frow f3">
+      <div class="field"><label for="apSt">상태</label>
+        <select class="inp" id="apSt">
+          <option value="PLANNED">지원 예정</option><option value="WRITING">작성 중</option>
+          <option value="SUBMITTED">제출</option><option value="INTERVIEW">면접</option><option value="RESULT">결과 대기</option>
+        </select>
+      </div>
+      <div class="field"><label for="apDday">마감까지 (일)</label><input class="inp" id="apDday" type="number" min="0" max="365" value="14"></div>
+      <div class="field"><label for="apQ">문항 수</label><input class="inp" id="apQ" type="number" min="1" max="12" value="4"></div>
+    </div>
+    <p class="hint" data-note="match_result">매칭 점수는 비워 둔다. 이 기업의 공고를 <b>공고 분석</b> 화면에서 분석해야 채워진다 — 공고 없이 매칭을 만들어 낼 수는 없다.</p>
+    <div id="apErr"></div>
+  </div>
+  <div class="dlgfoot">
+    <span class="push"></span>
+    <button class="btn" id="apCancel">취소</button>
+    <button class="btn primary" id="apSave">등록</button>
+  </div>
+</dialog>

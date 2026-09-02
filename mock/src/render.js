@@ -1,0 +1,1869 @@
+
+/* ============================================================
+   렌더러 — 모든 화면은 위 DATA 객체 하나에서 그려진다.
+   목업이지만 매칭 점수·커버리지·문장 점검은 실제로 계산한다.
+   ============================================================ */
+
+const $  = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;' }[c]));
+const byId = id => DATA.competencies.find(c => c.id === id);
+const P = () => DATA.postings.find(x => x.id === DATA.activePostingId);
+const CAT = { TECH:'tech', SOFT:'soft', DOMAIN:'domain', VALUE:'value' };
+const CATLAB = { TECH:'기술', SOFT:'소프트', DOMAIN:'도메인', VALUE:'인재상' };
+
+/* ---------- 화면 전환 ---------- */
+function go(id){
+  $$('.screen').forEach(s => s.classList.toggle('on', s.id === id));
+  $$('.side .navitem').forEach(b => b.setAttribute('aria-current', b.dataset.go === id ? 'page' : 'false'));
+  try { localStorage.setItem('cm.screen', id); } catch(e) {}
+  window.scrollTo({ top:0, behavior:'instant' in window ? 'instant' : 'auto' });
+}
+$$('.side .navitem').forEach(b => b.addEventListener('click', () => go(b.dataset.go)));
+
+/* ---------- 토글 ---------- */
+$('#noteBtn').addEventListener('click', e => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+  document.body.classList.toggle('notes', on);
+});
+$('#themeBtn').addEventListener('click', e => {
+  const on = e.currentTarget.getAttribute('aria-pressed') !== 'true';
+  e.currentTarget.setAttribute('aria-pressed', String(on));
+  document.documentElement.setAttribute('data-theme', on ? 'dark' : 'light');
+});
+
+
+/* ============================================================
+   파생 값 — 같은 사실을 두 곳에 저장하지 않는다.
+   공고가 있으면 마감·매칭은 공고에서 계산하고, 문항 진행은 questions 에서 센다.
+   ============================================================ */
+const postingOf   = app => app && app.postingId ? DATA.postings.find(p => p.id === app.postingId) : null;
+const appDday     = app => { const p = postingOf(app); return p ? dday(p.deadline) : app.dday; };
+const appMatch    = app => { const p = postingOf(app); return p ? Math.round(computeMatch(p).overall * 100) : null; };
+/* 공고 하나의 자소서 진행 — 카드·상세가 같은 함수를 쓴다 */
+function essayProgress(posting){
+  const app = appOfPosting(posting);
+  if (!app) return { state:'NO_APP', label:'미지원', done:0, total:0, ratio:0, versions:0 };
+  const qs = DATA.questions.filter(q => q.applicationId === app.id);
+  if (!qs.length) return { state:'NO_Q', label:'문항 미등록', done:0, total:0, ratio:0, versions:0, app };
+  const done = qs.filter(q => (q.draft || '').trim()).length;
+  return {
+    state: done === qs.length ? 'DONE' : 'WRITING',
+    label: `${done} / ${qs.length}문항`,
+    done, total: qs.length, ratio: done / qs.length,
+    versions: qs.reduce((a, q) => a + (q.versions || []).length, 0), app,
+  };
+}
+const appQs       = app => DATA.questions.filter(q => q.applicationId === app.id);
+const appRemain   = app => { const qs = appQs(app); return qs.length ? `${qs.filter(q => !(q.draft||'').trim()).length} / ${qs.length}` : '— / —'; };
+const usedCount   = expId => DATA.questions.filter(q => (q.usedExperienceIds || []).includes(expId)).length;
+const postingOfQ  = q => postingOf(DATA.applications.find(a => a.id === q.applicationId)) || P();
+/* 오기 감지 대상 = 내가 아는 모든 기업 − 지금 쓰고 있는 그 기업.
+   고정 배열로 두면 공고를 바꿀 때마다 어긋난다. */
+const appOfPosting = posting => DATA.applications.find(a => a.postingId === posting.id) || null;
+const rivalsFor   = posting => [...new Set([
+  ...DATA.postings.map(x => x.company),
+  ...DATA.applications.map(a => a.company),
+])].filter(c => c && c !== posting.company);
+
+/* ============================================================
+   S1 · 경험 라이브러리
+   ============================================================ */
+let s1filter = null;
+
+function renderS1(){
+  const exps = DATA.experiences;
+  $('#s1cnt').textContent = exps.length;
+  const tagged = new Set(exps.flatMap(e => e.competencyIds));
+  $('#s1cov').textContent = tagged.size;
+  $('#s1star').textContent = exps.filter(e => e.situation && e.task && e.action && e.result).length;
+
+  $('#s1chips').innerHTML = DATA.competencies
+    .filter(c => tagged.has(c.id))
+    .map(c => `<button class="chip ${CAT[c.category]}" data-cid="${c.id}" aria-pressed="${s1filter === c.id}">${esc(c.name)}<span style="opacity:.6">${exps.filter(e => e.competencyIds.includes(c.id)).length}</span></button>`)
+    .join('');
+  $$('#s1chips .chip').forEach(b => b.addEventListener('click', () => {
+    const id = +b.dataset.cid;
+    s1filter = s1filter === id ? null : id;
+    renderS1();
+  }));
+
+  const shown = s1filter ? exps.filter(e => e.competencyIds.includes(s1filter)) : exps;
+  $('#s1filtern').textContent = s1filter ? `${byId(s1filter).name} · ${shown.length}건` : `전체 ${exps.length}건`;
+
+  $('#s1list').innerHTML = shown.map(e => `
+    <article class="card" data-note="experience">
+      <div class="cardhead">
+        <h3>${esc(e.title)}</h3>
+        <span class="n">${esc(e.period)}</span>
+        <button class="btn sm" data-edit="${e.id}" style="margin-left:9px" data-note="PUT /api/experiences/${e.id}">수정</button>
+      </div>
+      <div class="cardbody">
+        <div style="display:flex; gap:6px; margin-bottom:12px">
+          <span class="pill mut">${esc(e.category)}</span>
+          ${e.source === 'AI_INTAKE' ? `<span class="pill info" title="${esc((e.evidenceRefs||[]).join(', '))}">포폴 인테이크</span>` : ''}
+          ${usedCount(e.id) ? `<span class="pill acc">자소서 ${usedCount(e.id)}회 사용</span>` : ''}
+        </div>
+        <dl style="display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin:0">
+          <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(e.situation)}</dd>
+          <dt style="color:var(--faint); font-weight:600">T</dt><dd style="margin:0">${esc(e.task)}</dd>
+          <dt style="color:var(--faint); font-weight:600">A</dt><dd style="margin:0">${esc(e.action)}</dd>
+          <dt style="color:var(--matched); font-weight:600">R</dt><dd style="margin:0; color:var(--ink)"><b>${esc(e.result)}</b></dd>
+        </dl>
+        <div class="chips" style="margin-top:14px; padding-top:12px; border-top:1px solid var(--border)">
+          ${e.competencyIds.map(id => { const c = byId(id); return c ? `<span class="chip ${CAT[c.category]}">${esc(c.name)}</span>` : ''; }).join('')}
+        </div>
+      </div>
+    </article>`).join('') || '<p class="empty">이 역량이 태그된 경험이 없습니다</p>';
+
+  $$('#s1list [data-edit]').forEach(b => b.addEventListener('click', () => openExp(+b.dataset.edit)));
+}
+$('#s1reset').addEventListener('click', () => { s1filter = null; renderS1(); });
+
+/* ============================================================
+   S2 · 공고 분석 — 202 + 폴링을 실제로 흉내낸다
+   ============================================================ */
+let s2done = false;
+
+function logLine(el, cls, text){
+  const d0 = new Date();
+  const t = [d0.getHours(), d0.getMinutes(), d0.getSeconds()].map(v => String(v).padStart(2,'0')).join(':');
+  const d = document.createElement('div');
+  d.innerHTML = `<span class="t">${t}</span> <span class="${cls}">${esc(text)}</span>`;
+  el.appendChild(d); el.scrollTop = el.scrollHeight;
+}
+
+const TODAY = new Date('2026-09-02T00:00:00');
+const dday = iso => Math.round((new Date(iso + 'T00:00:00') - TODAY) / 86400000);
+
+
+/* ============================================================
+   즐겨찾기 — 실제 구현에서는 bookmark 테이블(N:M · user ↔ posting).
+   목업에서는 브라우저에 남긴다.
+   ============================================================ */
+const BM_KEY = 'cm.bookmarks';
+let bookmarks = new Set();
+try { bookmarks = new Set(JSON.parse(localStorage.getItem(BM_KEY) || '[]')); } catch(e) {}
+
+function saveBm(){ try { localStorage.setItem(BM_KEY, JSON.stringify([...bookmarks])); } catch(e) {} }
+function isBm(id){ return bookmarks.has(id); }
+function toggleBm(id){
+  bookmarks.has(id) ? bookmarks.delete(id) : bookmarks.add(id);
+  saveBm();
+  renderHome();
+  if ($('#detail').classList.contains('on')) renderDetail();
+  toast(bookmarks.has(id) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
+}
+const bmIcon = on => `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.6 1.6h8.8v12.8L8 11.2 3.6 14.4z" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
+const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '저장됨' : '저장') : ''}</button>`;
+function bindBm(root){
+  $$(`${root} [data-bm]`).forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleBm(+b.dataset.bm); }));
+}
+
+/* ============================================================
+   공고 상세 — 공고 내용 · 매칭 · 자소서를 한 곳에
+   ============================================================ */
+let dtTab = 'post';
+
+function openDetail(id, tab){
+  DATA.activePostingId = id;
+  dtTab = tab || 'post';
+  renderDetail();
+  go('detail');
+}
+
+function renderDetail(){
+  const p = P(), m = computeMatch(p), app = appOfPosting(p), ep = essayProgress(p);
+  const siblings = DATA.postings.filter(x => x.company === p.company && x.id !== p.id && dday(x.deadline) >= 0);
+  const gaps = m.rows.filter(r => r.isGap).length;
+  const mc = m.overall >= SCORE.RECOMMEND ? 'var(--matched)' : m.overall >= SCORE.WEAK ? 'var(--info)' : 'var(--gap)';
+  const d = dday(p.deadline);
+
+  $('#dtHead').className = 'card pad dthead';
+  $('#dtHead').innerHTML = `
+    <span class="jc-logo" aria-hidden="true">${esc(p.company.slice(0,1))}</span>
+    <div class="meta">
+      <div class="co">${esc(p.company)}</div>
+      <h2 id="dth">${esc(p.position)}</h2>
+      <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:var(--mono)">${esc(p.sourceUrl || '직접 입력')}</div>
+      ${siblings.length ? `<div style="display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap">
+        <span style="font-size:11.5px; color:var(--muted)">같은 기업 다른 직무</span>
+        ${siblings.map(x => `<button class="btn sm" data-sib="${x.id}">${esc(x.position)} · ${Math.round(computeMatch(x).overall*100)}%</button>`).join('')}
+      </div>` : ''}
+    </div>
+    <div class="nums">
+      <div class="num"><b style="color:${mc}">${Math.round(m.overall*100)}%</b><span>매칭</span></div>
+      <div class="num"><b style="color:${gaps ? 'var(--gap)' : 'var(--matched)'}">${gaps}</b><span>갭</span></div>
+      <div class="num"><b style="color:${ep.total && ep.state === 'DONE' ? 'var(--matched)' : 'var(--ink)'}">${ep.total ? `${ep.done}<span style="font-size:13px; color:var(--faint)">/${ep.total}</span>` : '—'}</b><span>자소서</span></div>
+      <div class="num"><b style="color:${d <= 7 ? 'var(--gap)' : 'var(--ink)'}">D-${d}</b><span>${esc(p.deadline)}</span></div>
+      <div class="num" style="align-self:center">${bmBtn(p.id, true)}</div>
+    </div>
+    ${(() => {
+      const a = assess(p), st = assessState[p.id] || { state:'QUEUED' }, busy = st.state !== 'FRESH';
+      const vc = { RECOMMEND:'var(--matched)', CONDITIONAL:'var(--gap)', HOLD:'var(--muted)' }[a.verdict];
+      const vl = { RECOMMEND:'지원 권장', CONDITIONAL:'조건부 지원', HOLD:'보류 권장' }[a.verdict];
+      return `<div style="flex-basis:100%; display:flex; align-items:center; gap:10px; flex-wrap:wrap; padding-top:14px; margin-top:2px; border-top:1px solid var(--border); ${busy ? 'opacity:.6' : ''}">
+        <span class="pill" style="color:${vc}">${vl}</span>
+        <span style="font-size:12.5px; color:var(--ink)">${esc(a.headline)}</span>
+        ${busy ? `<span class="pill mut">${ASSESS_LABEL[st.state]}</span>` : ''}
+        <button class="btn sm" id="dtToMatch" style="margin-left:auto">평가 보기 →</button>
+      </div>`;
+    })()}`;
+  bindBm('#dtHead');
+  $$('#dtHead [data-sib]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.sib, dtTab)));
+  const tm = $('#dtToMatch');
+  if (tm) tm.addEventListener('click', () => { dtTab = 'match'; paintDtTab(); });
+
+  $('#dtEssayBadge').innerHTML = ep.total
+    ? `<span class="pill ${ep.state === 'DONE' ? 'ok' : 'mut'}">${ep.done}/${ep.total}</span>`
+    : ep.state === 'NO_APP' ? `<span class="pill mut">미지원</span>`
+    : p.questionsFromServer === false ? `<span class="pill warn">문항 없음</span>` : '';
+
+  renderJD();
+  renderS3();
+  renderEssay();
+  paintDtTab();
+}
+
+function paintDtTab(){
+  $$('#dtTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.dt === dtTab));
+  $('#dtPost').hidden  = dtTab !== 'post';
+  $('#s3body').hidden  = dtTab !== 'match';
+  $('#dtEssay').hidden = dtTab !== 'essay';
+}
+$$('#dtTabs .tab').forEach(t => t.addEventListener('click', () => { dtTab = t.dataset.dt; paintDtTab(); }));
+$('#dtBack').addEventListener('click', () => go('home'));
+
+/* ---- 공고 내용 — 원문을 섹션으로 파싱해 보여준다 ---- */
+function parseJD(raw){
+  const out = []; let cur = null, head = [];
+  raw.split('\n').forEach(ln => {
+    const t = ln.trim();
+    if (!t) return;
+    if (t.startsWith('■')){ cur = { title: t.replace(/^■\s*/, ''), items: [] }; out.push(cur); }
+    else if (t.startsWith('·') && cur) cur.items.push(t.replace(/^·\s*/, ''));
+    else if (!cur) head.push(t);
+  });
+  return { head, sections: out };
+}
+
+function renderJD(){
+  const p = P(), { head, sections } = parseJD(p.rawText);
+  $('#dtPost').innerHTML = `
+    <div class="card" style="margin-bottom:16px" data-note="job_posting.raw_text">
+      <div class="cardhead"><h3>직무 내용</h3><span class="n">${p.source === 'CRAWLED' ? '자동 수집' : '직접 입력'}</span></div>
+      <div class="cardbody">
+        ${head.length ? `<p style="font-size:12.5px; color:var(--muted); margin-bottom:16px">${esc(head.join(' '))}</p>` : ''}
+        ${sections.map(sec => `
+          <dl class="jd">
+            <dt>${esc(sec.title)}</dt>
+            <dd><ul>${sec.items.map(i => `<li>${esc(i)}</li>`).join('')}</ul></dd>
+          </dl>`).join('')}
+      </div>
+    </div>
+
+    <div class="card" data-note="posting_competency">
+      <div class="cardhead">
+        <h3>추출된 요구 역량</h3>
+        <span class="n" id="s2n">${p.required.length}건</span>
+        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출 · temperature 0.0</span>
+      </div>
+      <div class="cardbody" id="s2out"></div>
+    </div>
+
+    <div class="noteonly" style="margin-top:12px">
+      <div style="font-size:11px; color:var(--muted); margin-bottom:6px">수집 배치 기록 · 읽기 전용</div>
+      <div class="netlog" id="s2log">
+        <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">crawl</span> <span class="t">${esc(p.sourceUrl || '직접 입력')}</span></div>
+        <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">POST /internal/ai/extract</span> <span class="t">{ postingId: ${p.id} }</span></div>
+        <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="s2">200</span> <span class="t">{ required: ${p.required.length}, newCompetencies: ${p.newCompetencies.length}, latencyMs: 1240 }</span></div>
+        <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">UPSERT</span> <span class="t">posting_competency × ${p.required.length}</span></div>
+      </div>
+    </div>`;
+  paintS2Result();
+}
+
+function paintS2Result(){
+  const p = P();
+  $('#s2out').innerHTML = `
+    <div style="display:flex; flex-direction:column; gap:10px">
+      ${p.required.map(r => { const c = byId(r.competencyId); const ev = DATA.experiences.filter(e => e.competencyIds.includes(r.competencyId)); return `
+        <div style="display:grid; grid-template-columns:118px 1fr auto; gap:12px; align-items:center">
+          <span class="chip ${ev.length ? CAT[c.category] : 'on-gap'}" style="justify-content:center">${esc(c.name)}</span>
+          <div>
+            <div class="meter ${ev.length ? '' : 'is-gap'}"><i style="width:${Math.round(r.weight*100)}%"></i></div>
+            <div style="font-size:11px; color:var(--faint); margin-top:4px">“${esc(r.evidence)}”</div>
+          </div>
+          <span class="mono" style="font-size:11.5px; color:var(--muted)">${r.weight.toFixed(1)}</span>
+        </div>`; }).join('')}
+    </div>
+
+    ${p.newCompetencies.length ? `
+      <div style="margin-top:18px; padding:12px 14px; background:var(--gap-soft); border:1px solid var(--gap); border-radius:3px" data-note="newCompetencies">
+        <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:6px">역량 사전에 없는 표현 ${p.newCompetencies.length}개 — 승인 필요</div>
+        <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
+        <p style="font-size:11.5px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
+      </div>` : ''}
+
+    <div style="margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--muted)">
+      이 목록은 <b>사용자가 요청해서 만든 것이 아니다.</b> 공고를 수집하는 배치가 적재 시점에 AX-1 추출까지 끝내 둔다 —
+      그래서 이 화면을 열 때 기다릴 일이 없고, 파서와 프롬프트는 서비스 운영자만 손댄다.
+    </div>`;
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+
+/* ============================================================
+   S3 · 매칭 대시보드 — 커버리지를 실제로 계산한다
+   ============================================================ */
+/* 점수 임계값은 여기 한 곳에만 있다 — 화면·판정·문구가 전부 이 상수를 참조한다 */
+const SCORE = {
+  GAP: 0.45,          // 이 아래면 갭으로 본다
+  WEAK: 0.70,         // 근거가 얕다고 표시하는 선
+  STRONG: 0.90,       // 강점으로 문장에 인용하는 선
+  RECOMMEND: 0.85,    // 지원 권장 (+ 갭 0)
+  CONDITIONAL: 0.62,  // 조건부 지원
+  DEFAULT_STRENGTH: 0.60,
+  PICK_STRENGTH: 0.70,
+};
+
+function computeMatch(post){
+  const pp = post || P();
+  const rows = pp.required.map(r => {
+    const evid = DATA.experiences.filter(e => e.competencyIds.includes(r.competencyId));
+    const strength = evid.reduce((a, e) => a + (e.strength?.[r.competencyId] ?? SCORE.DEFAULT_STRENGTH), 0);
+    const score = Math.min(1, strength);
+    return { ...r, comp: byId(r.competencyId), evid, score, isGap: evid.length === 0 || score < SCORE.GAP };
+  });
+  const wsum = rows.reduce((a, r) => a + r.weight, 0);
+  const overall = wsum ? rows.reduce((a, r) => a + r.weight * r.score, 0) / wsum : 0;
+  return { rows, overall };
+}
+
+
+/* ============================================================
+   AX-2 · 평가 요약
+   숫자만으로는 "그래서 지원해도 되나"에 답이 안 된다.
+   요구 역량 + 내 경험을 넣고 판정 · 요약 · 다음 할 일을 받는다.
+
+   목업에서는 computeMatch 결과로 문장을 조립한다.
+   실제 구현에서는 아래 buildAssessInput() 이 만드는 JSON 을 그대로
+   프롬프트에 넣고, 같은 모양의 응답을 받아 이 카드에 렌더한다.
+   ============================================================ */
+const EFFORT = { LOW:'낮음', MID:'중간', HIGH:'높음' };
+const expSignature = () => DATA.experiences.map(e => e.id).sort((a,b)=>a-b).join(',');
+
+/* 평가는 사용자가 버튼으로 돌리는 게 아니다.
+   경험 라이브러리가 바뀌면 이벤트가 발행되고, 서버가 활성 공고들의 평가를 다시 계산해 둔다.
+   화면은 저장된 결과를 읽기만 한다. */
+let assessState = {};        // { postingId: { state:'FRESH'|'QUEUED'|'RUNNING', at, sig } }
+let assessLog = [];          // 설계 주석 모드에서 보여줄 이벤트 기록
+const ASSESS_LABEL = { FRESH:'평가 최신', QUEUED:'재계산 대기', RUNNING:'재계산 중' };
+
+function stampNow(){
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')} ` +
+         [d.getHours(), d.getMinutes(), d.getSeconds()].map(v => String(v).padStart(2,'0')).join(':');
+}
+
+/* 부트 시점에는 이미 서버가 계산해 둔 상태다 — 사용자가 처음 열어도 평가가 비어 있지 않다. */
+function seedAssess(){
+  DATA.postings.forEach(p => assessState[p.id] = { state:'FRESH', at:'2026-09-02 06:10', sig: expSignature() });
+  assessLog = [{ t:'2026-09-02 06:10', k:'BATCH', m:`nightly reassess × ${DATA.postings.length}` }];
+}
+
+/* 경험 라이브러리 변경 → 이벤트 → 활성 공고 재평가 */
+function onExperienceChanged(kind, ids){
+  const live = DATA.postings.filter(p => dday(p.deadline) >= 0);
+  const t = stampNow();
+  assessLog.unshift({ t, k:'EVENT',   m:`${kind} { experienceIds: [${ids.join(', ')}] }` });
+  assessLog.unshift({ t, k:'ENQUEUE', m:`reassess × ${live.length} (활성 공고)` });
+  live.forEach(p => assessState[p.id] = { ...assessState[p.id], state:'QUEUED' });
+  repaintAssess();
+
+  setTimeout(() => {
+    live.forEach(p => assessState[p.id] = { ...assessState[p.id], state:'RUNNING' });
+    assessLog.unshift({ t: stampNow(), k:'RUN', m:`POST /internal/ai/match × ${live.length}` });
+    repaintAssess();
+  }, 700);
+
+  setTimeout(() => {
+    const at = stampNow(), sig = expSignature();
+    live.forEach(p => assessState[p.id] = { state:'FRESH', at, sig });
+    assessLog.unshift({ t: at, k:'DONE', m:`upsert assessment × ${live.length}` });
+    repaintAssess();
+    const cur = P();
+    const now = Math.round(computeMatch(cur).overall * 100);
+    toast(`평가 갱신 완료 · 공고 ${live.length}건 · ${cur.company} ${now}%`);
+  }, 2400);
+}
+
+function repaintAssess(){
+  renderHome();
+  if ($('#detail').classList.contains('on')) renderDetail();
+}
+
+/* 실제 구현에서 프롬프트에 들어갈 입력 — 설계 주석 모드에서 그대로 보여준다 */
+function buildAssessInput(p){
+  const m = computeMatch(p);
+  return {
+    posting: { id: p.id, company: p.company, position: p.position, deadlineDday: dday(p.deadline) },
+    required: p.required.map(r => ({ competency: byId(r.competencyId).name, weight: r.weight, evidence: r.evidence })),
+    experiences: DATA.experiences.map(e => ({
+      id: e.id, title: e.title, result: e.result,
+      competencies: e.competencyIds.map(id => byId(id).name),
+    })),
+    coverage: m.rows.map(r => ({ competency: r.comp.name, score: +r.score.toFixed(2), evidenceIds: r.evid.map(e => e.id) })),
+  };
+}
+
+function assess(p){
+  const m = computeMatch(p);
+  const gaps = m.rows.filter(r => r.isGap).sort((a, b) => b.weight - a.weight);
+  const strong = m.rows.filter(r => !r.isGap && r.score >= SCORE.STRONG).sort((a, b) => b.weight - a.weight);
+  const weak = m.rows.filter(r => !r.isGap && r.score < SCORE.WEAK).sort((a, b) => b.weight - a.weight);
+  const d = dday(p.deadline);
+  const app = appOfPosting(p);
+  const qs = app ? appQs(app) : [];
+  const unwritten = qs.filter(q => !(q.draft || '').trim()).length;
+  const valueGaps = gaps.filter(g => g.comp.category === 'VALUE');
+
+  const verdict = (m.overall >= SCORE.RECOMMEND && !gaps.length) ? 'RECOMMEND'
+                : (m.overall >= SCORE.CONDITIONAL) ? 'CONDITIONAL' : 'HOLD';
+
+  const headline =
+    verdict === 'RECOMMEND' ? '요구 역량을 모두 덮습니다 — 우선순위를 높이세요'
+    : verdict === 'HOLD' ? `요구 역량 ${gaps.length}개가 비어 있어 우선순위를 낮추는 편이 낫습니다`
+    : valueGaps.length ? '기술 역량은 채웠지만 인재상 키워드가 비어 있습니다'
+    : `기술 역량은 대체로 맞지만 ${gaps.map(g => g.comp.name).join('·')} 이(가) 비어 있습니다`;
+
+  /* --- 요약 문장 조립 --- */
+  const S = [];
+  S.push(`요구 역량 ${m.rows.length}개 중 ${m.rows.length - gaps.length}개를 덮어 매칭 ${Math.round(m.overall*100)}%입니다.`);
+  if (strong.length){
+    const s0 = strong[0];
+    const ev = s0.evid.slice(0, 2).map(e => `“${e.title}”`).join('과 ');
+    S.push(`${s0.comp.name}은 ${ev}${s0.evid.length > 2 ? ' 등' : ''}이 뒷받침합니다.`);
+  }
+  if (strong.length > 1) S.push(`${strong.slice(1, 3).map(r => r.comp.name).join('·')}도 근거가 있습니다.`);
+  if (gaps.length) S.push(`반면 ${gaps.map(g => `${g.comp.name}(가중치 ${g.weight.toFixed(1)})`).join(', ')}은 이를 증명할 경험이 없습니다.`);
+  if (weak.length) S.push(`${weak.map(w => w.comp.name).join('·')}은 태그는 되어 있으나 근거가 얕습니다.`);
+  S.push(d <= 10
+    ? `마감이 ${d}일 남아, 새 경험을 만들기보다 기존 경험을 이 공고의 언어로 다시 서술하는 편이 현실적입니다.`
+    : `마감까지 ${d}일 남아 갭을 메울 경험을 새로 만들 여유가 있습니다.`);
+
+  /* --- 다음 할 일 --- */
+  const actions = [];
+  gaps.forEach(g => actions.push({
+    effort: g.comp.category === 'VALUE' ? 'LOW' : 'MID',
+    title: g.suggestion || `${g.comp.name}을 증명할 경험을 추가하거나, 기존 경험을 그 관점으로 다시 서술하세요.`,
+    tag: g.comp.name,
+  }));
+  weak.forEach(w => actions.push({
+    effort: 'LOW',
+    title: `${w.comp.name}: “${w.evid[0]?.title || ''}”에 이 역량이 드러나는 행동과 수치를 보강하세요.`,
+    tag: w.comp.name,
+  }));
+  if (!app) actions.push({ effort:'LOW', title:'이 공고로 지원서를 만들어야 자소서 문항과 답변 버전을 관리할 수 있습니다.', tag:'지원서' });
+  else if (!qs.length) actions.push({ effort:'LOW', title:'서버에 이 공고의 자소서 문항이 없습니다. 채용 사이트에서 확인해 직접 등록하세요.', tag:'문항' });
+  else if (unwritten) actions.push({ effort:'MID', title:`자소서 ${qs.length}문항 중 ${unwritten}문항이 비어 있습니다.`, tag:'자소서' });
+
+  return { verdict, headline, summary: S.join(' '), actions: actions.slice(0, 4), overall: m.overall };
+}
+
+function assessCard(p){
+  const a = assess(p);
+  const st = assessState[p.id] || { state:'QUEUED' };
+  const busy = st.state !== 'FRESH';
+  const vc = { RECOMMEND:'var(--matched)', CONDITIONAL:'var(--gap)', HOLD:'var(--muted)' }[a.verdict];
+  const vl = { RECOMMEND:'지원 권장', CONDITIONAL:'조건부 지원', HOLD:'보류 권장' }[a.verdict];
+
+  return `
+    <div class="card" style="margin-bottom:18px; border-color:${busy ? 'var(--border)' : vc}" data-note="assessment 테이블 · 이벤트로 갱신">
+      <div class="cardhead" style="background:var(--surface-2)">
+        <h3>평가 요약</h3>
+        <span class="pill acc">AX-2 · temperature 0.2</span>
+        <span class="n" style="margin-left:auto; display:flex; align-items:center; gap:6px">
+          ${busy ? '<span class="spin" style="border-color:var(--muted); border-right-color:transparent"></span>' : ''}
+          ${ASSESS_LABEL[st.state]}${st.at && !busy ? ` · ${esc(st.at)}` : ''}
+        </span>
+      </div>
+      <div class="cardbody" id="asBody">
+        ${`
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:11px; flex-wrap:wrap">
+          <span class="pill" style="color:${vc}; font-size:12px; padding:3px 10px">${vl}</span>
+          <b style="color:var(--ink); font-size:14px">${esc(a.headline)}</b>
+        </div>
+        <p style="font-size:13px; line-height:1.8; max-width:72ch; ${busy ? 'opacity:.55' : ''}">${esc(a.summary)}</p>
+
+        <div style="margin-top:16px; padding-top:14px; border-top:1px solid var(--border)">
+          <div style="font-size:11px; font-weight:600; letter-spacing:.08em; text-transform:uppercase; color:var(--muted); margin-bottom:9px">지금 할 일</div>
+          <ol style="display:flex; flex-direction:column; gap:8px; padding-left:0; list-style:none; margin:0">
+            ${a.actions.map((x, i) => `
+              <li style="display:flex; gap:9px; align-items:flex-start; font-size:12.5px">
+                <span class="mono" style="color:var(--faint); flex:none">${i + 1}</span>
+                <span class="pill ${x.effort === 'LOW' ? 'ok' : x.effort === 'MID' ? 'warn' : 'mut'}" style="flex:none">${EFFORT[x.effort]}</span>
+                <span>${esc(x.title)}</span>
+              </li>`).join('')}
+          </ol>
+        </div>
+
+        ${busy ? `<div style="margin-top:12px; font-size:12px; color:var(--muted)">경험 라이브러리가 바뀌어 서버가 이 공고의 평가를 다시 계산하고 있습니다. 위 내용은 갱신 전 결과입니다.</div>` : ''}
+        `}
+        <div class="noteonly" style="margin-top:14px">
+          <div style="display:grid; gap:12px">
+          <div>
+            <div style="font-size:11px; color:var(--muted); margin-bottom:6px">평가 파이프라인 · 사용자 트리거 없음</div>
+            <div class="netlog">${assessLog.slice(0, 6).map(l =>
+              `<div><span class="t">${esc(l.t)}</span> <span class="${l.k === 'DONE' ? 's2' : l.k === 'EVENT' ? 's1' : 'm'}">${esc(l.k)}</span> <span class="t">${esc(l.m)}</span></div>`).join('')}</div>
+          </div>
+          <div>
+            <div style="font-size:11px; color:var(--muted); margin-bottom:6px">프롬프트에 들어가는 입력</div>
+            <pre class="code" style="max-height:170px">${esc(JSON.stringify(buildAssessInput(p), null, 1))}</pre>
+          </div>
+          </div>
+        </div>
+      </div>
+    </div>`;
+}
+
+function renderS3(){
+  const { rows, overall } = computeMatch();
+  const gaps = rows.filter(r => r.isGap);
+  const covered = rows.length - gaps.length;
+
+  $('#s3body').innerHTML = `
+    ${assessCard(P())}
+
+    <div class="grid g3" style="margin-bottom:18px">
+      <div class="card pad" data-note="match_result.overall_score">
+        <div class="stat"><span class="v" style="color:${overall >= .7 ? 'var(--matched)' : 'var(--gap)'}">${(overall*100).toFixed(0)}<span style="font-size:16px">%</span></span><span class="l">전체 매칭 스코어 · 가중 평균</span></div>
+      </div>
+      <div class="card pad"><div class="stat"><span class="v" style="color:var(--matched)">${covered}<span style="font-size:16px; color:var(--faint)"> / ${rows.length}</span></span><span class="l">내 경험이 덮은 요구 역량</span></div></div>
+      <div class="card pad"><div class="stat"><span class="v" style="color:var(--gap)">${gaps.length}</span><span class="l">비어 있는 역량 · 갭</span></div></div>
+    </div>
+
+    ${gaps.length ? `
+    <div class="card" style="margin-bottom:18px; border-color:var(--gap)" data-note="match_detail.status = GAP">
+      <div class="cardhead" style="background:var(--gap-soft)">
+        <h3 style="color:var(--gap)">지원 전에 메워야 할 갭 ${gaps.length}개</h3>
+        <span class="n">가중치 높은 순</span>
+      </div>
+      <div class="cardbody" style="display:flex; flex-direction:column; gap:12px">
+        ${gaps.sort((a,b) => b.weight - a.weight).map(g => `
+          <div style="display:flex; gap:12px; align-items:flex-start">
+            <span class="chip on-gap" style="flex:none">${esc(g.comp.name)}</span>
+            <div style="font-size:12.5px">
+              <div style="color:var(--ink)">${esc(g.suggestion || '이 역량을 보여줄 경험을 추가하거나, 기존 경험을 이 관점에서 다시 서술하세요.')}</div>
+              <div style="color:var(--faint); font-size:11.5px; margin-top:3px">공고 근거 · “${esc(g.evidence)}”</div>
+            </div>
+          </div>`).join('')}
+      </div>
+    </div>` : ''}
+
+    <div class="card" data-note="GET /applications/12/ai/match">
+      <div class="cardhead"><h3>요구 역량별 커버리지</h3><span class="n">역량을 누르면 근거 경험이 펼쳐집니다</span></div>
+      <div class="tw">
+        <table class="tb">
+          <thead><tr><th>요구 역량</th><th>구분</th><th style="width:34%">커버리지</th><th>근거 경험</th><th>가중치</th></tr></thead>
+          <tbody>
+            ${rows.map((r,i) => `
+              <tr class="mrow" data-i="${i}" tabindex="0" role="button" aria-expanded="false" aria-label="${esc(r.comp.name)} 근거 경험 펼치기" style="cursor:pointer">
+                <td><span class="chip ${r.isGap ? 'on-gap' : 'on-matched'}">${esc(r.comp.name)}</span></td>
+                <td style="color:var(--faint); font-size:11.5px">${CATLAB[r.comp.category]}</td>
+                <td><div class="meter ${r.isGap ? 'is-gap' : ''}"><i style="width:${Math.round(r.score*100)}%"></i></div></td>
+                <td style="font-size:12px; color:${r.evid.length ? 'var(--ink-2)' : 'var(--gap)'}">${r.evid.length ? r.evid.length + '건' : '없음'}</td>
+                <td class="mono" style="font-size:11.5px; color:var(--muted)">${r.weight.toFixed(1)}</td>
+              </tr>
+              <tr class="mdet" data-i="${i}" hidden><td colspan="5" style="background:var(--surface-2)">
+                ${r.evid.length ? r.evid.map(e => `
+                  <div style="padding:6px 0; font-size:12.5px">
+                    <b style="color:var(--ink)">${esc(e.title)}</b>
+                    <span style="color:var(--muted)"> · ${esc(e.result)}</span>
+                  </div>`).join('')
+                : `<div style="padding:6px 0; font-size:12.5px; color:var(--gap)">이 역량을 태그한 경험이 하나도 없습니다. ${esc(r.suggestion || '')}</div>`}
+              </td></tr>`).join('')}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card pad" style="margin-top:18px; background:var(--accent-soft); border-color:var(--accent)">
+      <p style="font-size:12.5px; color:var(--ink)"><b>왜 이 화면이 필요한가</b> — 취업특강 <b>§21 ③ 직무 키워드 적합도 분석</b>에 따르면 기업은 “해당 직무와 연관된 핵심 역량 단어가 자소서에 있는지 없는지를 AI로 돌린다.” 넣어야 할 키워드는 두 가지 — <b>① 지원 직무의 핵심 역량 ② 그 회사 인재상 키워드</b>. 그런데 강사는 “그런 키워드를 넣을 생각을 안 하시는 것 같아요. 제가 본 적이 거의 없는 것 같습니다”라고 했다. 이 화면은 그 대조를 지원 전에 미리 해 두는 것이다.</p>
+    </div>`;
+
+  $$('#s3body .mrow').forEach(tr => {
+    const act = () => {
+      const d = $(`#s3body .mdet[data-i="${tr.dataset.i}"]`);
+      d.hidden = !d.hidden;
+      tr.setAttribute('aria-expanded', String(!d.hidden));
+    };
+    tr.addEventListener('click', act);
+    tr.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); act(); } });
+  });
+}
+
+/* ============================================================
+   S4 · 자소서 에디터
+   점검 5종 중 4종은 AI가 아니라 문자열 규칙이다.
+   ============================================================ */
+let s4qid = null, s4text = '', s4used = [];
+const appsWithQ = () => DATA.applications.filter(a => DATA.questions.some(q => q.applicationId === a.id));
+const qOf = appId => DATA.questions.filter(q => q.applicationId === appId);
+const stamp = () => { const d = new Date(); return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`; };
+
+function lint(text, q){
+  const out = [];
+  const p = postingOfQ(q);
+  const n = text.trim().length;
+
+  // ① 분량 — 감점 1위(85%). 요구 글자 수의 80% 이상은 채워야 한다.
+  if (q && n > 0 && n < q.charLimit * 0.8)
+    out.push({ level:'bad', label:'분량', rank:'감점 1위 · 85%',
+      msg:`${n}자 · 요구 ${q.charLimit}자의 ${Math.round(n/q.charLimit*100)}%. 무성의해 보이는 자소서가 감점 1위입니다. 80%(${Math.round(q.charLimit*0.8)}자) 이상 채우세요.` });
+  if (q && n > q.charLimit)
+    out.push({ level:'bad', label:'분량', rank:'제한 초과',
+      msg:`${n}자 · 제한 ${q.charLimit}자를 ${n - q.charLimit}자 초과했습니다.` });
+
+  // ② 기업명 오기 — 감점 2위(75%). 채점자가 0점을 준다.
+  rivalsFor(p).filter(x => text.includes(x)).forEach(x =>
+    out.push({ level:'bad', label:'기업명 오기', rank:'감점 2위 · 75% · 채점자 0점',
+      msg:`본문에 “${x}”가 있습니다. 지원 기업은 ${p.company}입니다. “제가 채점할 때 보면 다 빵점 줍니다” — 강의 §21 ② 기본 결격 사유 필터링.` }));
+
+  // ③ 근거 없는 역량 나열 · 금지 표현 — 감점 3위(60%)
+  DATA.bannedPhrases.filter(b => text.includes(b.phrase)).forEach(b =>
+    out.push({ level:'bad', label:'금지 표현', rank:'감점 3위 · 60%',
+      msg:`“${b.phrase}” → ${b.instead}` }));
+
+  // ④ 정량 근거 — 감점 4위(45%). 수치 없는 성과 표현.
+  if (n > 80 && !/[0-9]/.test(text))
+    out.push({ level:'warn', label:'정량 근거', rank:'감점 4위 · 45%',
+      msg:'본문에 숫자가 하나도 없습니다. “여러분의 성과는 무엇이든 숫자로 만들 수 있습니다.”' });
+
+  // ⑤ 직무 키워드 적합도 — 기업 AI가 실제로 돌리는 검사 3위(18%)
+  //    결함이 아니라 커버리지 정보다. 한 문항이 모든 키워드를 담을 수는 없다.
+  if (n > 0){
+    const top = p.required.filter(r => r.weight >= 0.8).map(r => byId(r.competencyId)).filter(Boolean);
+    const inText = c => [c.name, ...(c.aliases || [])].some(w => text.includes(w));
+    const has = top.filter(inText);
+    const miss = top.filter(c => !inText(c));
+    out.push({ level: has.length ? 'info' : 'warn', label:'직무 키워드', rank:'§21 ③ 직무 키워드 적합도 · AI 검사 18%',
+      msg: `핵심 요구 역량 ${top.length}개 중 ${has.length}개가 본문에 있습니다.` +
+           (miss.length ? ` 없는 것 — ${miss.map(c => c.name).join(', ')}. 다른 문항에서 덮으면 됩니다.` : ' 전부 포함되었습니다.') });
+  }
+
+  // ⑥ 두괄식 — 인사담당자 62%가 5분 미만으로 스캔한다
+  const first = (text.split(/[.!?\n]/)[0] || '').trim();
+  if (first.length > 70)
+    out.push({ level:'warn', label:'두괄식', rank:'검토 5분 미만 62%',
+      msg:`첫 문장이 ${first.length}자입니다. 담당자는 정독하지 않고 스캔합니다. 결론을 먼저, 짧게.` });
+
+  // ⑦ 물어본 개수만큼 답했는가 — 자가 체크
+  if (q && q.asks && n > 0){
+    const done = (q.asksDone || []).length;
+    if (done < q.asks.length)
+      out.push({ level:'warn', label:'요구사항', rank:'§33 그룹핑 · 요구사항 누락',
+        msg:`이 문항은 ${q.asks.length}가지를 묻습니다. ${done}가지만 확인 표시했습니다 — ${q.asks.filter((_,i) => !(q.asksDone||[]).includes(i)).join(', ')}` });
+  }
+
+  // ⑧ 비교 기준 — "숫자만 쓰고 끝내는 사람이 99%. '이게 잘한 거 맞아?' 라는 생각이 든다"
+  if (/[0-9]+ *(%|배|건|초|분|시간|명|원)/.test(text) && !/(기존|대비|평균|이전|에서|→|타 ?팀|다른 조|보다)/.test(text))
+    out.push({ level:'warn', label:'비교 기준', rank:'감점 4위 · 45%',
+      msg:'수치는 있는데 비교 대상이 없습니다. "다른 조는 평균 10%인데 우리는 45%" 처럼 그 숫자가 왜 잘한 건지 근거를 붙이세요.' });
+
+  return out;
+}
+
+
+
+/* 타이핑 중에는 우측 패널과 카운터만 갱신한다 — textarea 를 다시 그리지 않는다 */
+function paintS4Live(q, list){
+  const over = s4text.length > q.charLimit, thin = s4text.length < q.charLimit * 0.8;
+  const cnt = $('#s4count');
+  if (cnt) cnt.innerHTML = `
+    <div style="position:relative; width:118px" title="80% 지점 눈금 — 그 아래는 무성의 감점 구간">
+      <div class="meter ${thin || over ? 'is-gap' : ''}" style="min-width:118px"><i style="width:${Math.min(100, s4text.length / q.charLimit * 100)}%"></i></div>
+      <span style="position:absolute; left:80%; top:-2px; width:1px; height:11px; background:var(--ink); opacity:.55"></span>
+    </div>
+    <span class="mono" style="font-size:12px; color:${over || thin ? 'var(--gap)' : 'var(--matched)'}; font-variant-numeric:tabular-nums">${s4text.length} / ${q.charLimit}자</span>`;
+  const side = $('#s4side');
+  if (side){ side.innerHTML = s4SideHtml(q, list); bindS4Side(list); }
+}
+
+function bindS4Side(list){
+  $$('#s4side .s4ex').forEach(c => c.addEventListener('change', () => {
+    s4used = $$('#s4side .s4ex').filter(x => x.checked).map(x => +x.value);
+    const q2 = DATA.questions.find(x => x.id === s4qid); q2.usedExperienceIds = s4used;
+    paintS4Live(q2, list);
+  }));
+  $$('#s4side [data-ver]').forEach(b => b.addEventListener('click', () => {
+    const q2 = DATA.questions.find(x => x.id === s4qid);
+    const v = q2.versions.find(x => x.v === +b.dataset.ver);
+    s4text = v.content; q2.draft = s4text; renderEssay();
+    toast(`v${v.v} 로 되돌렸습니다`);
+  }));
+}
+
+function s4SideHtml(q, list){
+  const issues = lint(s4text, q);
+  const problems = issues.filter(i => i.level !== 'info');
+  const notes = issues.filter(i => i.level === 'info');
+  return `
+      <div class="card" data-note="answer_experience">
+        <div class="cardhead"><h3>근거 경험</h3><span class="n">${s4used.length}건</span></div>
+        <div class="cardbody" style="display:flex; flex-direction:column; gap:8px">
+          ${DATA.experiences.map(e => `
+            <label style="display:flex; gap:8px; align-items:flex-start; font-size:12px; cursor:pointer">
+              <input type="checkbox" class="s4ex" value="${e.id}" ${s4used.includes(e.id) ? 'checked' : ''} style="margin-top:3px; accent-color:var(--accent)">
+              <span>${esc(e.title)}<br><span style="color:var(--faint); font-size:11px">${esc(e.result)}</span></span>
+            </label>`).join('')}
+          <p style="font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:9px; margin-top:2px">
+            체크한 경험의 id 가 <code>usedExperienceIds</code> 로 프롬프트에 들어가고, 저장 시 <code>answer_experience</code> 에 기록된다. AI가 무엇을 근거로 썼는지 DB가 기억한다.
+          </p>
+        </div>
+      </div>
+
+      <div class="card" data-note="answer · version 이력">
+        <div class="cardhead"><h3>저장된 버전</h3><span class="n">${(q.versions||[]).length}개</span></div>
+        <div class="cardbody" style="display:flex; flex-direction:column; gap:7px">
+          ${(q.versions||[]).length ? [...q.versions].reverse().map(v => `
+            <div style="display:flex; gap:8px; align-items:center; font-size:11.5px">
+              <span class="pill ${v.source === 'AI_DRAFT' ? 'acc' : 'mut'}">v${v.v}</span>
+              <span style="color:var(--muted)">${esc(v.at)} · ${v.len}자 · ${v.source === 'AI_DRAFT' ? 'AI 초안' : '직접 작성'}</span>
+              <button class="btn sm" data-ver="${v.v}" style="margin-left:auto">되돌리기</button>
+            </div>`).join('')
+          : '<p style="font-size:11.5px; color:var(--faint)">아직 저장한 버전이 없습니다. 자소서는 고쳐 쓰는 게 본질이라 덮어쓰지 않고 버전을 쌓습니다.</p>'}
+        </div>
+      </div>
+
+      <div class="card" data-note="문자열 규칙 · AI 아님">
+        <div class="cardhead">
+          <h3>문장 점검</h3>
+          <span class="n" style="color:${problems.length ? 'var(--gap)' : 'var(--matched)'}">${problems.length ? problems.length + '건' : '이상 없음'}</span>
+        </div>
+        <div class="cardbody" style="display:flex; flex-direction:column; gap:10px">
+          ${problems.length ? problems.map(i => `
+            <div style="display:flex; flex-direction:column; gap:3px">
+              <div style="display:flex; gap:6px; align-items:center">
+                <span class="pill ${i.level === 'bad' ? 'warn' : 'mut'}">${i.label}</span>
+                <span style="font-size:10px; color:var(--faint); font-family:var(--mono)">${esc(i.rank)}</span>
+              </div>
+              <span style="font-size:12px; color:var(--ink-2); padding-left:2px">${esc(i.msg)}</span>
+            </div>`).join('')
+          : '<p style="font-size:12px; color:var(--matched)">분량 · 기업명 · 금지 표현 · 정량 근거 · 비교 기준 · 요구사항 · 두괄식 모두 통과했습니다.</p>'}
+          ${notes.map(i => `
+            <div style="display:flex; flex-direction:column; gap:3px; padding-top:9px; border-top:1px dashed var(--border)">
+              <div style="display:flex; gap:6px; align-items:center">
+                <span class="pill info">${i.label}</span>
+                <span style="font-size:10px; color:var(--faint); font-family:var(--mono)">${esc(i.rank)}</span>
+              </div>
+              <span style="font-size:12px; color:var(--muted); padding-left:2px">${esc(i.msg)}</span>
+            </div>`).join('')}
+          <p style="font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:9px">
+            여섯 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
+          </p>
+        </div>
+      </div>`;
+}
+
+function renderEssay(){
+  const p = P();
+  const app = appOfPosting(p);
+
+  if (!app){
+    $('#dtEssay').innerHTML = `
+      <div class="emptystate" data-note="application 없음">
+        <h3>아직 지원서를 만들지 않았습니다</h3>
+        <p>자소서는 <code>application → question → answer</code> 로 묶입니다. 이 공고에 지원서를 만들면 문항을 등록하고 답변 버전을 관리할 수 있습니다.</p>
+        <button class="btn primary sm" id="esMkApp">이 공고로 지원서 만들기</button>
+      </div>`;
+    $('#esMkApp').addEventListener('click', () => {
+      openApp();
+      $('#apCo').value = p.company; $('#apPos').value = p.position;
+      $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+    });
+    return;
+  }
+
+  const list = appQs(app);
+  if (!list.length){
+    const noServer = p.questionsFromServer === false;
+    $('#dtEssay').innerHTML = `
+      <div class="emptystate" data-note="GET /postings/${p.id}/questions">
+        <h3>${noServer ? '이 공고의 자소서 문항이 서버에 없습니다' : '문항을 불러오지 못했습니다'}</h3>
+        <p>${noServer
+          ? '수집한 공고에 자소서 문항이 늘 붙어 있지는 않습니다. 채용 사이트에서 문항을 확인해 직접 등록하면, 이후 점검·초안·버전 관리는 똑같이 동작합니다.'
+          : '잠시 후 다시 시도하거나 문항을 직접 등록하세요.'}</p>
+        <div class="noteonly" style="max-width:460px; margin:0 auto 16px">
+          <div class="netlog"><div><span class="t">응답</span> <span class="m">GET /api/postings/${p.id}/questions</span></div><div><span class="s2">200</span> <span class="t">{ "questions": [] }</span></div></div>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:center">
+          <button class="btn primary sm" id="esAddQ">문항 직접 추가</button>
+          ${noServer ? '' : '<button class="btn sm" id="esRetry">다시 시도</button>'}
+        </div>
+      </div>`;
+    $('#esAddQ').addEventListener('click', () => openQ(app.id));
+    const rt = $('#esRetry'); if (rt) rt.addEventListener('click', () => { toast('문항이 여전히 비어 있습니다'); });
+    return;
+  }
+
+  if (s4qid === null || !list.some(x => x.id === s4qid)){
+    s4qid = list[0].id; s4text = list[0].draft || ''; s4used = list[0].usedExperienceIds || [];
+  }
+  const q = DATA.questions.find(x => x.id === s4qid);
+  const issues = lint(s4text, q);
+  const problems = issues.filter(i => i.level !== 'info');
+  const notes = issues.filter(i => i.level === 'info');
+  const over = s4text.length > q.charLimit;
+
+  $('#dtEssay').innerHTML = `
+    <div class="split3">
+    <div class="card" data-note="application 1:N question">
+      <div class="cardhead"><h3>지원서</h3><span class="n">${list.length}문항</span></div>
+      <div class="cardbody" style="padding:10px; display:flex; flex-direction:column; gap:10px">
+        <div style="font-size:11px; color:var(--faint); display:flex; gap:8px; flex-wrap:wrap">
+          <span>${esc(STATUS[app.status].label)}</span>
+          <span>미작성 ${appRemain(app)}문항</span>
+        </div>
+        <button class="btn sm" data-addQ2="${app.id}" style="justify-content:center">＋ 문항 추가</button>
+        <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:9px">
+        ${list.map(x => `
+          <button class="qitem" data-q="${x.id}" aria-current="${x.id === s4qid ? 'true' : 'false'}">
+            <span style="font-size:12px; line-height:1.5">${esc(x.prompt.length > 44 ? x.prompt.slice(0,44) + '…' : x.prompt)}</span>
+            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}${(x.versions||[]).length ? ' · v' + x.versions.length : ''}</span>
+          </button>`).join('')}
+        </div>
+      </div>
+    </div>
+
+    <div class="card" data-note="answer (version 이력)">
+      <div class="cardhead">
+        <h3 style="font-weight:500; font-size:13px; line-height:1.5">${esc(q.prompt)}</h3>
+      </div>
+      <div class="cardbody">
+        <div style="font-size:11.5px; color:var(--muted); background:var(--surface-2); padding:8px 11px; border-radius:3px; margin-bottom:10px">
+          <b style="color:var(--ink)">이 문항의 의도</b> — ${esc(q.intent)}
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap; margin-bottom:12px" data-note="§33 물어본 개수만큼 답하기">
+          <span style="font-size:11px; color:var(--faint)">물어본 것 ${q.asks.length}개</span>
+          ${q.asks.map((a, i) => `<button class="chip ${(q.asksDone||[]).includes(i) ? 'on-matched' : ''}" data-ask="${i}" style="font-size:11px">${(q.asksDone||[]).includes(i) ? '✓' : '○'} ${esc(a)}</button>`).join('')}
+        </div>
+        <textarea class="inp" id="s4ta" rows="13" spellcheck="false" placeholder="근거 경험을 고른 뒤 초안을 생성하거나, 직접 쓰세요">${esc(s4text)}</textarea>
+        <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap">
+          <button class="btn primary sm" id="s4gen" data-note="POST /answers/${q.id}/ai/draft → 202">초안 생성</button>
+          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">새 버전 저장</button>
+          <span class="spacer" style="flex:1"></span>
+          <div style="display:flex; align-items:center; gap:9px" id="s4count">
+            <div style="position:relative; width:118px" title="80% 지점 눈금 — 그 아래는 무성의 감점 구간">
+              <div class="meter ${s4text.length < q.charLimit*0.8 || over ? 'is-gap' : ''}" style="min-width:118px"><i style="width:${Math.min(100, s4text.length / q.charLimit * 100)}%"></i></div>
+              <span style="position:absolute; left:80%; top:-2px; width:1px; height:11px; background:var(--ink); opacity:.55"></span>
+            </div>
+            <span class="mono" style="font-size:12px; color:${over || s4text.length < q.charLimit*0.8 ? 'var(--gap)' : 'var(--matched)'}; font-variant-numeric:tabular-nums">${s4text.length} / ${q.charLimit}자</span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>`;
+
+  $("#s4side").innerHTML = s4SideHtml(q, list);
+  $$('#dtEssay [data-addQ2]').forEach(b => b.addEventListener('click', () => openQ(+b.dataset.addq2)));
+  $('#s4save').addEventListener('click', () => {
+    const q2 = DATA.questions.find(x => x.id === s4qid);
+    const body = s4text.trim();
+    if (!body){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
+    q2.versions = q2.versions || [];
+    if (q2.versions.length && q2.versions[q2.versions.length-1].content === body){ toast('직전 버전과 같습니다'); return; }
+    q2.versions.push({ v: q2.versions.length + 1, content: body, len: body.length, at: stamp(),
+                       source: body === q2.aiDraft ? 'AI_DRAFT' : 'MANUAL' });
+    renderEssay(); renderHome();
+    toast(`v${q2.versions.length} 저장 · ${app.company} 지원서에 묶임`);
+  });
+  $$('#dtEssay [data-ask]').forEach(b => b.addEventListener('click', () => {
+    const i = +b.dataset.ask;
+    const q2 = DATA.questions.find(x => x.id === s4qid);
+    q2.asksDone = q2.asksDone || [];
+    q2.asksDone = q2.asksDone.includes(i) ? q2.asksDone.filter(v => v !== i) : [...q2.asksDone, i];
+    renderEssay();
+  }));
+  $$('#dtEssay [data-q]').forEach(b => b.addEventListener('click', () => {
+    const x = DATA.questions.find(v => v.id === +b.dataset.q);
+    s4qid = x.id; s4text = x.draft || ''; s4used = x.usedExperienceIds || [];
+    renderEssay();
+  }));
+  $('#s4ta').addEventListener('input', e => {
+    s4text = e.target.value;
+    const q2 = DATA.questions.find(x => x.id === s4qid);
+    q2.draft = s4text;
+    paintS4Live(q2, list);
+  });
+  bindS4Side(list);
+  $('#s4gen').addEventListener('click', async e => {
+    const b = e.currentTarget, target = s4qid;              // 클릭 시점의 문항을 고정한다
+    const q2 = DATA.questions.find(x => x.id === target);
+    if (!q2.aiDraft){
+      toast('이 문항은 목업에 준비된 AI 초안이 없습니다 — 직접 작성하거나 다른 문항을 시도하세요');
+      return;
+    }
+    b.disabled = true; b.innerHTML = '<span class="spin"></span>생성 중';
+    await sleep(1500);
+    q2.draft = q2.aiDraft;
+    if (s4qid !== target){                                   // 대기 중 문항이 바뀌었으면 화면은 건드리지 않는다
+      toast(`“${q2.prompt.slice(0, 18)}…” 문항의 초안이 생성되었습니다`);
+      renderHome(); return;
+    }
+    s4text = q2.draft;
+    renderEssay();
+  });
+}
+
+const STATUS = {
+  PLANNED:   { label:'지원 예정', cls:'mut' },
+  WRITING:   { label:'작성 중',   cls:'warn' },
+  SUBMITTED: { label:'제출',      cls:'info' },
+  INTERVIEW: { label:'면접',      cls:'acc' },
+  RESULT:    { label:'결과 대기', cls:'ok' },
+};
+
+/* ============================================================
+   홈 — 공고별 매칭도 + 자소서 진행 상태
+   ============================================================ */
+let homeSort = 'match';
+let homeOnlyBm = false;
+
+function progressOf(posting){
+  const app = DATA.applications.find(a => a.postingId === posting.id);
+  if (!app) return { app:null, label:'지원서 없음', done:0, total:0, ratio:0, versions:0 };
+  const qs = qOf(app.id);
+  const done = qs.filter(q => (q.draft || '').trim().length > 0).length;
+  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
+  const versions = qs.reduce((a, q) => a + (q.versions || []).length, 0);
+  return {
+    app, done, total: qs.length, versions, thin,
+    ratio: qs.length ? done / qs.length : 0,
+    label: qs.length ? `${done} / ${qs.length}문항` : '문항 미등록',
+  };
+}
+
+function renderHome(){
+  const all = DATA.postings.filter(p => dday(p.deadline) >= 0);
+  const live = all.filter(p => !homeOnlyBm || isBm(p.id))
+    .map(p => ({ p, m: computeMatch(p), pr: progressOf(p), d: dday(p.deadline) }));
+
+  live.sort((a, b) => homeSort === 'match' ? b.m.overall - a.m.overall : a.d - b.d);
+
+  const avg = live.length ? live.reduce((a, x) => a + x.m.overall, 0) / live.length : 0;
+  const soon = live.filter(x => x.d <= 7).length;
+  const writing = live.filter(x => x.pr.app && x.pr.app.status === 'WRITING').length;
+
+  $('#homeStats').innerHTML = [
+    ['활성 공고', all.length, ''],
+    ['마감 7일 내', soon, soon ? 'var(--gap)' : ''],
+    ['즐겨찾기', all.filter(x => isBm(x.id)).length, ''],
+    ['평균 매칭', Math.round(avg * 100) + '%', avg >= 0.7 ? 'var(--matched)' : 'var(--gap)'],
+  ].map(([l, v, c]) => `<div class="card pad"><div class="stat"><span class="v" ${c ? `style="color:${c}"` : ''}>${v}</span><span class="l">${l}</span></div></div>`).join('');
+
+  $('#homeList').innerHTML = live.map(({ p, m, pr, d }) => {
+    const gaps = m.rows.filter(r => r.isGap);
+    const top = m.rows.filter(r => !r.isGap).sort((x, y) => y.weight - x.weight).slice(0, 2);
+    const rest = m.rows.length - top.length - gaps.length;
+    const sameCo = live.filter(x => x.p.company === p.company).length;
+    const mc = m.overall >= SCORE.RECOMMEND ? 'var(--matched)' : m.overall >= SCORE.WEAK ? 'var(--info)' : 'var(--gap)';
+    const ep = essayProgress(p);
+    return `<article class="jobcard" data-pid="${p.id}" tabindex="0" role="button" aria-label="${esc(p.company)} ${esc(p.position)} 상세 보기" data-note="GET /api/postings?active=true">
+      <div class="jc-top">
+        <span class="jc-logo" aria-hidden="true">${esc(p.company.slice(0, 1))}</span>
+        <span style="display:flex; align-items:center; gap:7px">
+          <span class="jc-match" style="color:${mc}">${Math.round(m.overall * 100)}%</span>
+          ${bmBtn(p.id, true)}
+        </span>
+      </div>
+
+      <div>
+        <div class="jc-co">
+          ${esc(p.company)}
+          ${sameCo > 1 ? `<span class="pill info" style="margin-left:6px" title="이 기업은 지금 ${sameCo}개 직무를 뽑고 있습니다">이 회사 ${sameCo}건</span>` : ''}
+        </div>
+        <div class="jc-title">${esc(p.position)}</div>
+      </div>
+
+      <div class="jc-tags">
+        ${top.map(r => `<span class="chip ${CAT[r.comp.category]}">${esc(r.comp.name)}</span>`).join('')}
+        ${gaps.map(g => `<span class="chip on-gap">갭 · ${esc(g.comp.name)}</span>`).join('')}
+        ${rest > 0 ? `<span class="chip" style="color:var(--faint)">＋${rest}</span>` : ''}
+      </div>
+
+      <div class="jc-foot">
+        <div>
+          <div class="jc-dday ${d <= 7 ? 'soon' : ''}">D-${d}</div>
+          <div class="jc-sub">${esc(p.deadline)} 마감</div>
+          <div style="display:flex; align-items:center; gap:7px; margin-top:7px">
+            ${ep.total
+              ? `<div class="meter" style="width:52px"><i style="width:${Math.round(ep.ratio*100)}%"></i></div>
+                 <span class="mono" style="font-size:11px; color:${ep.state === 'DONE' ? 'var(--matched)' : 'var(--ink-2)'}">자소서 ${ep.done}/${ep.total}</span>`
+              : `<span class="pill mut">자소서 ${esc(ep.label)}</span>`}
+            ${ep.versions ? `<span class="mono" style="font-size:10.5px; color:var(--faint)">${ep.versions}버전</span>` : ''}
+          </div>
+        </div>
+        <button class="btn primary sm" data-open="${p.id}" data-tab="essay">
+          ${ep.state === 'NO_APP' ? '지원하기' : ep.state === 'NO_Q' ? '문항 등록' : '자소서'}
+        </button>
+      </div>
+    </article>`;
+  }).join('');
+
+  $('#homeNote').innerHTML = '정렬은 <b>매칭순</b>과 <b>마감 임박순</b> 두 가지다. 지원자 수 기준 인기순은 넣지 않았다 — 공고 사이트가 지원자 수를 공개할 때만 가능한 지표라, 없는 데이터를 있는 척할 수 없다.';
+
+  $('#onlyBm').setAttribute('aria-pressed', String(homeOnlyBm));
+  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 저장 버튼을 눌러 담아 두세요.</p>';
+  bindBm('#homeList');
+  $('#sortMatch').setAttribute('aria-pressed', String(homeSort === 'match'));
+  $('#sortDday').setAttribute('aria-pressed', String(homeSort === 'dday'));
+
+  $$('#homeList [data-open]').forEach(b => b.addEventListener('click', e => { e.stopPropagation(); openDetail(+b.dataset.open, b.dataset.tab); }));
+  $$('#homeList .jobcard').forEach(c => {
+    c.addEventListener('click', () => openDetail(+c.dataset.pid));
+    c.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' '){ e.preventDefault(); openDetail(+c.dataset.pid); } });
+  });
+  $$('#homeList [data-addQ]').forEach(b => b.addEventListener('click', () => openQ(+b.dataset.addq)));
+  $$('#homeList [data-mkApp]').forEach(b => b.addEventListener('click', () => {
+    const p = DATA.postings.find(x => x.id === +b.dataset.mkapp);
+    openApp(); $('#apCo').value = p.company; $('#apPos').value = p.position;
+    $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+  }));
+}
+$('#sortMatch').addEventListener('click', () => { homeSort = 'match'; renderHome(); });
+$('#sortDday').addEventListener('click', () => { homeSort = 'dday'; renderHome(); });
+$('#onlyBm').addEventListener('click', () => { homeOnlyBm = !homeOnlyBm; renderHome(); });
+
+
+/* ============================================================
+   개발 참고 — 다른 개발자가 구현하면서 찾아보는 값들.
+   전부 DATA 와 SCORE 상수에서 파생시킨다. 손으로 적은 표가 아니다.
+   ============================================================ */
+const CATDESC = {
+  TECH:   '기술 역량 · 공고의 자격요건·우대사항에서 주로 나온다',
+  SOFT:   '행동 역량 · 경험 서술에서 드러난다',
+  DOMAIN: '도메인 이해 · 산업·업무 맥락',
+  VALUE:  '인재상 키워드 · 기업이 쓴 단어를 그대로 써야 매칭에 걸린다',
+};
+
+function copyBlock(id, text){
+  return `<div class="prewrap"><button class="btn sm copybtn" data-copy="${id}">복사</button><pre class="code" id="${id}">${esc(text)}</pre></div>`;
+}
+
+
+/* ============================================================
+   개발 참고 06~08 — 엔드포인트 · ERD · 시드 SQL
+   ============================================================ */
+const ENDPOINTS = [
+  ['공고', 'GET',    '/api/postings?active=true',            '200',      '활성 공고 + 내 매칭. 홈 카드가 이것만으로 그려진다', ''],
+  ['공고', 'GET',    '/api/postings/{id}',                   '200 404',  '공고 상세 + required[] + 파싱된 섹션', ''],
+  ['공고', 'GET',    '/api/postings/{id}/questions',         '200',      '자소서 문항. 서버가 모르면 빈 배열', ''],
+  ['공고', 'POST',   '/internal/ai/extract',                 '202',      'AX-1 · 수집 배치가 호출. 사용자 경로 아님', 'AX-1'],
+  ['공고', 'POST',   '/api/postings/{id}/competencies',      '201',      '추출 결과 확정 저장', ''],
+  ['경험', 'GET',    '/api/experiences?competencyId=',       '200',      '경험 목록 · 역량 필터', ''],
+  ['경험', 'POST',   '/api/experiences',                     '201 400',  '경험 등록. 응답 후 ExperienceCreated 발행', ''],
+  ['경험', 'PUT',    '/api/experiences/{id}',                '200 404',  '경험 수정. ExperienceUpdated 발행', ''],
+  ['경험', 'POST',   '/api/experiences/ai/intake',           '202',      'AX-4 · 링크에서 후보 추출 + 되물을 질문', 'AX-4'],
+  ['AI',   'GET',    '/api/ai/jobs/{jobId}',                 '200 404',  '폴링. PENDING / COMPLETED / FAILED', ''],
+  ['지원', 'POST',   '/api/applications',                    '201 409',  '같은 공고 중복 지원은 409', ''],
+  ['지원', 'POST',   '/api/applications/{id}/questions',     '201',      '문항 직접 등록', ''],
+  ['지원', 'GET',    '/api/applications/{id}/assessment',    '200',      '저장된 평가 조회. 계산하지 않는다', ''],
+  ['지원', 'POST',   '/internal/ai/match',                   '202',      'AX-2 · 경험 변경 이벤트가 호출', 'AX-2'],
+  ['자소서','PUT',   '/api/answers/{id}',                    '200',      '새 버전 저장. 덮어쓰지 않는다', ''],
+  ['자소서','GET',   '/api/questions/{id}/answers',          '200',      '버전 이력', ''],
+  ['자소서','POST',  '/api/answers/{id}/ai/draft',           '202',      'AX-3 · 초안 생성', 'AX-3'],
+  ['즐겨찾기','POST','/api/postings/{id}/bookmark',          '201 204',  'DELETE 로 해제. bookmark 테이블', ''],
+];
+
+const TABLES = [
+  ['user',                  'id, name, email',                                                                  '', ''],
+  ['competency',            'id, name, category, aliases[]',                                                    '마스터 · 20행 고정', ''],
+  ['experience',            'id, user_id, title, period, category, situation, task, action, result, source',    'STAR 4필드', ''],
+  ['experience_competency', 'experience_id, competency_id, strength',                                           'N:M', 'strength 가 쌍의 속성이라 @ManyToMany 로는 표현 자체가 안 된다'],
+  ['company',               'id, name, career_url',                                                             'career_url 이 수집 대상', ''],
+  ['job_posting',           'id, company_id, position, raw_text, deadline, source, collected_at, questions_from_server', '직무 단위 · 기업 단위가 아니다', ''],
+  ['posting_competency',    'posting_id, competency_id, weight, evidence_line, evidence_status',                'N:M', 'weight·인용줄·검증상태가 쌍의 속성'],
+  ['application',           'id, user_id, posting_id, status, submitted_at',                                    '', ''],
+  ['question',              'id, application_id, seq, prompt_text, char_limit, asks[]',                         '', ''],
+  ['answer',                'id, question_id, version, content, char_count, is_final, source',                  '버전 누적 · 덮어쓰지 않는다', ''],
+  ['answer_experience',     'answer_id, experience_id',                                                         'N:M', '이 문장이 어떤 경험을 근거로 썼는가'],
+  ['assessment',            'id, application_id, verdict, headline, summary, state, input_sig, computed_at',    '이벤트로 갱신 · 화면은 읽기만', ''],
+  ['assessment_action',     'id, assessment_id, seq, effort, tag, title',                                       '', ''],
+  ['ai_job',                'id, user_id, job_type, target_id, state, input_hash, request_json, response_json, tokens, latency_ms', '멱등키 = (user_id, job_type, input_hash)', ''],
+  ['bookmark',              'user_id, posting_id, created_at',                                                  'N:M', 'created_at 이 붙는 순간 이것도 엔티티다'],
+  ['crawl_job',             'id, company_id, state, started_at, finished_at, error',                            '수집 배치 상태', ''],
+];
+
+function sq(v){ return v === null || v === undefined ? 'NULL' : `'${String(v).replace(/'/g, "''")}'`; }
+
+function buildSeedSql(){
+  const L = [];
+  L.push('-- 목업 DATA 에서 생성한 시드. 스키마가 확정되면 컬럼명만 맞추면 된다.');
+  L.push('BEGIN;');
+  L.push('', '-- competency');
+  DATA.competencies.forEach(c =>
+    L.push(`INSERT INTO competency (id, name, category, aliases) VALUES (${c.id}, ${sq(c.name)}, ${sq(c.category)}, ARRAY[${(c.aliases||[]).map(sq).join(', ')}]::text[]);`));
+
+  L.push('', '-- experience');
+  DATA.experiences.forEach(e => {
+    L.push(`INSERT INTO experience (id, user_id, title, period, category, situation, task, action, result, source) VALUES (${e.id}, 1, ${sq(e.title)}, ${sq(e.period)}, ${sq(e.category)}, ${sq(e.situation)}, ${sq(e.task)}, ${sq(e.action)}, ${sq(e.result)}, ${sq(e.source || 'MANUAL')});`);
+    e.competencyIds.forEach(cid =>
+      L.push(`INSERT INTO experience_competency (experience_id, competency_id, strength) VALUES (${e.id}, ${cid}, ${(e.strength?.[cid] ?? SCORE.DEFAULT_STRENGTH).toFixed(2)});`));
+  });
+
+  L.push('', '-- company · job_posting · posting_competency');
+  const companies = [...new Set(DATA.postings.map(p => p.company))];
+  companies.forEach((n, i) => L.push(`INSERT INTO company (id, name) VALUES (${i + 1}, ${sq(n)});`));
+  DATA.postings.forEach(p => {
+    L.push(`INSERT INTO job_posting (id, company_id, position, raw_text, deadline, source, collected_at, questions_from_server) VALUES (${p.id}, ${companies.indexOf(p.company) + 1}, ${sq(p.position)}, ${sq(p.rawText)}, DATE ${sq(p.deadline)}, ${sq(p.source)}, ${p.collectedAt ? `TIMESTAMP ${sq(p.collectedAt)}` : 'NULL'}, ${p.questionsFromServer !== false});`);
+    p.required.forEach(r =>
+      L.push(`INSERT INTO posting_competency (posting_id, competency_id, weight, evidence_line, evidence_status) VALUES (${p.id}, ${r.competencyId}, ${r.weight}, NULL, 'UNVERIFIED');  -- ${r.evidence.slice(0, 40)}`));
+  });
+
+  L.push('', '-- application · question · answer');
+  DATA.applications.filter(a => a.id).forEach(a =>
+    L.push(`INSERT INTO application (id, user_id, posting_id, status) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'}, ${sq(a.status)});`));
+  DATA.questions.forEach((q, i) => {
+    L.push(`INSERT INTO question (id, application_id, seq, prompt_text, char_limit) VALUES (${q.id}, ${q.applicationId}, ${i + 1}, ${sq(q.prompt)}, ${q.charLimit});`);
+    (q.versions || []).forEach(v =>
+      L.push(`INSERT INTO answer (question_id, version, content, char_count, is_final, source) VALUES (${q.id}, ${v.v}, ${sq(v.content)}, ${v.len}, ${v.v === (q.versions.length)}, ${sq(v.source)});`));
+  });
+
+  L.push('', 'COMMIT;');
+  return L.join('\n');
+}
+
+function specExtraHtml(){
+  const grp = [...new Set(ENDPOINTS.map(e => e[0]))];
+  return `
+    <div class="spec-sec">
+      <h3><span class="no">06</span>API 엔드포인트</h3>
+      <p class="lead">
+        화면 곳곳의 설계 주석에 흩어져 있는 계약을 한 표로 모았다. <code>/internal/</code> 은 <b>사용자 경로가 아니다</b> —
+        배치와 이벤트 컨슈머만 호출한다. <code>202</code> 인 것만 사용자가 기다린다.
+      </p>
+      <div class="card"><div class="tw"><table class="tb">
+        <thead><tr><th style="width:74px">묶음</th><th style="width:64px">메서드</th><th style="width:250px">경로</th><th style="width:78px">상태</th><th>설명</th></tr></thead>
+        <tbody>${ENDPOINTS.map(([g, m, path, st, desc, ax]) => `<tr>
+          <td style="color:var(--faint); font-size:11.5px">${esc(g)}</td>
+          <td class="mono" style="color:${m === 'GET' ? 'var(--info)' : m === 'DELETE' ? 'var(--gap)' : 'var(--accent)'}">${m}</td>
+          <td class="mono" style="font-size:11.5px">${esc(path)}</td>
+          <td class="mono" style="font-size:11px; color:var(--muted)">${esc(st)}</td>
+          <td style="font-size:11.5px">${esc(desc)} ${ax ? `<span class="pill acc">${ax}</span>` : ''}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">07</span>데이터 모델</h3>
+      <p class="lead">
+        테이블 ${TABLES.length}개. <b>N:M 4개는 전부 payload 를 가진다</b> — 그래서 <code>@ManyToMany</code> 로 매핑하면
+        컬럼을 넣을 자리가 없어 값이 조용히 사라진다. 조인 테이블은 예외 없이 <code>@EmbeddedId</code> + <code>@MapsId</code> 엔티티로 만든다.
+      </p>
+      <figure class="fig" style="margin-bottom:12px">
+        <svg viewBox="0 0 880 440" class="dia" role="img" aria-label="user·experience·competency·job_posting·application·question·answer·assessment 의 관계도. 굵은 선 넷이 payload 를 가진 다대다 관계다">
+          <defs><marker id="ar-erd" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto">
+            <path d="M0,0 L10,5 L0,10 z" fill="var(--muted)"/></marker></defs>
+
+          <rect class="node" x="20"  y="24"  width="132" height="38" rx="3"/><text class="n" x="86"  y="48"  text-anchor="middle">user</text>
+          <rect class="node" x="20"  y="140" width="132" height="38" rx="3"/><text class="n" x="86"  y="164" text-anchor="middle">experience</text>
+          <rect class="hub"  x="374" y="140" width="132" height="38" rx="3"/><text class="n" x="440" y="164" text-anchor="middle">competency</text>
+          <rect class="node" x="700" y="140" width="132" height="38" rx="3"/><text class="n" x="766" y="164" text-anchor="middle">job_posting</text>
+          <rect class="node" x="150" y="256" width="132" height="38" rx="3"/><text class="n" x="216" y="280" text-anchor="middle">answer</text>
+          <rect class="node" x="374" y="256" width="132" height="38" rx="3"/><text class="n" x="440" y="280" text-anchor="middle">question</text>
+          <rect class="node" x="620" y="256" width="132" height="38" rx="3"/><text class="n" x="686" y="280" text-anchor="middle">application</text>
+          <rect class="node" x="620" y="372" width="132" height="38" rx="3"/><text class="n" x="686" y="396" text-anchor="middle">assessment</text>
+
+          <line class="rel" x1="86" y1="62" x2="86" y2="134" marker-end="url(#ar-erd)"/>
+          <text class="e" x="94" y="105">1:N</text>
+          <polyline class="nmline" points="152,36 300,20 640,20 748,134" fill="none"/>
+          <text class="k" x="470" y="14" text-anchor="middle">N:M · bookmark</text>
+
+          <line class="nmline" x1="152" y1="159" x2="374" y2="159"/>
+          <text class="k" x="263" y="151" text-anchor="middle">N:M</text>
+          <text class="b" x="263" y="176" text-anchor="middle">experience_competency</text>
+
+          <line class="nmline" x1="506" y1="159" x2="700" y2="159"/>
+          <text class="k" x="603" y="151" text-anchor="middle">N:M</text>
+          <text class="b" x="603" y="176" text-anchor="middle">posting_competency</text>
+
+          <line class="rel" x1="740" y1="178" x2="702" y2="250" marker-end="url(#ar-erd)"/>
+          <text class="e" x="750" y="218">1:N</text>
+          <line class="rel" x1="620" y1="275" x2="512" y2="275" marker-end="url(#ar-erd)"/>
+          <text class="e" x="566" y="267" text-anchor="middle">1:N</text>
+          <line class="rel" x1="374" y1="275" x2="288" y2="275" marker-end="url(#ar-erd)"/>
+          <text class="e" x="331" y="267" text-anchor="middle">1:N</text>
+          <line class="rel" x1="686" y1="294" x2="686" y2="366" marker-end="url(#ar-erd)"/>
+          <text class="e" x="694" y="336">1:1</text>
+
+          <line class="nmline" x1="216" y1="256" x2="110" y2="178"/>
+          <text class="k" x="228" y="222">N:M</text>
+          <text class="b" x="228" y="237">answer_experience</text>
+        </svg>
+        <figcaption>굵은 선이 payload 를 가진 N:M 이다. <code>competency</code> 가 허브 — 내 경험과 채용공고가 <b>같은 어휘</b>를 공유하기 때문에 매칭이 문자열 비교가 아니라 조인으로 성립한다. <code>ai_job</code>·<code>crawl_job</code>·<code>company</code>·<code>assessment_action</code> 은 아래 표에만 있다.</figcaption>
+      </figure>
+      <div class="card"><div class="tw"><table class="tb">
+        <thead><tr><th style="width:190px">테이블</th><th>주요 컬럼</th><th style="width:30%">비고</th></tr></thead>
+        <tbody>${TABLES.map(([t, cols, note, warn]) => `<tr>
+          <td class="mono" style="color:${note === 'N:M' ? 'var(--accent)' : 'var(--ink)'}">${esc(t)}${note === 'N:M' ? ' <span class="pill acc">N:M</span>' : ''}</td>
+          <td class="mono" style="font-size:11px; color:var(--muted)">${esc(cols)}</td>
+          <td style="font-size:11.5px; color:${warn ? 'var(--gap)' : 'var(--muted)'}">${esc(warn || (note === 'N:M' ? '' : note))}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">08</span>시드 데이터</h3>
+      <p class="lead">
+        이 목업이 지금 쓰고 있는 데이터를 그대로 <code>INSERT</code> 로 뽑는다 —
+        역량 ${DATA.competencies.length} · 경험 ${DATA.experiences.length} · 공고 ${DATA.postings.length} ·
+        요구역량 ${DATA.postings.reduce((a, p) => a + p.required.length, 0)} · 문항 ${DATA.questions.length}행.
+        <b>시드는 코딩이 아니라 타이핑이라 계속 밀린다</b> — 그래서 화면에서 뽑을 수 있게 해 둔다.
+        컬럼명은 위 07 표 기준이니 스키마가 확정되면 이름만 맞추면 된다.
+      </p>
+      ${copyBlock('cpSeed', buildSeedSql())}
+    </div>`;
+}
+
+function renderSpec(){
+  const byCat = c => DATA.competencies.filter(x => x.category === c);
+  const aiVocab = DATA.competencies.map(c => ({ id: c.id, name: c.name, category: c.category }));
+
+  const enums = [
+    ['competency.category', ['TECH','SOFT','DOMAIN','VALUE'], '역량 범주'],
+    ['posting.source', ['CRAWLED','MANUAL'], '공고가 어떻게 들어왔나'],
+    ['application.status', Object.keys(STATUS), '지원 진행 상태'],
+    ['assessment.state', ['FRESH','QUEUED','RUNNING'], '평가 재계산 상태'],
+    ['assessment.verdict', ['RECOMMEND','CONDITIONAL','HOLD'], '지원 판정'],
+    ['action.effort', Object.keys(EFFORT), '액션 난이도'],
+    ['experience.source', ['MANUAL','AI_INTAKE'], '경험을 어떻게 만들었나'],
+    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 버전 출처'],
+    ['intake.question.field', ['task','result'], 'AI 가 되물을 STAR 필드'],
+  ];
+
+  const ax = [
+    { id:'AX-1', name:'요구역량 추출', trigger:'공고 수집 배치', temp:'0.0', sync:'배치 · 사용자 대기 없음',
+      ep:'POST /internal/ai/extract',
+      out:{ required:[{ competencyId:1, weight:0.9, evidenceLine:5 }], newCompetencies:['Kafka 운영'] } },
+    { id:'AX-2', name:'매칭 평가 요약', trigger:'경험 변경 이벤트 · 야간 배치', temp:'0.2', sync:'이벤트 · 사용자 대기 없음',
+      ep:'POST /internal/ai/match',
+      out:{ verdict:'CONDITIONAL', headline:'기술 역량은 채웠지만 인재상 키워드가 비어 있습니다',
+            summary:'요구 역량 9개 중 7개를 덮어 매칭 69%입니다. …',
+            actions:[{ effort:'LOW', tag:'높은 목표 설정', title:'MSA 프로젝트를 “기존 대비 더 높은 기준” 관점으로 다시 서술하세요.' }] } },
+    { id:'AX-3', name:'자소서 초안', trigger:'사용자 버튼', temp:'0.6', sync:'202 + 폴링',
+      ep:'POST /api/answers/{id}/ai/draft',
+      out:{ draft:'…', charCount:668, usedExperienceIds:[1], cautions:['결과에 정량 수치가 없습니다.'] } },
+    { id:'AX-4', name:'포트폴리오 인테이크', trigger:'사용자가 링크 제출', temp:'0.2', sync:'202 + 폴링',
+      ep:'POST /api/experiences/ai/intake',
+      out:{ candidates:[{ title:'오픈소스 라이브러리 버그 수정 기여', situation:'…', action:'…',
+            evidence:[{ type:'PR', ref:'PR #412 · merged', quote:'fix: preserve nested generic type info' }],
+            missing:['task','result'],
+            questions:[{ field:'task', q:'이 버그를 고치기로 한 계기는 무엇이었나요?', why:'PR 에는 무엇을 고쳤는지는 있지만 왜 골랐는지는 없습니다.' }],
+            suggestedCompetencyIds:[5,11,9,12] }] } },
+  ];
+
+  $('#specBody').innerHTML = `
+    <div class="spec-sec">
+      <h3><span class="no">01</span>AI 가 고를 수 있는 요구역량 태그</h3>
+      <p class="lead">
+        AX-1(공고) · AX-2(평가) · AX-4(인테이크) 가 역량을 지목할 때 <b>반드시 이 ${DATA.competencies.length}개 안에서만</b> 고른다.
+        사전 밖 표현은 <code>newCompetencies</code> 로 격리해 사람이 승인해야 들어온다 — 그래야 “협업”과 “팀워크”가 따로 쌓이지 않는다.
+        <code>aliases</code> 는 자소서 본문에서 키워드 포함 여부를 볼 때 쓰는 동의어다(“클라우드 인프라” ← 쿠버네티스 · Docker · 배포).
+      </p>
+      ${['TECH','SOFT','DOMAIN','VALUE'].map(cat => `
+        <div class="card" style="margin-bottom:12px">
+          <div class="cardhead">
+            <h3><span class="chip ${CAT[cat]}">${cat}</span></h3>
+            <span style="font-size:12px; color:var(--muted)">${esc(CATDESC[cat])}</span>
+            <span class="n">${byCat(cat).length}개</span>
+          </div>
+          <div class="tw"><table class="tb">
+            <thead><tr><th style="width:52px">id</th><th style="width:150px">name</th><th>aliases · 본문 매칭용 동의어</th></tr></thead>
+            <tbody>${byCat(cat).map(c => `<tr>
+              <td class="mono">${c.id}</td>
+              <td><span class="chip ${CAT[c.category]}">${esc(c.name)}</span></td>
+              <td style="color:var(--muted); font-size:11.5px">${(c.aliases || []).map(esc).join(' · ') || '—'}</td>
+            </tr>`).join('')}</tbody>
+          </table></div>
+        </div>`).join('')}
+      <p class="lead" style="margin-top:10px">프롬프트에 넣을 어휘 목록 — 이대로 복사해서 시스템 메시지에 붙인다.</p>
+      ${copyBlock('cpVocab', JSON.stringify(aiVocab, null, 1))}
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">02</span>상태 값 전체</h3>
+      <p class="lead">
+        화면에 쓰이는 모든 enum. <b>DB 에는 문자열로 저장한다</b>(<code>@Enumerated(EnumType.STRING)</code>) —
+        순서로 저장하면 상수를 하나 끼워 넣는 순간 기존 행이 전부 다른 뜻이 된다.
+        AI 응답의 enum 필드는 JSON Schema 로 강제하고, 목록 밖 값이 오면 화면에 <code>undefined</code> 가 그려지므로 서버에서 폐기하거나 폴백한다.
+      </p>
+      <div class="card"><div class="tw"><table class="tb">
+        <thead><tr><th style="width:200px">필드</th><th>허용 값</th><th style="width:34%">설명</th></tr></thead>
+        <tbody>${enums.map(([f, vs, d]) => `<tr>
+          <td class="mono">${esc(f)}</td>
+          <td>${vs.map(v => `<span class="chip" style="font-family:var(--mono); font-size:10.5px">${esc(v)}</span>`).join(' ')}</td>
+          <td style="color:var(--muted); font-size:11.5px">${esc(d)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">03</span>AI 확장 지점 4개 · 응답 계약</h3>
+      <p class="lead">
+        트리거가 다르면 <b>사용자가 기다리는지</b>가 갈린다. AX-1·AX-2 는 배치·이벤트라 화면이 기다리지 않고,
+        AX-3·AX-4 만 <code>202</code> + 폴링이다. 아래 JSON 은 그대로 목 응답으로 써도 된다.
+      </p>
+      <div class="card" style="margin-bottom:12px"><div class="tw"><table class="tb">
+        <thead><tr><th>지점</th><th>이름</th><th>트리거</th><th>temp</th><th>동기성</th><th>엔드포인트</th></tr></thead>
+        <tbody>${ax.map(a => `<tr>
+          <td><span class="pill acc">${a.id}</span></td><td style="color:var(--ink)">${esc(a.name)}</td>
+          <td style="font-size:11.5px">${esc(a.trigger)}</td>
+          <td class="mono">${a.temp}</td>
+          <td style="font-size:11.5px; color:${a.sync.startsWith('202') ? 'var(--gap)' : 'var(--matched)'}">${esc(a.sync)}</td>
+          <td class="mono" style="font-size:11px">${esc(a.ep)}</td>
+        </tr>`).join('')}</tbody>
+      </table></div></div>
+      ${ax.map((a, i) => `
+        <div style="margin-bottom:10px">
+          <div style="font-size:11.5px; color:var(--muted); margin-bottom:5px">${a.id} 응답 <code>result</code></div>
+          ${copyBlock('cpAx' + i, JSON.stringify(a.out, null, 1))}
+        </div>`).join('')}
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">04</span>점수 산식과 임계값</h3>
+      <p class="lead">
+        <b>이 값들은 코드에 한 곳(<code>SCORE</code>)에만 있다.</b> 화면 색·판정·문구가 전부 같은 상수를 본다 —
+        표시값과 판정값이 다른 데서 나오면 “매칭 85%”와 “조건부 지원”이 한 카드에 같이 뜬다.
+        점수는 <b>서버가 계산해 응답에 실어 보내고 프론트는 그리기만 한다.</b>
+      </p>
+      <div class="card pad" style="margin-bottom:12px">
+        <dl class="rule">
+          <dt>커버리지</dt><dd class="mono">score = min(1, Σ strength(경험, 역량))</dd>
+          <dt>갭 판정</dt><dd class="mono">근거 0건 이거나 score &lt; ${SCORE.GAP}</dd>
+          <dt>얕음</dt><dd class="mono">score &lt; ${SCORE.WEAK}</dd>
+          <dt>강점</dt><dd class="mono">score ≥ ${SCORE.STRONG}</dd>
+          <dt>전체</dt><dd class="mono">overall = Σ(weight × score) / Σ weight</dd>
+          <dt>지원 권장</dt><dd class="mono">overall ≥ ${SCORE.RECOMMEND} 그리고 갭 0</dd>
+          <dt>조건부</dt><dd class="mono">overall ≥ ${SCORE.CONDITIONAL}</dd>
+          <dt>강도 기본값</dt><dd class="mono">태그 시 ${SCORE.PICK_STRENGTH} · 값이 없으면 ${SCORE.DEFAULT_STRENGTH} · 약 0.4 / 중 0.7 / 강 0.9</dd>
+        </dl>
+      </div>
+      <div class="callout warn" style="margin-top:0">
+        <div class="lab">알려진 한계</div>
+        <p>① <code>min(1, Σ)</code> 는 포화한다 — 약한 경험을 여러 개 태그하면 강한 경험 하나보다 높아지고, 경험이 늘면 모든 공고가 100%로 수렴한다. 실제 구현에서는 <code>1 − Π(1 − sᵢ)</code> 를 권한다.<br>
+        ② 임계값 ${SCORE.RECOMMEND}/${SCORE.CONDITIONAL} 은 캘리브레이션된 값이 아니다. 합격 데이터가 쌓이기 전까지는 <b>절대 점수보다 상대 순위</b>가 정직하다.</p>
+      </div>
+    </div>
+
+    <div class="spec-sec">
+      <h3><span class="no">05</span>문장 점검 규칙</h3>
+      <p class="lead">
+        자소서 에디터의 점검 ${DATA.bannedPhrases.length > 0 ? '7' : ''}종 중 <b>여섯은 문자열 규칙</b>이고 LLM 이 필요 없다.
+        근거 수치는 취업캠프 자료의 감점 순위다.
+      </p>
+      <div class="card" style="margin-bottom:12px"><div class="tw"><table class="tb">
+        <thead><tr><th style="width:110px">항목</th><th style="width:170px">근거</th><th>규칙</th><th style="width:80px">AI 필요</th></tr></thead>
+        <tbody>
+          <tr><td>분량</td><td class="mono">감점 1위 · 85%</td><td>요구 글자 수의 80% 미만이면 경고, 초과하면 오류</td><td>아니오</td></tr>
+          <tr><td>기업명 오기</td><td class="mono">감점 2위 · 75%</td><td>내가 아는 모든 기업 − 지금 쓰는 기업 이 본문에 있으면 오류</td><td>아니오</td></tr>
+          <tr><td>금지 표현</td><td class="mono">감점 3위 · 60%</td><td>${DATA.bannedPhrases.length}개 문구 포함 검사</td><td>아니오</td></tr>
+          <tr><td>정량 근거</td><td class="mono">감점 4위 · 45%</td><td>본문에 숫자가 하나도 없으면 경고</td><td>아니오</td></tr>
+          <tr><td>비교 기준</td><td class="mono">감점 4위 · 45%</td><td>수치는 있는데 “기존/대비/평균/에서” 가 없으면 경고</td><td>아니오</td></tr>
+          <tr><td>요구사항</td><td class="mono">§33 그룹핑</td><td>문항이 묻는 개수만큼 답했는지 자가 체크</td><td>아니오</td></tr>
+          <tr><td>두괄식</td><td class="mono">검토 5분 미만 62%</td><td>첫 문장이 70자를 넘으면 경고</td><td>아니오</td></tr>
+          <tr><td>직무 키워드</td><td class="mono">§21 ③ · AI 검사 18%</td><td>가중치 0.8 이상 요구 역량이 본문에 있는지 (aliases 포함)</td><td>아니오</td></tr>
+        </tbody>
+      </table></div></div>
+      <p class="lead">금지 표현 목록</p>
+      ${copyBlock('cpBanned', JSON.stringify(DATA.bannedPhrases, null, 1))}
+    </div>
+
+    ${specExtraHtml()}`;
+
+  $$('#specBody [data-copy]').forEach(b => b.addEventListener('click', async () => {
+    const el = document.getElementById(b.dataset.copy);
+    try {
+      await navigator.clipboard.writeText(el.textContent);
+      toast('복사했습니다');
+    } catch (e) {
+      const rg = document.createRange(); rg.selectNodeContents(el);
+      const sel = getSelection(); sel.removeAllRanges(); sel.addRange(rg);
+      toast('클립보드를 쓸 수 없어 선택만 했습니다 — ⌘C 로 복사하세요');
+    }
+  }));
+}
+
+/* ============================================================
+   부트
+   ============================================================ */
+DATA.questions.forEach(q => {
+  if (!q.versionsSeed || !q.draft) return;
+  q.versions = Array.from({ length: q.versionsSeed }, (_, i) => ({
+    v: i + 1,
+    content: q.draft,
+    len: q.draft.length,
+    at: `8/${28 + i} 21:0${i}`,
+    source: i === 0 ? 'AI_DRAFT' : 'MANUAL',
+  }));
+});
+seedAssess();
+renderS1(); renderHome(); renderSpec();
+(() => {
+  const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
+  $('#themeBtn').setAttribute('aria-pressed', String(prefersDark));
+  document.documentElement.setAttribute('data-theme', prefersDark ? 'dark' : 'light');
+})();
+let start = 'home';
+try { start = localStorage.getItem('cm.screen') || 'home'; } catch(e) {}
+if (!document.getElementById(start)) start = 'home';
+go(start);
+
+/* ============================================================
+   등록 다이얼로그 — 경험 / 지원
+   목업이지만 DATA 를 실제로 바꾸고, 바뀐 값이 매칭 계산에 그대로 반영된다.
+   ============================================================ */
+function toast(msg, ms = 2600){
+  document.querySelectorAll('.toast').forEach(x => x.remove());
+  const t = document.createElement('div');
+  t.className = 'toast'; t.textContent = msg; t.setAttribute('role', 'status');
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), ms);
+}
+
+const STR = [
+  { v:0.4, lab:'약' },
+  { v:0.7, lab:'중' },
+  { v:0.9, lab:'강' },
+];
+/* 라벨은 값에서 파생한다 — 시드에 0.5·0.8 같은 중간값이 있어도 라벨이 어긋나지 않는다.
+   숫자 자체는 정밀해 보이지만 근거가 없으므로 설계 주석 모드에서만 노출한다. */
+const strLabel = v => v >= 0.85 ? '강' : v >= 0.60 ? '중' : '약';
+
+/* ---------- 경험 등록 ---------- */
+let exPick = {};       // { competencyId: strength }
+let exEditId = null;   // null 이면 신규, 아니면 수정 중인 경험 id
+
+function openExp(editId){
+  exEditId = editId ?? null;
+  const e = exEditId != null ? DATA.experiences.find(x => x.id === exEditId) : null;
+
+  exPick = e ? { ...(e.strength || {}) } : {};
+  if (e) e.competencyIds.forEach(id => { if (!(id in exPick)) exPick[id] = SCORE.PICK_STRENGTH; });
+
+  $('#exTitle').value  = e?.title  || '';
+  $('#exPeriod').value = e?.period || '';
+  $('#exS').value = e?.situation || '';
+  $('#exT').value = e?.task      || '';
+  $('#exA').value = e?.action    || '';
+  $('#exR').value = e?.result    || '';
+  $('#exCat').value = e?.category || $('#exCat').options[0].value;
+  $('#exErr').innerHTML = '';
+  $('#exRHint').textContent = '';
+
+  $('#expDlgH').textContent = e ? '경험 수정' : '경험 등록';
+  $('#expDlgSub').textContent = e
+    ? `${e.title}${e.source === 'AI_INTAKE' ? ' · 포폴 인테이크로 만든 경험' : ''}`
+    : 'STAR 4필드 · 역량 태그';
+  $('#exSave').textContent = e ? '저장' : '등록';
+  $('#exTabs').hidden = !!e;   // 수정 중에는 인테이크 탭 자체가 없다
+
+  paintExPool(); paintStar();
+  switchTab('manual');
+  resetIntake();
+
+  const gaps = computeMatch().rows.filter(r => r.isGap).map(r => r.comp.name);
+  $('#exGapHint').innerHTML = gaps.length
+    ? `지금 비어 있는 요구 역량 — <b style="color:var(--gap)">${gaps.join(', ')}</b>. 이 경험이 그걸 증명한다면 꼭 태그하세요.`
+    : '요구 역량이 모두 덮여 있습니다.';
+  $('#expDlg').showModal();
+  $('#exTitle').focus();
+}
+
+function paintExPool(){
+  $('#exPicked').innerHTML = Object.keys(exPick).length
+    ? Object.entries(exPick).map(([id, st]) => {
+        const c = byId(+id);
+        return `<span class="strchip">${esc(c.name)}
+          <button type="button" data-cyc="${id}" title="약 / 중 / 강 전환 · 내부값 ${st}">${strLabel(st)}<span class="noteonly-i" style="font-family:var(--mono); opacity:.75"> ${st}</span></button>
+          <button type="button" class="rm" data-rm="${id}" aria-label="${esc(c.name)} 제거">×</button></span>`;
+      }).join('')
+    : '<span class="hint">아래에서 역량을 고르세요 · 최소 1개</span>';
+
+  $('#exPool').innerHTML = DATA.competencies
+    .filter(c => !(c.id in exPick))
+    .map(c => `<button type="button" class="chip ${CAT[c.category]}" data-add="${c.id}">${esc(c.name)}</button>`)
+    .join('');
+
+  $$('#exPool [data-add]').forEach(b => b.addEventListener('click', () => { exPick[+b.dataset.add] = SCORE.PICK_STRENGTH; paintExPool(); }));
+  $$('#exPicked [data-rm]').forEach(b => b.addEventListener('click', () => { delete exPick[+b.dataset.rm]; paintExPool(); }));
+  $$('#exPicked [data-cyc]').forEach(b => b.addEventListener('click', () => {
+    const id = +b.dataset.cyc;
+    const cur = STR.findIndex(s => s.lab === strLabel(exPick[id]));
+    exPick[id] = STR[(cur + 1) % STR.length].v;   // 어떤 값이든 약→중→강 3단계로 스냅된다
+    paintExPool();
+  }));
+}
+
+function paintStar(){
+  const vals = ['exS','exT','exA','exR'].map(id => $('#' + id).value.trim().length > 0);
+  const n = vals.filter(Boolean).length;
+  $$('#exStarBar span').forEach((s, i) => s.classList.toggle('on', vals[i]));
+  $('#exStarN').textContent = `${n} / 4`;
+  const r = $('#exR').value.trim();
+  $('#exRHint').innerHTML = !r ? ''
+    : /[0-9]/.test(r)
+      ? '<span style="color:var(--matched)">수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — “다른 조는 평균 10%인데 우리는 45%”</span>'
+      : '<span style="color:var(--gap)">숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.</span>';
+}
+
+function saveExp(){
+  const title = $('#exTitle').value.trim();
+  const errs = [];
+  if (!title) errs.push('제목은 필수입니다.');
+  if (!$('#exR').value.trim()) errs.push('결과(R)는 필수입니다. 성과 없는 경험은 자소서에서 쓸 수 없습니다.');
+  if (!Object.keys(exPick).length) errs.push('역량을 최소 하나 태그해야 매칭에 쓰입니다.');
+  if (errs.length){
+    $('#exErr').innerHTML = errs.map(e => `<div class="err">⚠ ${esc(e)}</div>`).join('');
+    return;
+  }
+
+  const patch = {
+    title,
+    period: $('#exPeriod').value.trim() || '기간 미입력',
+    category: $('#exCat').value,
+    situation: $('#exS').value.trim(),
+    task: $('#exT').value.trim(),
+    action: $('#exA').value.trim(),
+    result: $('#exR').value.trim(),
+    competencyIds: Object.keys(exPick).map(Number),
+    strength: { ...exPick },
+  };
+
+  const editing = exEditId != null;
+  let targetId;
+  if (editing){
+    const e = DATA.experiences.find(x => x.id === exEditId);
+    Object.assign(e, patch);
+    targetId = e.id;
+  } else {
+    targetId = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
+    DATA.experiences.push({ id: targetId, ...patch, usedInAnswers: 0 });
+  }
+
+  $('#expDlg').close();
+  renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
+  onExperienceChanged(editing ? 'ExperienceUpdated' : 'ExperienceCreated', [targetId]);
+  toast(editing ? '경험을 수정했습니다 · 평가 재계산을 요청했습니다'
+                : '경험을 등록했습니다 · 평가 재계산을 요청했습니다');
+  exEditId = null;
+}
+
+/* ---------- 지원 등록 ---------- */
+function openApp(){
+  ['apCo','apPos'].forEach(id => $('#' + id).value = '');
+  $('#apSt').selectedIndex = 0; $('#apDday').value = 14; $('#apQ').value = 4;
+  $('#apErr').innerHTML = '';
+  $('#appDlg').showModal();
+  $('#apCo').focus();
+}
+
+function saveApp(){
+  const company = $('#apCo').value.trim(), position = $('#apPos').value.trim();
+  const errs = [];
+  if (!company) errs.push('기업명은 필수입니다.');
+  if (!position) errs.push('직무는 필수입니다.');
+  if (DATA.applications.some(a => a.company === company && a.position === position))
+    errs.push(`이미 등록된 지원입니다 — ${company} · ${position}. (API 라면 409 Conflict)`);
+  if (errs.length){
+    $('#apErr').innerHTML = errs.map(e => `<div class="err">⚠ ${esc(e)}</div>`).join('');
+    return;
+  }
+  const q = Math.max(1, +$('#apQ').value || 4);
+  DATA.applications.push({
+    id: Math.max(100, ...DATA.applications.map(a => a.id || 0)) + 1,
+    postingId: DATA.postings.find(p => p.company === company)?.id ?? null,
+    company, position,
+    status: $('#apSt').value,
+    dday: Math.max(0, +$('#apDday').value || 0),
+    match: null,
+    remainingQuestions: `— / ${q}`,
+  });
+  $('#appDlg').close();
+  renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
+  toast(`${company} 지원을 등록했습니다 · 회사명 오기 감지 목록에도 추가됨`);
+}
+
+/* ---------- 배선 ---------- */
+$('#s1add').addEventListener('click', openExp);
+$('#exSave').addEventListener('click', saveExp);
+$('#apSave').addEventListener('click', saveApp);
+$('#exCancel').addEventListener('click', () => { exEditId = null; $('#expDlg').close(); });
+$('#apCancel').addEventListener('click', () => $('#appDlg').close());
+['exS','exT','exA','exR'].forEach(id => $('#' + id).addEventListener('input', paintStar));
+
+/* ============================================================
+   AX-4 · 포트폴리오 인테이크 (대화형 추출)
+   코드·문서에서 확인되는 것만 채우고, 본인만 아는 것은 되묻는다.
+   STAR 의 T(목표)와 R(수치)는 저장소에 없다 — 지어내지 않고 질문한다.
+   ============================================================ */
+let inStep = 1;                 // 1 후보 선택 / 2 질문 / 3 확인
+let inChosen = new Set();       // 선택한 후보의 key
+let inAnsAll = {};              // { key: { qIdx: 답변 } }
+
+const candOf = k => DATA.intakeCandidates.find(c => c.key === k);
+const answered = k => { const c = candOf(k); const a = inAnsAll[k] || {}; return c.questions.filter((_, i) => (a[i] || '').trim()).length; };
+const isReady = k => answered(k) === candOf(k).questions.length;
+
+function resetIntake(){
+  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  $('#inOut').innerHTML = '';
+  $('#inLog').innerHTML = '<div class="t">요청 없음</div>';
+  $('#inState').className = 'pill mut'; $('#inState').textContent = '대기';
+}
+
+$$('#exTabs .tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+
+function switchTab(name){
+  $$('#exTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
+  $('#exIntake').hidden = name !== 'intake';
+  $('#exManual').hidden = name !== 'manual';
+}
+
+$('#inRun').addEventListener('click', async e => {
+  const btn = e.currentTarget, log = $('#inLog'), st = $('#inState');
+  const links = $('#inUrl').value.split('\n').map(x => x.trim()).filter(Boolean);
+  if (!links.length){ toast('링크를 한 줄에 하나씩 입력하세요'); return; }
+
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span>분석 중';
+  st.className = 'pill warn'; st.textContent = 'PENDING';
+  log.innerHTML = '';
+  $('#inOut').innerHTML = `<p class="empty">${links.length}개 소스를 읽는 중…</p>`;
+
+  logLine(log, 'm', `POST /api/experiences/ai/intake  { sources: ${links.length} }`);
+  await sleep(430);
+  logLine(log, 's2', '202 Accepted  { jobId: "ij_2c9", status: "PENDING" }');
+  for (let i = 0; i < 2; i++){
+    await sleep(780);
+    logLine(log, 'm', 'GET /api/ai/jobs/ij_2c9');
+    logLine(log, 's1', '200  { status: "PENDING" }');
+  }
+  await sleep(700);
+  logLine(log, 'm', 'GET /api/ai/jobs/ij_2c9');
+  logLine(log, 's2', `200  { status: "COMPLETED", candidates: ${DATA.intakeCandidates.length} }`);
+
+  st.className = 'pill ok'; st.textContent = 'COMPLETED';
+  btn.disabled = false; btn.textContent = '다시 분석';
+  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  paintIntake();
+});
+
+function paintIntake(){
+  if (inStep === 1) return paintStep1();
+  if (inStep === 2) return paintStep2();
+  return paintStep3();
+}
+
+/* ---- 1단계 · 후보 선택 ---- */
+function paintStep1(){
+  const dupes = DATA.intakeCandidates.filter(c => c.duplicateOfExperienceId).length;
+  $('#inOut').innerHTML = `
+    <div style="display:flex; align-items:center; gap:9px; margin-bottom:10px">
+      <span class="pill acc">1 / 3 · 후보 선택</span>
+      <span class="hint">여러 개를 한 번에 고를 수 있습니다${dupes ? ` · 이미 등록된 ${dupes}건은 제외됨` : ''}</span>
+    </div>
+    <p class="hint" style="margin-bottom:12px">
+      저장소와 첨부에서 확인된 것만 채웠습니다. <b>목표와 수치는 코드에 없어 비워 두고 다음 단계에서 되묻습니다</b> — 지어내면 면접에서 그대로 무너집니다.
+    </p>
+    ${DATA.intakeCandidates.map(c => {
+      const dup = !!c.duplicateOfExperienceId;
+      const on = inChosen.has(c.key);
+      return `<label class="cand ${on ? 'sel' : ''}" style="margin-bottom:9px; ${dup ? 'opacity:.55' : 'cursor:pointer'}">
+        <div style="display:flex; align-items:flex-start; gap:9px">
+          <input type="checkbox" data-cand="${c.key}" ${on ? 'checked' : ''} ${dup ? 'disabled' : ''} style="margin-top:3px; accent-color:var(--accent)">
+          <div style="flex:1">
+            <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+              <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
+              ${dup ? `<span class="pill mut">이미 등록됨</span>`
+                    : `<span class="pill warn">되물을 것 ${c.questions.length}</span>`}
+              <span class="pill mut">${esc(c.category)}</span>
+            </div>
+            <div style="font-size:11.5px; color:var(--muted); margin-top:5px"><b>S</b> ${esc(c.situation)}</div>
+            <div style="font-size:11.5px; color:var(--muted)"><b>A</b> ${esc(c.action)}</div>
+            <div class="chips" style="margin-top:7px">
+              ${c.evidence.map(e => `<span class="chip domain" title="${esc(e.quote)}">${esc(e.type)} · ${esc(e.ref)}</span>`).join('')}
+            </div>
+          </div>
+        </div>
+      </label>`;
+    }).join('')}
+    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
+      <span class="hint">${inChosen.size}건 선택</span>
+      <button type="button" class="btn primary sm" id="inNext" style="margin-left:auto" ${inChosen.size ? '' : 'disabled'}>
+        선택한 ${inChosen.size}건에 대해 질문 받기 →
+      </button>
+    </div>`;
+
+  $$('#inOut [data-cand]').forEach(cb => cb.addEventListener('change', () => {
+    cb.checked ? inChosen.add(cb.dataset.cand) : inChosen.delete(cb.dataset.cand);
+    paintStep1();
+  }));
+  $('#inNext').addEventListener('click', () => { inStep = 2; paintIntake(); });
+}
+
+/* ---- 2단계 · 후보별 질문 ---- */
+function paintStep2(){
+  const keys = [...inChosen];
+  const total = keys.reduce((a, k) => a + candOf(k).questions.length, 0);
+  const done = keys.reduce((a, k) => a + answered(k), 0);
+
+  $('#inOut').innerHTML = `
+    <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
+      <span class="pill acc">2 / 3 · 질문</span>
+      <span class="hint">답변 ${done} / ${total}</span>
+      <div class="meter" style="width:90px; margin-left:auto"><i style="width:${total ? done/total*100 : 0}%"></i></div>
+    </div>
+    ${keys.map(k => {
+      const c = candOf(k);
+      return `<div class="cand ${isReady(k) ? 'sel' : ''}" style="margin-bottom:11px">
+        <div style="display:flex; align-items:center; gap:8px">
+          <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
+          <span class="pill ${isReady(k) ? 'ok' : 'warn'}">${answered(k)} / ${c.questions.length}</span>
+        </div>
+        ${c.questions.map((q, qi) => `
+          <div class="qrow">
+            <div class="q">${qi + 1}. ${esc(q.q)}</div>
+            <div class="why">왜 묻는가 — ${esc(q.why)}</div>
+            <input class="inp" data-k="${k}" data-qi="${qi}" value="${esc((inAnsAll[k] || {})[qi] || '')}"
+              placeholder="${q.field === 'result' ? '숫자를 포함해 답해 주세요' : '한두 문장이면 충분합니다'}">
+          </div>`).join('')}
+      </div>`;
+    }).join('')}
+    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
+      <button type="button" class="btn sm" id="inBack">← 후보 다시 고르기</button>
+      <span class="hint" style="margin-left:auto">${keys.filter(isReady).length}건 답변 완료</span>
+      <button type="button" class="btn primary sm" id="inReview" ${keys.some(isReady) ? '' : 'disabled'}>확인 →</button>
+    </div>`;
+
+  $$('#inOut [data-k]').forEach(inp => inp.addEventListener('input', e => {
+    const k = e.target.dataset.k, qi = +e.target.dataset.qi;
+    inAnsAll[k] = inAnsAll[k] || {};
+    inAnsAll[k][qi] = e.target.value;
+    const head = $('#inOut .hint');
+    const t = [...inChosen].reduce((a, x) => a + candOf(x).questions.length, 0);
+    const d = [...inChosen].reduce((a, x) => a + answered(x), 0);
+    if (head) head.textContent = `답변 ${d} / ${t}`;
+    const bar = $('#inOut .meter i'); if (bar) bar.style.width = (t ? d/t*100 : 0) + '%';
+    const btn = $('#inReview'); if (btn) btn.disabled = ![...inChosen].some(isReady);
+  }));
+  $('#inBack').addEventListener('click', () => { inStep = 1; paintIntake(); });
+  $('#inReview').addEventListener('click', () => { inStep = 3; paintIntake(); });
+}
+
+/* ---- 3단계 · 확인 후 일괄 등록 ---- */
+function buildExp(k){
+  const c = candOf(k), a = inAnsAll[k] || {};
+  const pick = {};
+  c.suggestedCompetencyIds.forEach(id => pick[id] = SCORE.PICK_STRENGTH);
+  const get = f => { const i = c.questions.findIndex(q => q.field === f); return i >= 0 ? (a[i] || '').trim() : ''; };
+  return {
+    title: c.title, period: c.period, category: c.category,
+    situation: c.situation, task: get('task'), action: c.action, result: get('result'),
+    competencyIds: Object.keys(pick).map(Number), strength: pick,
+    source: 'AI_INTAKE', evidenceRefs: c.evidence.map(e => `${e.type} · ${e.ref}`),
+  };
+}
+
+function paintStep3(){
+  const ready = [...inChosen].filter(isReady);
+  const skipped = [...inChosen].filter(k => !isReady(k));
+  const drafts = ready.map(buildExp);
+  const before = computeMatch().overall;
+  const after = (() => {
+    const backup = DATA.experiences.slice();
+    DATA.experiences = backup.concat(drafts.map((d, i) => ({ ...d, id: -1 - i })));
+    const v = computeMatch().overall;
+    DATA.experiences = backup;
+    return v;
+  })();
+  const delta = Math.round(after * 100) - Math.round(before * 100);
+
+  $('#inOut').innerHTML = `
+    <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
+      <span class="pill acc">3 / 3 · 확인</span>
+      <span class="hint">${drafts.length}건이 등록됩니다${delta > 0 ? ` · ${P().company} 매칭 ${Math.round(before*100)}% → ${Math.round(after*100)}%` : ''}</span>
+    </div>
+    ${drafts.map(d => `
+      <div class="cand" style="margin-bottom:10px">
+        <div style="display:flex; align-items:center; gap:8px">
+          <b style="color:var(--ink); font-size:13px">${esc(d.title)}</b>
+          <span class="pill mut">${esc(d.period)}</span>
+          <span class="pill info">AI_INTAKE</span>
+        </div>
+        <dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 11px; font-size:12px; margin:4px 0 0">
+          <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(d.situation)}</dd>
+          <dt style="color:var(--accent); font-weight:600">T</dt><dd style="margin:0; color:var(--ink)">${esc(d.task)}</dd>
+          <dt style="color:var(--faint); font-weight:600">A</dt><dd style="margin:0">${esc(d.action)}</dd>
+          <dt style="color:var(--matched); font-weight:600">R</dt><dd style="margin:0; color:var(--ink)"><b>${esc(d.result)}</b></dd>
+        </dl>
+        <div class="chips">${d.competencyIds.map(id => { const c = byId(id); return `<span class="chip ${CAT[c.category]}">${esc(c.name)}</span>`; }).join('')}</div>
+        <div class="hint">근거 ${d.evidenceRefs.map(esc).join(' · ')}</div>
+      </div>`).join('')}
+    ${skipped.length ? `<div class="err" style="margin-bottom:10px">⚠ 답변이 덜 채워진 ${skipped.length}건(${skipped.map(k => esc(candOf(k).title)).join(', ')})은 등록하지 않습니다.</div>` : ''}
+    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
+      <button type="button" class="btn sm" id="inBack2">← 답변 고치기</button>
+      <button type="button" class="btn primary sm" id="inCommit" style="margin-left:auto">${drafts.length}건 등록</button>
+    </div>`;
+
+  $('#inBack2').addEventListener('click', () => { inStep = 2; paintIntake(); });
+  $('#inCommit').addEventListener('click', () => {
+    const newIds = [];
+    drafts.forEach(d => {
+      const id = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
+      DATA.experiences.push({ ...d, id });
+      newIds.push(id);
+    });
+    $('#expDlg').close();
+    renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
+    onExperienceChanged('ExperienceCreated', newIds);
+    toast(`경험 ${drafts.length}건을 등록했습니다 · 평가 재계산을 요청했습니다`);
+  });
+}
+
+/* ---------- 문항 추가 — application 1:N question 의 생성 경로 ---------- */
+let qDlgApp = null;
+
+function openQ(appId){
+  qDlgApp = appId;
+  const a = DATA.applications.find(x => x.id === appId);
+  $('#qDlgSub').textContent = `${a.company} · ${a.position}`;
+  $('#qPrompt').value = ''; $('#qLimit').value = 700; $('#qAsks').value = ''; $('#qErr').innerHTML = '';
+  $('#qDlg').showModal(); $('#qPrompt').focus();
+}
+
+$('#qSave').addEventListener('click', () => {
+  const prompt = $('#qPrompt').value.trim();
+  if (!prompt){ $('#qErr').innerHTML = '<div class="err">⚠ 문항은 필수입니다.</div>'; return; }
+  const asks = $('#qAsks').value.split(',').map(x => x.trim()).filter(Boolean);
+  DATA.questions.push({
+    id: Math.max(0, ...DATA.questions.map(q => q.id)) + 1,
+    applicationId: qDlgApp,
+    versions: [],
+    charLimit: Math.max(100, +$('#qLimit').value || 700),
+    prompt,
+    intent: '직접 등록한 문항입니다. 공고의 평가 포인트를 확인해 의도를 채워 두면 점검이 정확해집니다.',
+    asks: asks.length ? asks : ['이 문항이 묻는 것'],
+    usedExperienceIds: [],
+    draft: '',
+    aiDraft: '',
+  });
+  $('#qDlg').close();
+  s4qid = null; dtTab = 'essay';
+  renderDetail(); renderHome(); go('detail');
+  toast('문항을 추가했습니다 · 자소서 에디터로 이동합니다');
+});
+$('#qCancel').addEventListener('click', () => $('#qDlg').close());
