@@ -10,6 +10,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>'
 const byId = id => DATA.competencies.find(c => c.id === id);
 const P = () => DATA.postings.find(x => x.id === DATA.activePostingId);
 const CAT = { TECH:'tech', SOFT:'soft', DOMAIN:'domain', VALUE:'value' };
+const FLAB  = { situation:'S', task:'T', action:'A', result:'R' };
+const FIELDS = ['situation', 'task', 'action', 'result'];   // starbar 순서 = S T A R
 const CATLAB = { TECH:'기술', SOFT:'소프트', DOMAIN:'도메인', VALUE:'인재상' };
 
 /* ---------- 화면 전환 ---------- */
@@ -115,7 +117,14 @@ function renderS1(){
       <div class="cardbody">
         <div style="display:flex; gap:6px; margin-bottom:12px">
           <span class="pill mut">${esc(e.category)}</span>
-          ${e.source === 'AI_INTAKE' ? `<span class="pill info" title="${esc((e.evidenceRefs||[]).join(', '))}">포폴 인테이크</span>` : ''}
+          ${e.source === 'AI_INTAKE' ? (() => {
+            const ed = e.editedFields || [], refs = e.evidenceRefs || [];
+            // AI 문장이 하나도 안 남았으면 근거를 달지 않는다. 통째로 다시 쓴 문장에
+            // 'PR #412 · merged' 를 붙이면 근거가 아무 데나 찍히는 도장이 된다.
+            if (!refs.length) return `<span class="pill mut" title="포폴 인테이크에서 시작했지만 AI 가 쓴 문장은 남아 있지 않습니다">포폴 인테이크 · 본인이 다시 씀</span>`;
+            const t = refs.join(', ') + (ed.length ? ` · ${ed.map(f => FLAB[f]).join('·')} 문장은 본인이 고쳤습니다` : '');
+            return `<span class="pill info" title="${esc(t)}">포폴 인테이크${ed.length ? ' · 일부 수정' : ''}</span>`;
+          })() : ''}
           ${(() => { const u = usedIn(e.id); return u.postings
             ? `<span class="pill acc" title="본문이 작성된 답변에 근거로 걸린 공고 수. 공고는 직무 단위라 같은 기업의 다른 직무는 따로 센다.">자소서 ${u.postings}개 공고에 사용</span>`
             : ''; })()}
@@ -967,6 +976,30 @@ const ESSAY_STATE = {
 let homeSort = 'match';
 let homeOnlyBm = false;
 
+/* 평균 매칭 대신 이 자리에 둔다.
+   평균은 행동으로 이어지지 않는 숫자였다 — 68% 를 보고 사용자가 할 수 있는 게 없고,
+   공고를 더 담으면 본인과 무관한 이유로 숫자가 움직여 오해를 만든다.
+   대신 "지금 무엇을 채우면 가장 많이 움직이나" 를 센다. 여러 공고에서 동시에
+   갭인 역량 하나가 곧 다음에 등록할 경험이고, 그게 인테이크로 이어진다. */
+function topGapCard(live){
+  const cnt = new Map();
+  live.forEach(({ m }) => m.rows.filter(r => r.isGap)
+    .forEach(r => cnt.set(r.competencyId, (cnt.get(r.competencyId) || 0) + 1)));
+  if (!cnt.size)
+    return `<div class="card pad"><div class="stat"><span class="v" style="color:var(--matched)">0</span><span class="l">비어 있는 요구 역량</span></div></div>`;
+  // 동점이면 가중치 합이 큰 쪽을 먼저 — 같은 3건이어도 더 무겁게 요구되는 것이 있다.
+  const w = id => live.reduce((a, { m }) =>
+    a + m.rows.filter(r => r.competencyId === id && r.isGap).reduce((x, r) => x + r.weight, 0), 0);
+  const [id, n] = [...cnt.entries()].sort((a, b) => b[1] - a[1] || w(b[0]) - w(a[0]))[0];
+  const c = byId(id);
+  return `<div class="card pad" data-note="computeMatch().rows 에서 isGap 집계"
+    title="${esc(c.name)} 을 증명하는 경험을 등록하면 이 ${n}건의 매칭이 함께 오른다">
+    <div class="stat">
+      <span class="v" style="color:var(--gap); font-size:19px; line-height:1.3">${esc(c.name)}</span>
+      <span class="l">이 역량 하나가 공고 <b style="color:var(--ink-2)">${n}건</b>의 갭</span>
+    </div></div>`;
+}
+
 function renderHome(){
   const all = DATA.postings.filter(p => dday(p.deadline) >= 0);
   const live = all.filter(p => !homeOnlyBm || isBm(p.id))
@@ -974,7 +1007,6 @@ function renderHome(){
 
   live.sort((a, b) => homeSort === 'match' ? b.m.overall - a.m.overall : a.d - b.d);
 
-  const avg = live.length ? live.reduce((a, x) => a + x.m.overall, 0) / live.length : 0;
   const soon = live.filter(x => x.d <= 7).length;
   const writing = live.filter(x => x.pr.state === 'WRITING' || x.pr.state === 'EMPTY').length;
 
@@ -982,8 +1014,8 @@ function renderHome(){
     ['활성 공고', all.length, ''],
     ['마감 7일 내', soon, soon ? 'var(--gap)' : ''],
     ['즐겨찾기', all.filter(x => isBm(x.id)).length, ''],
-    ['평균 매칭', Math.round(avg * 100) + '%', avg >= 0.7 ? 'var(--matched)' : 'var(--gap)'],
-  ].map(([l, v, c]) => `<div class="card pad"><div class="stat"><span class="v" ${c ? `style="color:${c}"` : ''}>${v}</span><span class="l">${l}</span></div></div>`).join('');
+  ].map(([l, v, c]) => `<div class="card pad"><div class="stat"><span class="v" ${c ? `style="color:${c}"` : ''}>${v}</span><span class="l">${l}</span></div></div>`).join('')
+    + topGapCard(live);
 
   $('#homeList').innerHTML = live.map(({ p, m, pr, d }) => {
     const gaps = m.rows.filter(r => r.isGap);
@@ -1475,26 +1507,32 @@ function openExp(editId){
 
   $('#expDlgH').textContent = e ? '경험 수정' : '경험 등록';
   $('#expDlgSub').textContent = e
-    ? `${e.title}${e.source === 'AI_INTAKE' ? ' · 포폴 인테이크로 만든 경험' : ''}`
+    ? `${e.title}${e.source === 'AI_INTAKE'
+        ? ((e.evidenceRefs || []).length ? ' · 포폴 인테이크로 만든 경험'
+                                         : ' · 포폴 인테이크에서 시작 · 문장은 본인이 다시 씀')
+        : ''}`
     : 'STAR 4필드 · 역량 태그';
   $('#exSave').textContent = e ? '저장' : '등록';
   $('#exTabs').hidden = !!e;   // 수정 중에는 인테이크 탭 자체가 없다
 
-  paintExPool(); paintStar();
-  switchTab('manual');
-  resetIntake();
-
+  // exGapText 를 switchTab 앞에서 정한다 — switchTab → paintFooter 가 이 값을 읽는다.
   const gaps = computeMatch().rows.filter(r => r.isGap).map(r => r.comp.name);
-  $('#exGapHint').innerHTML = gaps.length
+  exGapText = gaps.length
     ? `지금 비어 있는 요구 역량 — <b style="color:var(--gap)">${gaps.join(', ')}</b>. 이 경험이 그걸 증명한다면 꼭 태그하세요.`
     : '요구 역량이 모두 덮여 있습니다.';
+
+  paintExPool(); paintStar();
+  resetIntake();
+  switchTab('manual');
   $('#expDlg').showModal();
   $('#exTitle').focus();
 }
 
-function paintExPool(){
-  $('#exPicked').innerHTML = Object.keys(exPick).length
-    ? Object.entries(exPick).map(([id, st]) => {
+/* 수동 폼(#exPicked/#exPool)과 인테이크 에디터(#inPicked/#inPool)가 같은 코드를 쓴다.
+   $$ 가 root 인자를 받으므로 셀렉터만 상대화하면 된다. */
+function paintPickInto(pick, pickedEl, poolEl, after){
+  pickedEl.innerHTML = Object.keys(pick).length
+    ? Object.entries(pick).map(([id, st]) => {
         const c = byId(+id);
         return `<span class="strchip">${esc(c.name)}
           <button type="button" data-cyc="${id}" title="약 / 중 / 강 전환 · 내부값 ${st}">${strLabel(st)}<span class="noteonly-i" style="font-family:var(--mono); opacity:.75"> ${st}</span></button>
@@ -1502,32 +1540,36 @@ function paintExPool(){
       }).join('')
     : '<span class="hint">아래에서 역량을 고르세요 · 최소 1개</span>';
 
-  $('#exPool').innerHTML = DATA.competencies
-    .filter(c => !(c.id in exPick))
+  poolEl.innerHTML = DATA.competencies
+    .filter(c => !(c.id in pick))
     .map(c => `<button type="button" class="chip ${CAT[c.category]}" data-add="${c.id}">${esc(c.name)}</button>`)
     .join('');
 
-  $$('#exPool [data-add]').forEach(b => b.addEventListener('click', () => { exPick[+b.dataset.add] = SCORE.PICK_STRENGTH; paintExPool(); }));
-  $$('#exPicked [data-rm]').forEach(b => b.addEventListener('click', () => { delete exPick[+b.dataset.rm]; paintExPool(); }));
-  $$('#exPicked [data-cyc]').forEach(b => b.addEventListener('click', () => {
+  $$('[data-add]', poolEl).forEach(b => b.addEventListener('click', () => { pick[+b.dataset.add] = SCORE.PICK_STRENGTH; after(); }));
+  $$('[data-rm]', pickedEl).forEach(b => b.addEventListener('click', () => { delete pick[+b.dataset.rm]; after(); }));
+  $$('[data-cyc]', pickedEl).forEach(b => b.addEventListener('click', () => {
     const id = +b.dataset.cyc;
-    const cur = STR.findIndex(s => s.lab === strLabel(exPick[id]));
-    exPick[id] = STR[(cur + 1) % STR.length].v;   // 어떤 값이든 약→중→강 3단계로 스냅된다
-    paintExPool();
+    const cur = STR.findIndex(x => x.lab === strLabel(pick[id]));
+    pick[id] = STR[(cur + 1) % STR.length].v;   // 어떤 값이든 약→중→강 3단계로 스냅된다
+    after();
   }));
 }
+
+function paintExPool(){ paintPickInto(exPick, $('#exPicked'), $('#exPool'), paintExPool); }
 
 function paintStar(){
   const vals = ['exS','exT','exA','exR'].map(id => $('#' + id).value.trim().length > 0);
   const n = vals.filter(Boolean).length;
   $$('#exStarBar span').forEach((s, i) => s.classList.toggle('on', vals[i]));
   $('#exStarN').textContent = `${n} / 4`;
-  const r = $('#exR').value.trim();
-  $('#exRHint').innerHTML = !r ? ''
-    : /[0-9]/.test(r)
-      ? '<span style="color:var(--matched)">수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — “다른 조는 평균 10%인데 우리는 45%”</span>'
-      : '<span style="color:var(--gap)">숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.</span>';
+  $('#exRHint').innerHTML = rHintHTML($('#exR').value.trim());
 }
+
+/* 수동 폼과 인테이크 에디터가 같은 문구를 쓴다. 두 곳에 복사해 두면 한쪽만 고쳐진다. */
+const rHintHTML = r => !r ? ''
+  : /[0-9]/.test(r)
+    ? '<span style="color:var(--matched)">수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — “다른 조는 평균 10%인데 우리는 45%”</span>'
+    : '<span style="color:var(--gap)">숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.</span>';
 
 function saveExp(){
   const title = $('#exTitle').value.trim();
@@ -1606,38 +1648,113 @@ function saveApp(){
 
 /* ---------- 배선 ---------- */
 $('#s1add').addEventListener('click', openExp);
-$('#exSave').addEventListener('click', saveExp);
+// 인테이크 탭에서는 saveExp 가 hidden 인 #exErr 에 에러를 써서 죽은 버튼이었다.
+$('#exSave').addEventListener('click', () => $('#exIntake').hidden ? saveExp() : commitIntake());
 $('#apSave').addEventListener('click', saveApp);
-$('#exCancel').addEventListener('click', () => { exEditId = null; $('#expDlg').close(); });
+$('#exCancel').addEventListener('click', () => tryCloseExp());
 $('#apCancel').addEventListener('click', () => $('#appDlg').close());
 ['exS','exT','exA','exR'].forEach(id => $('#' + id).addEventListener('input', paintStar));
 
 /* ============================================================
-   AX-4 · 포트폴리오 인테이크 (대화형 추출)
+   AX-4 · 포트폴리오 인테이크 (좌 후보 레일 + 우 STAR 에디터)
    코드·문서에서 확인되는 것만 채우고, 본인만 아는 것은 되묻는다.
    STAR 의 T(목표)와 R(수치)는 저장소에 없다 — 지어내지 않고 질문한다.
+
+   질문지가 아니라 에디터다. AI 가 쓴 S·A 도 그 자리에서 고칠 수 있다.
+   대신 "누가 쓴 문장인가" 를 네 겹으로 표시한다 — 스트라이프 · 배지 ·
+   붙는 보조정보의 종류(근거 vs 질문) · 등록 후 경험 카드의 배지.
    ============================================================ */
-let inStep = 1;                 // 1 후보 선택 / 2 질문 / 3 확인
-let inChosen = new Set();       // 선택한 후보의 key
-let inAnsAll = {};              // { key: { qIdx: 답변 } }
+let inStep    = 1;       // 1 후보 선택 / 2 에디터
+let inChosen  = new Set();
+let inDraft   = {};      // { key: {title, period, category, situation, task, action, result, comp:{id:strength}} }
+let inActive  = null;    // 지금 #inEd 에 열린 후보 key
+let inPoolOpen  = false;
+let inLinksOpen = true;
+let inCommitArmed = null;
+let inMatchCache = { sig:'', html:'' };
+let exGapText = '';      // .dlgfoot 문구 (탭 전환 시 복원용)
+
+const AI_FIELDS = ['situation', 'action'];      // 후보가 값을 들고 오는 칸
+const MINE_FALLBACK = ['task', 'result'];       // AX-4 계약의 missing 기본값
+const FDESC = { situation:'어떤 상황이었나', task:'무엇을 목표로 삼았나',
+                action:'내가 한 행동과 적용한 방식', result:'결과 (숫자로)' };
 
 const candOf = k => DATA.intakeCandidates.find(c => c.key === k);
-const answered = k => { const c = candOf(k); const a = inAnsAll[k] || {}; return c.questions.filter((_, i) => (a[i] || '').trim()).length; };
-const isReady = k => answered(k) === candOf(k).questions.length;
+const cLen   = s => (s || '').trim().length;
+const aiOf   = (c, f) => (c[f] || '').trim();
+const isAIField = (c, f) => AI_FIELDS.includes(f) && !!aiOf(c, f);
+const qsOf   = (c, f) => (c.questions || []).filter(q => q.field === f);
+
+/* 저장소에 없어 본인이 채워야 하는 칸 — 필드명을 박아 넣지 않고
+   AI 가 실제로 되물은 것에서 파생한다. AX-4 가 언젠가 R 을 저장소에서
+   찾아내 questions 에서 빼면 UI 규칙이 저절로 따라간다. */
+function mineOf(c){
+  const asked = [...new Set((c.questions || []).map(q => q.field))]
+                  .filter(f => FIELDS.includes(f) && !isAIField(c, f));
+  if (asked.length) return asked;
+  return (c.missing || MINE_FALLBACK).filter(f => FIELDS.includes(f) && !isAIField(c, f));
+}
+/* 수동 폼(saveExp)의 필수값과 합집합 — 두 경로가 같은 "유효한 경험" 정의를 쓴다 */
+const requiredTextOf = c => [...new Set([...mineOf(c), 'result'])];
+
+/* "고쳤다" 플래그를 저장하지 않고 매번 원문과 비교한다.
+   고쳤다가 원문 그대로 되돌리면 표시도 저절로 원상복구되고,
+   편집해 놓고 AI 표식만 남기는 세탁도 불가능하다. */
+const editedFieldsOf = k => {
+  const c = candOf(k), d = inDraft[k];
+  if (!d) return [];
+  return AI_FIELDS.filter(f => isAIField(c, f) && d[f].trim() !== aiOf(c, f));
+};
+
+function seedDraft(k){
+  if (inDraft[k]) return inDraft[k];
+  const c = candOf(k);
+  const comp = {};
+  (c.suggestedCompetencyIds || []).forEach(id => comp[id] = SCORE.PICK_STRENGTH);
+  return inDraft[k] = {
+    title: c.title, period: c.period || '', category: c.category,
+    situation: c.situation || '', task: '', action: c.action || '', result: '',
+    comp,
+  };
+}
+
+function missingOf(k){
+  const c = candOf(k), d = inDraft[k], m = [];
+  if (!d) return [{ f:'seed', lab:'초안 없음' }];
+  if (!cLen(d.title)) m.push({ f:'title', lab:'제목' });
+  requiredTextOf(c).forEach(f => { if (!cLen(d[f])) m.push({ f, lab:FLAB[f] }); });
+  if (!Object.keys(d.comp).length) m.push({ f:'comp', lab:'역량' });
+  return m;
+}
+const isReady = k => missingOf(k).length === 0;
+
+function resetIntakeState(){
+  inStep = 1; inChosen = new Set(); inDraft = {}; inActive = null;
+  inPoolOpen = false; inCommitArmed = null; inMatchCache = { sig:'', html:'' };
+}
+
+function paintLinkBlock(){
+  $('#inLinkBox').hidden  = !inLinksOpen;
+  $('#inLinkFold').hidden =  inLinksOpen;
+}
 
 function resetIntake(){
-  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  resetIntakeState();
+  inLinksOpen = true; paintLinkBlock();
   $('#inOut').innerHTML = '';
   $('#inLog').innerHTML = '<div class="t">요청 없음</div>';
   $('#inState').className = 'pill mut'; $('#inState').textContent = '대기';
+  $('#inRun').disabled = false; $('#inRun').textContent = '분석';
 }
 
 $$('#exTabs .tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+$('#inLinkEdit').addEventListener('click', () => { inLinksOpen = true; paintLinkBlock(); });
 
 function switchTab(name){
   $$('#exTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   $('#exIntake').hidden = name !== 'intake';
   $('#exManual').hidden = name !== 'manual';
+  paintFooter();
 }
 
 $('#inRun').addEventListener('click', async e => {
@@ -1664,30 +1781,31 @@ $('#inRun').addEventListener('click', async e => {
 
   st.className = 'pill ok'; st.textContent = 'COMPLETED';
   btn.disabled = false; btn.textContent = '다시 분석';
-  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  // inDraft 까지 비운다. 후보 key 가 'oss' 같은 고정 문자열이라
+  // 안 비우면 재분석 후 옛 초안이 조용히 되살아난다.
+  resetIntakeState();
+  inLinksOpen = false; paintLinkBlock();
+  $('#inLinkN').textContent = links.length;
   paintIntake();
 });
 
-function paintIntake(){
-  if (inStep === 1) return paintStep1();
-  if (inStep === 2) return paintStep2();
-  return paintStep3();
-}
+function paintIntake(){ return inStep === 1 ? paintStep1() : paintStep2(); }
 
 /* ---- 1단계 · 후보 선택 ---- */
 function paintStep1(){
   const dupes = DATA.intakeCandidates.filter(c => c.duplicateOfExperienceId).length;
   $('#inOut').innerHTML = `
     <div style="display:flex; align-items:center; gap:9px; margin-bottom:10px">
-      <span class="pill acc">1 / 3 · 후보 선택</span>
+      <span class="pill acc">1 / 2 · 후보 선택</span>
       <span class="hint">여러 개를 한 번에 고를 수 있습니다${dupes ? ` · 이미 등록된 ${dupes}건은 제외됨` : ''}</span>
     </div>
     <p class="hint" style="margin-bottom:12px">
-      저장소와 첨부에서 확인된 것만 채웠습니다. <b>목표와 수치는 코드에 없어 비워 두고 다음 단계에서 되묻습니다</b> — 지어내면 면접에서 그대로 무너집니다.
+      저장소와 첨부에서 확인된 것만 채웠습니다. <b>목표와 수치는 코드에 없어 비워 두고 다음 화면에서 직접 씁니다</b> — 지어내면 면접에서 그대로 무너집니다.
     </p>
     ${DATA.intakeCandidates.map(c => {
       const dup = !!c.duplicateOfExperienceId;
       const on = inChosen.has(c.key);
+      const started = !!inDraft[c.key];
       return `<label class="cand ${on ? 'sel' : ''}" style="margin-bottom:9px; ${dup ? 'opacity:.55' : 'cursor:pointer'}">
         <div style="display:flex; align-items:flex-start; gap:9px">
           <input type="checkbox" data-cand="${c.key}" ${on ? 'checked' : ''} ${dup ? 'disabled' : ''} style="margin-top:3px; accent-color:var(--accent)">
@@ -1695,7 +1813,8 @@ function paintStep1(){
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
               <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
               ${dup ? `<span class="pill mut">이미 등록됨</span>`
-                    : `<span class="pill warn">되물을 것 ${c.questions.length}</span>`}
+                    : `<span class="pill warn">직접 쓸 칸 ${mineOf(c).length}</span>`}
+              ${started ? `<span class="pill acc" title="체크를 풀어도 쓰던 내용은 남아 있습니다">작성 중</span>` : ''}
               <span class="pill mut">${esc(c.category)}</span>
             </div>
             <div style="font-size:11.5px; color:var(--muted); margin-top:5px"><b>S</b> ${esc(c.situation)}</div>
@@ -1710,7 +1829,7 @@ function paintStep1(){
     <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
       <span class="hint">${inChosen.size}건 선택</span>
       <button type="button" class="btn primary sm" id="inNext" style="margin-left:auto" ${inChosen.size ? '' : 'disabled'}>
-        선택한 ${inChosen.size}건에 대해 질문 받기 →
+        선택한 ${inChosen.size}건 편집하기 →
       </button>
     </div>`;
 
@@ -1718,127 +1837,387 @@ function paintStep1(){
     cb.checked ? inChosen.add(cb.dataset.cand) : inChosen.delete(cb.dataset.cand);
     paintStep1();
   }));
-  $('#inNext').addEventListener('click', () => { inStep = 2; paintIntake(); });
+  $('#inNext').addEventListener('click', enterStep2);
+  paintFooter();
 }
 
-/* ---- 2단계 · 후보별 질문 ---- */
-function paintStep2(){
-  const keys = [...inChosen];
-  const total = keys.reduce((a, k) => a + candOf(k).questions.length, 0);
-  const done = keys.reduce((a, k) => a + answered(k), 0);
+/* ---- 2단계 · 에디터 ---- */
+function enterStep2(){
+  if (!inChosen.size){ inStep = 1; return paintStep1(); }
+  inStep = 2;
+  [...inChosen].forEach(seedDraft);          // 일괄 시드 — missingOf/patchRailRow 의 전제
+  if (!inChosen.has(inActive))
+    inActive = [...inChosen].find(k => !isReady(k)) || [...inChosen][0] || null;
+  paintIntake();
+  focusFirstGap(inActive);
+}
 
+function fieldHTML(k, f){
+  const c = candOf(k), d = inDraft[k];
+  const ai = isAIField(c, f), mine = mineOf(c).includes(f);
+  const edited = ai && d[f].trim() !== aiOf(c, f);
+  const empty = !cLen(d[f]);
+  const badge = ai && !edited ? ['mut', 'AI · 근거 확인됨']
+              : ai            ? ['acc', empty ? 'AI 문장 지움' : 'AI 문장 → 내가 고침']
+              : empty         ? ['warn', '저장소에 없음 · 본인만 아는 것']
+              :                 ['ok', '내가 씀'];
+  const qs = qsOf(c, f);
+  // 질문이 없는데 본인 몫인 칸 — AX-4 가 되묻지 않았어도 지어내지 않는다는 것은 같다.
+  const qBlock = mine
+    ? `<div class="qrow" style="border-top:none; padding:0; gap:4px">
+         ${qs.length
+           ? qs.map(q => `<div class="q">${esc(q.q)}</div><div class="why">왜 묻는가 — ${esc(q.why)}</div>`).join('')
+           : `<div class="q">이 칸은 저장소에서 확인되지 않습니다.</div>
+              <div class="why">왜 묻는가 — AI 는 없는 것을 지어내지 않습니다. 직접 채워 주세요.</div>`}
+       </div>`
+    : '';
+  const rows = f === 'action' ? 3 : 2;
+  const ph = f === 'result' ? '숫자를 포함해 써 주세요' : mine ? '한두 문장이면 충분합니다' : '';
+  return `
+    <div class="field fsrc${ai ? '' : ' fsrc-you'}${edited ? ' fsrc-edited' : ''}${mine && empty ? ' fsrc-todo' : ''}" data-fw="${f}">
+      <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap">
+        <label for="in_${f}">${FLAB[f]} · ${FDESC[f]}</label>
+        <span class="pill ${badge[0]}" data-badge>${badge[1]}</span>
+        <button type="button" class="btn sm" data-revert="${f}" style="margin-left:auto" ${edited ? '' : 'hidden'}>AI 원문으로</button>
+      </div>
+      ${qBlock}
+      <textarea class="inp" id="in_${f}" data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(d[f])}</textarea>
+      ${f === 'result' ? `<div class="hint" id="inRHint">${rHintHTML(d.result.trim())}</div>` : ''}
+      <div class="hint" data-short style="color:var(--gap)" ${mine && cLen(d[f]) > 0 && cLen(d[f]) < 6 ? '' : 'hidden'}>너무 짧습니다 — 한 문장으로 써야 자소서에서 쓸 수 있습니다.</div>
+    </div>`;
+}
+
+function railHTML(){
+  const ks = [...inChosen];
+  return `<aside id="inRail">
+    <div class="hint">후보 <b style="color:var(--ink-2)">${ks.length}건</b> · 등록 가능 <b id="inReadyN">${ks.filter(isReady).length}</b></div>
+    ${ks.map(k => {
+      const ok = isReady(k), ed = editedFieldsOf(k);
+      return `<button type="button" class="cand ${k === inActive ? 'sel' : ''}" data-k="${k}"
+              style="width:100%; text-align:left; cursor:pointer; padding:9px 10px; gap:5px" title="${esc(candOf(k).title)}">
+        <b style="color:var(--ink); font-size:12px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(inDraft[k].title || candOf(k).title)}</b>
+        <span style="display:flex; align-items:center; gap:5px; flex-wrap:wrap">
+          <span class="pill ${ok ? 'ok' : 'warn'}" data-rp>${ok ? '등록 가능' : `${missingOf(k).map(m => m.lab).join('·')} 남음`}</span>
+          <span class="pill acc" data-re ${ed.length ? '' : 'hidden'}>${ed.map(f => FLAB[f]).join('·')} 수정함</span>
+        </span>
+      </button>`;
+    }).join('')}
+    <button type="button" class="btn sm" id="inBack" style="margin-top:3px">← 후보 다시 고르기</button>
+  </aside>`;
+}
+
+function edHTML(k){
+  const c = candOf(k), d = inDraft[k], mine = mineOf(c);
+  return `<div id="inEd" style="min-width:0; display:flex; flex-direction:column; gap:12px">
+    <div class="field">
+      <label for="inTt">제목 *</label>
+      <input class="inp" id="inTt" data-f="title" value="${esc(d.title)}">
+    </div>
+    <div class="frow">
+      <div class="field"><label for="inPd">기간</label>
+        <input class="inp" id="inPd" data-f="period" value="${esc(d.period)}" placeholder="2026.08"></div>
+      <div class="field"><label for="inCt">분류</label>
+        <select class="inp" id="inCt" data-f="category">
+          ${['팀 프로젝트','개인 프로젝트','실습 프로젝트','대외활동','인턴·근무','수상·자격']
+            .map(o => `<option ${o === d.category ? 'selected' : ''}>${o}</option>`).join('')}
+        </select></div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+      <span class="pill info">AI_INTAKE</span>
+      <span class="starbar" id="inStarBar">${FIELDS.map(f => `<span class="${cLen(d[f]) ? 'on' : ''}"></span>`).join('')}</span>
+      <span class="hint" id="inStarN">STAR ${FIELDS.filter(f => cLen(d[f])).length} / 4</span>
+      <span class="hint" id="inMineN" style="color:var(--gap)">내가 쓴 것 ${mine.filter(f => cLen(d[f])).length} / ${mine.length}</span>
+    </div>
+
+    <div class="fieldset" data-note="experience (STAR) · AI_INTAKE">
+      <div class="lg">STAR <span class="pill mut">AI 가 읽은 근거 ${c.evidence.length}건</span></div>
+      <div class="hint" id="inEvNote"></div>
+      ${c.evidence.map(e => `<div class="hint evq" title="${esc(e.quote)}">
+        <span class="mono">${esc(e.type)} · ${esc(e.ref)}</span> — “${esc(e.quote)}”</div>`).join('')}
+      ${FIELDS.map(f => fieldHTML(k, f)).join('')}
+    </div>
+
+    <div class="fieldset" data-note="experience_competency">
+      <div class="lg">이 경험이 증명하는 역량
+        <button type="button" class="btn sm" id="inPoolBtn" style="margin-left:auto">${inPoolOpen ? '역량 닫기' : '＋ 역량 고치기'}</button></div>
+      <div class="chips" id="inPicked"></div>
+      <div class="hint" id="inCompNote"></div>
+      <div class="chips" id="inPool" ${inPoolOpen ? '' : 'hidden'} style="padding-top:9px; border-top:1px dashed var(--border)"></div>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
+      <button type="button" class="btn sm" id="inPrev">← 이전 후보</button>
+      <button type="button" class="btn sm" id="inNextGap" style="margin-left:auto">다음 미완 후보 →</button>
+    </div>
+  </div>`;
+}
+
+/* #inOut 전체 재생성 — 클릭 시점에만 부른다. 타이핑 중에는 절대 부르지 않는다(캐럿이 날아간다). */
+function paintStep2(){
+  if (!inActive || !inDraft[inActive]){ inStep = 1; return paintStep1(); }
   $('#inOut').innerHTML = `
     <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
-      <span class="pill acc">2 / 3 · 질문</span>
-      <span class="hint">답변 ${done} / ${total}</span>
-      <div class="meter" style="width:90px; margin-left:auto"><i style="width:${total ? done/total*100 : 0}%"></i></div>
+      <span class="pill acc">2 / 2 · 편집</span>
+      <span class="hint">AI 가 쓴 문장도 그 자리에서 고칠 수 있습니다 — 고치면 표시가 남습니다</span>
     </div>
-    ${keys.map(k => {
-      const c = candOf(k);
-      return `<div class="cand ${isReady(k) ? 'sel' : ''}" style="margin-bottom:11px">
-        <div style="display:flex; align-items:center; gap:8px">
-          <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
-          <span class="pill ${isReady(k) ? 'ok' : 'warn'}">${answered(k)} / ${c.questions.length}</span>
-        </div>
-        ${c.questions.map((q, qi) => `
-          <div class="qrow">
-            <div class="q">${qi + 1}. ${esc(q.q)}</div>
-            <div class="why">왜 묻는가 — ${esc(q.why)}</div>
-            <input class="inp" data-k="${k}" data-qi="${qi}" value="${esc((inAnsAll[k] || {})[qi] || '')}"
-              placeholder="${q.field === 'result' ? '숫자를 포함해 답해 주세요' : '한두 문장이면 충분합니다'}">
-          </div>`).join('')}
-      </div>`;
-    }).join('')}
-    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
-      <button type="button" class="btn sm" id="inBack">← 후보 다시 고르기</button>
-      <span class="hint" style="margin-left:auto">${keys.filter(isReady).length}건 답변 완료</span>
-      <button type="button" class="btn primary sm" id="inReview" ${keys.some(isReady) ? '' : 'disabled'}>확인 →</button>
-    </div>`;
-
-  $$('#inOut [data-k]').forEach(inp => inp.addEventListener('input', e => {
-    const k = e.target.dataset.k, qi = +e.target.dataset.qi;
-    inAnsAll[k] = inAnsAll[k] || {};
-    inAnsAll[k][qi] = e.target.value;
-    const head = $('#inOut .hint');
-    const t = [...inChosen].reduce((a, x) => a + candOf(x).questions.length, 0);
-    const d = [...inChosen].reduce((a, x) => a + answered(x), 0);
-    if (head) head.textContent = `답변 ${d} / ${t}`;
-    const bar = $('#inOut .meter i'); if (bar) bar.style.width = (t ? d/t*100 : 0) + '%';
-    const btn = $('#inReview'); if (btn) btn.disabled = ![...inChosen].some(isReady);
-  }));
-  $('#inBack').addEventListener('click', () => { inStep = 1; paintIntake(); });
-  $('#inReview').addEventListener('click', () => { inStep = 3; paintIntake(); });
+    <div class="inwrap${inChosen.size === 1 ? ' solo' : ''}">${railHTML()}${edHTML(inActive)}</div>`;
+  bindStep2();
+  paintEvidenceNote(inActive);
+  paintFooter();
 }
 
-/* ---- 3단계 · 확인 후 일괄 등록 ---- */
+function bindStep2(){
+  $$('#inRail [data-k]').forEach(b => b.addEventListener('click', () => openCand(b.dataset.k)));
+  $('#inBack').addEventListener('click', () => { inStep = 1; paintIntake(); });
+  $('#inPrev')?.addEventListener('click', () => stepCand(-1));
+  $('#inNextGap')?.addEventListener('click', () => { const n = nextGapKey(); if (n) openCand(n); });
+  $('#inPoolBtn').addEventListener('click', () => {
+    inPoolOpen = !inPoolOpen;
+    $('#inPool').hidden = !inPoolOpen;
+    $('#inPoolBtn').textContent = inPoolOpen ? '역량 닫기' : '＋ 역량 고치기';
+  });
+  $$('#inEd [data-f]').forEach(el =>
+    el.addEventListener('input', e => applyField(inActive, e.target.dataset.f, e.target.value, true)));
+  $('#inCt').addEventListener('change', e => applyField(inActive, 'category', e.target.value, true));
+  $$('#inEd [data-revert]').forEach(b => b.addEventListener('click', () => {
+    const f = b.dataset.revert;
+    applyField(inActive, f, aiOf(candOf(inActive), f), false);   // 되돌리기도 같은 경로를 탄다
+    $(`#in_${f}`)?.focus({ preventScroll:true });
+  }));
+  paintInPool();
+  const gapBtn = $('#inNextGap');
+  if (gapBtn && !nextGapKey()){ gapBtn.disabled = true; gapBtn.textContent = '모두 채웠습니다 · 아래에서 등록'; }
+}
+
+function paintInPool(){
+  paintPickInto(inDraft[inActive].comp, $('#inPicked'), $('#inPool'), () => {
+    paintInPool();
+    $('#inCompNote').innerHTML = compNoteHTML(inActive);
+    patchLive(inActive);
+  });
+  $('#inCompNote').innerHTML = compNoteHTML(inActive);
+}
+
+/* 값 반영의 유일한 경로. 타이핑과 되돌리기가 같은 코드를 탄다. */
+function applyField(k, f, val, fromInput){
+  inDraft[k][f] = val;
+  if (!fromInput){
+    const el = $(`#inEd [data-f="${f}"]`); if (el) el.value = val;
+  }
+  // title/period/category 는 data-fw 래퍼가 없다 — null 가드가 필수다.
+  const wrap = $(`#inEd .field[data-fw="${f}"]`);
+  if (wrap) paintFieldState(k, f, wrap);
+  if (f === 'result') $('#inRHint').innerHTML = rHintHTML(inDraft[k].result.trim());
+  patchLive(k);
+}
+
+function paintFieldState(k, f, wrap){
+  const c = candOf(k), d = inDraft[k];
+  const ai = isAIField(c, f), mine = mineOf(c).includes(f);
+  const edited = ai && d[f].trim() !== aiOf(c, f);
+  const empty = !cLen(d[f]);
+  wrap.classList.toggle('fsrc-you', !ai);
+  wrap.classList.toggle('fsrc-edited', edited);
+  wrap.classList.toggle('fsrc-todo', mine && empty);
+  const b = wrap.querySelector('[data-badge]');
+  if (b){
+    const st = ai && !edited ? ['mut', 'AI · 근거 확인됨']
+             : ai            ? ['acc', empty ? 'AI 문장 지움' : 'AI 문장 → 내가 고침']
+             : empty         ? ['warn', '저장소에 없음 · 본인만 아는 것']
+             :                 ['ok', '내가 씀'];
+    b.className = 'pill ' + st[0]; b.textContent = st[1];
+  }
+  const rev = wrap.querySelector('[data-revert]'); if (rev) rev.hidden = !edited;
+  const sh = wrap.querySelector('[data-short]');
+  if (sh) sh.hidden = !(mine && cLen(d[f]) > 0 && cLen(d[f]) < 6);
+}
+
+/* 타이핑 경로가 건드리는 노드는 전부 id 로 지목한다.
+   위치 의존 셀렉터($('#inOut .hint') 같은)는 한 줄만 추가돼도 조용히 깨진다. */
+function patchLive(k){
+  const d = inDraft[k], mine = mineOf(candOf(k));
+  $$('#inStarBar span').forEach((s, i) => s.classList.toggle('on', cLen(d[FIELDS[i]]) > 0));
+  $('#inStarN').textContent = `STAR ${FIELDS.filter(f => cLen(d[f])).length} / 4`;
+  $('#inMineN').textContent = `내가 쓴 것 ${mine.filter(f => cLen(d[f])).length} / ${mine.length}`;
+  patchRailRow(k);
+  paintEvidenceNote(k);
+  inCommitArmed = null;              // 초안이 바뀌면 2단 확인 무장은 풀린다
+  paintFooter();
+}
+
+function patchRailRow(k){
+  const row = $(`#inRail [data-k="${k}"]`); if (!row) return;
+  row.classList.toggle('sel', k === inActive);
+  const ok = isReady(k);
+  const p = row.querySelector('[data-rp]');
+  p.className = 'pill ' + (ok ? 'ok' : 'warn');
+  p.textContent = ok ? '등록 가능' : `${missingOf(k).map(m => m.lab).join('·')} 남음`;
+  const e = row.querySelector('[data-re]'), ed = editedFieldsOf(k);
+  e.hidden = !ed.length;
+  if (ed.length) e.textContent = `${ed.map(f => FLAB[f]).join('·')} 수정함`;
+  const t = row.querySelector('b'); if (t) t.textContent = inDraft[k].title || candOf(k).title;
+  const rn = $('#inReadyN'); if (rn) rn.textContent = [...inChosen].filter(isReady).length;
+}
+
+/* 근거 표시가 편집을 따라 움직인다. evidence 에 필드 귀속 정보가 없으므로
+   박스 단위로 한 번만 말한다 — 없는 인과를 지어내지 않는다. */
+function paintEvidenceNote(k){
+  const c = candOf(k), ed = editedFieldsOf(k), el = $('#inEvNote'); if (!el) return;
+  const kept = AI_FIELDS.filter(f => isAIField(c, f) && !ed.includes(f));
+  el.innerHTML = !kept.length
+    ? '<span style="color:var(--gap)">AI 가 쓴 문장이 남아 있지 않습니다 — 등록해도 아래 근거는 이 경험에 붙지 않습니다.</span>'
+    : ed.length
+      ? `아래 근거는 <b>${kept.map(f => FLAB[f]).join('·')}</b> 에 대한 것입니다.
+         <span style="color:var(--gap)">${ed.map(f => FLAB[f]).join('·')} 는 본인이 고쳤습니다 — 근거는 AI 원문 기준입니다.</span>`
+      : '아래 근거에서 <b>S·A</b> 를 뽑았습니다. 사실과 다르면 그 자리에서 고치세요 — 고치면 표시가 남습니다.';
+}
+
+/* 매칭 %를 실제로 움직이는 것은 STAR 텍스트가 아니라 역량 태그다.
+   문장에만 출처 규율을 걸고 점수 입력에 안 거는 비일관을 이 한 줄로 막는다. */
+function compNoteHTML(k){
+  const sug = new Set(candOf(k).suggestedCompetencyIds || []);
+  const now = new Set(Object.keys(inDraft[k].comp).map(Number));
+  const kept  = [...now].filter(id => sug.has(id)).length;
+  const added = [...now].filter(id => !sug.has(id)).length;
+  const gone  = [...sug].filter(id => !now.has(id)).length;
+  return (added || gone)
+    ? `AI 제안 ${sug.size}개 중 ${kept}개 유지 · 직접 ${added}개 추가 · ${gone}개 제거`
+    : `<span style="color:var(--gap)">${sug.size}개 모두 AI 제안 그대로입니다 — 매칭 점수를 움직이는 값이니 한 번 확인하세요.</span>`;
+}
+
+function focusFirstGap(k){
+  if (!k) return;
+  const first = missingOf(k).find(m => m.f !== 'comp' && m.f !== 'seed');
+  const el = first ? $(`#inEd [data-f="${first.f}"]`) : $('#inEd [data-f="task"]');
+  el?.focus({ preventScroll:true });
+}
+function openCand(k){
+  inActive = k;
+  paintStep2();
+  $('#inEd')?.scrollIntoView({ block:'start' });
+  focusFirstGap(k);
+}
+function nextGapKey(){
+  const ks = [...inChosen], i = ks.indexOf(inActive);
+  for (let n = 1; n <= ks.length; n++){ const k = ks[(i + n) % ks.length]; if (!isReady(k)) return k; }
+  return null;
+}
+function stepCand(d){
+  const ks = [...inChosen], i = ks.indexOf(inActive);
+  openCand(ks[(i + d + ks.length) % ks.length]);
+}
+
+/* ---- 등록 — 3단계 확인 화면 대신 .dlgfoot 이 상시 상태를 진다 ---- */
 function buildExp(k){
-  const c = candOf(k), a = inAnsAll[k] || {};
-  const pick = {};
-  c.suggestedCompetencyIds.forEach(id => pick[id] = SCORE.PICK_STRENGTH);
-  const get = f => { const i = c.questions.findIndex(q => q.field === f); return i >= 0 ? (a[i] || '').trim() : ''; };
+  const c = candOf(k), d = inDraft[k];
+  const edited = editedFieldsOf(k);
+  const aiKept = AI_FIELDS.filter(f => isAIField(c, f) && !edited.includes(f));
   return {
-    title: c.title, period: c.period, category: c.category,
-    situation: c.situation, task: get('task'), action: c.action, result: get('result'),
-    competencyIds: Object.keys(pick).map(Number), strength: pick,
-    source: 'AI_INTAKE', evidenceRefs: c.evidence.map(e => `${e.type} · ${e.ref}`),
+    title: d.title.trim(),
+    period: d.period.trim() || '기간 미입력',
+    category: d.category,
+    situation: d.situation.trim(), task: d.task.trim(),
+    action: d.action.trim(), result: d.result.trim(),
+    competencyIds: Object.keys(d.comp).map(Number),
+    strength: { ...d.comp },
+    usedInAnswers: 0,
+    source: 'AI_INTAKE',
+    editedFields: edited,
+    // AI 원문이 남은 칸이 하나도 없으면 근거가 따라가지 않는다.
+    evidenceRefs: aiKept.length ? c.evidence.map(e => `${e.type} · ${e.ref}`) : [],
   };
 }
 
-function paintStep3(){
-  const ready = [...inChosen].filter(isReady);
-  const skipped = [...inChosen].filter(k => !isReady(k));
+function matchDeltaHTML(ready){
+  if (!ready.length) return '';
   const drafts = ready.map(buildExp);
   const before = computeMatch().overall;
-  const after = (() => {
-    const backup = DATA.experiences.slice();
+  const backup = DATA.experiences.slice();
+  let after = before;
+  try {
     DATA.experiences = backup.concat(drafts.map((d, i) => ({ ...d, id: -1 - i })));
-    const v = computeMatch().overall;
-    DATA.experiences = backup;
-    return v;
-  })();
-  const delta = Math.round(after * 100) - Math.round(before * 100);
-
-  $('#inOut').innerHTML = `
-    <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
-      <span class="pill acc">3 / 3 · 확인</span>
-      <span class="hint">${drafts.length}건이 등록됩니다${delta > 0 ? ` · ${P().company} 매칭 ${Math.round(before*100)}% → ${Math.round(after*100)}%` : ''}</span>
-    </div>
-    ${drafts.map(d => `
-      <div class="cand" style="margin-bottom:10px">
-        <div style="display:flex; align-items:center; gap:8px">
-          <b style="color:var(--ink); font-size:13px">${esc(d.title)}</b>
-          <span class="pill mut">${esc(d.period)}</span>
-          <span class="pill info">AI_INTAKE</span>
-        </div>
-        <dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 11px; font-size:12px; margin:4px 0 0">
-          <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(d.situation)}</dd>
-          <dt style="color:var(--accent); font-weight:600">T</dt><dd style="margin:0; color:var(--ink)">${esc(d.task)}</dd>
-          <dt style="color:var(--faint); font-weight:600">A</dt><dd style="margin:0">${esc(d.action)}</dd>
-          <dt style="color:var(--matched); font-weight:600">R</dt><dd style="margin:0; color:var(--ink)"><b>${esc(d.result)}</b></dd>
-        </dl>
-        <div class="chips">${d.competencyIds.map(id => { const c = byId(id); return `<span class="chip ${CAT[c.category]}">${esc(c.name)}</span>`; }).join('')}</div>
-        <div class="hint">근거 ${d.evidenceRefs.map(esc).join(' · ')}</div>
-      </div>`).join('')}
-    ${skipped.length ? `<div class="err" style="margin-bottom:10px">⚠ 답변이 덜 채워진 ${skipped.length}건(${skipped.map(k => esc(candOf(k).title)).join(', ')})은 등록하지 않습니다.</div>` : ''}
-    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
-      <button type="button" class="btn sm" id="inBack2">← 답변 고치기</button>
-      <button type="button" class="btn primary sm" id="inCommit" style="margin-left:auto">${drafts.length}건 등록</button>
-    </div>`;
-
-  $('#inBack2').addEventListener('click', () => { inStep = 2; paintIntake(); });
-  $('#inCommit').addEventListener('click', () => {
-    const newIds = [];
-    drafts.forEach(d => {
-      const id = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
-      DATA.experiences.push({ ...d, id });
-      newIds.push(id);
-    });
-    $('#expDlg').close();
-    renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
-    onExperienceChanged('ExperienceCreated', newIds);
-    toast(`경험 ${drafts.length}건을 등록했습니다 · 평가 재계산을 요청했습니다`);
-  });
+    after = computeMatch().overall;
+  } finally { DATA.experiences = backup; }     // 예외가 나도 전역을 되돌린다
+  const b = Math.round(before * 100), a = Math.round(after * 100);
+  return a > b ? `${esc(P().company)} 매칭 ${b}% → <b style="color:var(--matched)">${a}%</b>` : '';
 }
+
+function commitHintHTML(ready){
+  const skipped = inChosen.size - ready.length;
+  // 서명에 comp 를 넣는다 — computeMatch 는 competencyIds·strength 만 읽으므로
+  // ready 를 유지한 채 역량 칩만 바꿔도 숫자가 실제로 움직인다.
+  const sig = ready.map(k => k + ':' + Object.entries(inDraft[k].comp).sort()
+                                        .map(([i, v]) => i + '=' + v).join('|')).join(',');
+  if (sig !== inMatchCache.sig) inMatchCache = { sig, html: matchDeltaHTML(ready) };
+  const parts = [];
+  if (skipped) parts.push(`<span style="color:var(--gap)">아직 비어 있는 ${skipped}건은 등록되지 않습니다</span>`);
+  if (inMatchCache.html) parts.push(inMatchCache.html);
+  return parts.join(' · ') || '되물은 칸을 채우면 등록 대상이 됩니다.';
+}
+
+function paintFooter(){
+  const btn = $('#exSave'), gap = $('#exGapHint');
+  if ($('#exIntake').hidden){                    // 직접 입력 탭
+    btn.textContent = exEditId != null ? '저장' : '등록';
+    btn.disabled = false; gap.innerHTML = exGapText; return;
+  }
+  if (inStep === 1 || !inChosen.size){
+    btn.textContent = '등록'; btn.disabled = true;
+    gap.innerHTML = '후보를 고르고 직접 쓸 칸을 채우면 등록할 수 있습니다.'; return;
+  }
+  const ready = [...inChosen].filter(isReady);
+  btn.textContent = ready.length ? `${ready.length}건 등록` : '등록할 건 없음';
+  btn.disabled = ready.length === 0;
+  gap.innerHTML = commitHintHTML(ready);
+}
+
+function commitIntake(){
+  const ready = [...inChosen].filter(isReady);   // 클릭 시점에 다시 계산한다
+  if (!ready.length) return;
+  const skipped = inChosen.size - ready.length;
+  // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
+  if (skipped && inCommitArmed !== ready.length){
+    inCommitArmed = ready.length;
+    $('#exSave').textContent = `${ready.length}건만 등록 · 한 번 더`;
+    $('#exGapHint').innerHTML =
+      `<span style="color:var(--gap)">비어 있는 ${skipped}건은 저장되지 않고 사라집니다. 다시 누르면 확정합니다.</span>`;
+    return;
+  }
+  const drafts = ready.map(buildExp), newIds = [];
+  drafts.forEach(d => {
+    const id = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
+    DATA.experiences.push({ ...d, id });
+    newIds.push(id);
+  });
+  inCommitArmed = null;
+  $('#expDlg').close();
+  renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
+  onExperienceChanged('ExperienceCreated', newIds);
+  toast(`경험 ${drafts.length}건을 등록했습니다 · 평가 재계산을 요청했습니다`);
+}
+
+/* 16칸을 채우다 Esc 한 번에 날리지 않게 */
+const intakeDirty = () => !$('#exTabs').hidden && !$('#exIntake').hidden && [...inChosen].some(k => {
+  const d = inDraft[k]; if (!d) return false;
+  const c = candOf(k);
+  return FIELDS.some(f => d[f].trim() !== (c[f] || '').trim())
+      || d.title.trim() !== c.title || d.period.trim() !== (c.period || '') || d.category !== c.category;
+});
+let exCloseArmed = false;
+function tryCloseExp(){
+  if (intakeDirty() && !exCloseArmed){
+    exCloseArmed = true;
+    toast('작성 중인 인테이크 초안이 있습니다 — 닫으려면 한 번 더 누르세요');
+    setTimeout(() => exCloseArmed = false, 4000);
+    return;
+  }
+  exEditId = null; exCloseArmed = false; $('#expDlg').close();
+}
+$('#exClose').addEventListener('click', tryCloseExp);
+$('#expDlg').addEventListener('cancel', e => {          // Esc
+  if (intakeDirty() && !exCloseArmed){ e.preventDefault(); tryCloseExp(); }
+});
 
 /* ---------- 문항 추가 — application 1:N question 의 생성 경로 ---------- */
 let qDlgApp = null;
