@@ -36,8 +36,8 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
          수치는 제목보다 작게 둔다. 카드의 머리는 직무명이지 숫자가 아니다. -->
     <header class="top">
       <div class="read">
+        <span class="ml">매칭률 :</span>
         <span class="num pct">{{ pct }}<span class="pc">%</span></span>
-        <span class="label ml">Match</span>
       </div>
       <button class="bm" :aria-pressed="card.bookmarked"
               :aria-label="`${p.company} ${p.position} 즐겨찾기`"
@@ -100,7 +100,9 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
 .read { display: flex; align-items: baseline; gap: 7px; }
 .pct { font-size: 17px; font-weight: 700; line-height: 1; transition: color var(--seat-out) linear; }
 .pc { font-size: 0.62em; color: var(--muted); margin-left: 1px; }
-.ml { font-size: 8.5px; }
+/* 무엇을 세는 숫자인지 먼저 말하고 값이 따라온다 — 영문 라벨은 읽는 사람이
+   한 번 더 번역해야 한다. */
+.ml { font-size: 11.5px; font-weight: 600; color: var(--muted); }
 
 .bm {
   padding: 5px 12px;

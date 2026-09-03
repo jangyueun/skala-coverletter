@@ -107,8 +107,8 @@ const questions = computed(() => {
              떼어 놓고 있었다. 숫자가 이미 같은 값을 말한다. -->
         <div class="rd">
           <p class="pctline">
+            <span class="rl">매칭률 :</span>
             <span class="num num--read pctn">{{ pct }}</span><span class="pc">%</span>
-            <span class="rl">매칭률</span>
           </p>
           <p class="verdict" :class="verdict.tone">{{ verdict.k }}</p>
         </div>
@@ -233,7 +233,7 @@ const questions = computed(() => {
 .pctline { margin: 0; display: flex; align-items: baseline; gap: 1px; }
 .pctn { font-size: 26px; font-weight: 800; line-height: 1.1; }
 .pc { font-size: 15px; font-weight: 700; color: var(--muted); }
-.rl { margin-left: 7px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.rl { margin-right: 7px; font-size: 12px; font-weight: 600; color: var(--muted); }
 .verdict { margin: 0; font-size: 13px; font-weight: 700; }
 .verdict.ok { color: var(--ok); }
 .verdict.gap { color: var(--gap); }
