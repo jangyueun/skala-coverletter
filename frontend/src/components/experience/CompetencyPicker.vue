@@ -76,12 +76,12 @@ const setStr = (id, v) => { props.pick[id] = v }
 .none { font-size: var(--fs-xs); color: var(--muted); }
 
 .chip {
-  display: inline-flex; align-items: stretch;
+  display: inline-flex; align-items: center;
   border: 1px solid var(--line-strong); border-radius: var(--r-sm);
   background: var(--panel-raised); font-size: var(--fs-2xs); font-weight: 600;
   overflow: hidden;
+  padding-left: 8px;
 }
-.chip { padding-left: 8px; align-items: center; }
 
 .sv, .rm {
   border: none; background: transparent; cursor: pointer;

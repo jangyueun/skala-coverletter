@@ -48,7 +48,7 @@ function toggle(id) {
               </div>
             </td>
             <td class="c">
-              <span class="num ev" :class="{ gap: !r.evid.length }">
+              <span class="num evc" :class="{ gap: !r.evid.length }">
                 {{ r.evid.length ? r.evid.length + '건' : '없음' }}
               </span>
             </td>
@@ -125,8 +125,10 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 .pct { font-size: var(--fs-xs); font-weight: 700; flex: none; min-width: 34px; text-align: right; }
 .pct.gap { color: var(--gap); }
 
-.ev { font-size: var(--fs-xs); font-weight: 600; }
-.ev.gap { color: var(--gap); }
+/* 표 셀의 근거 건수. 아래 펼친 근거 문단의 .ev 와 이름이 같아
+   문단까지 600 으로 굵어지고 있었다. */
+.evc { font-size: var(--fs-xs); font-weight: 600; }
+.evc.gap { color: var(--gap); }
 .wt { font-size: var(--fs-xs); color: var(--muted); }
 
 /* ── 펼친 근거 ─────────────────────────────────────────────

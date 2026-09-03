@@ -111,7 +111,7 @@ const questions = computed(() => {
              떼어 놓고 있었다. 숫자가 이미 같은 값을 말한다. -->
         <div class="rd">
           <p class="pctline">
-            <span class="rl">매칭률 :</span>
+            <span class="rdl">매칭률 :</span>
             <span class="num num--read pctn">{{ pct }}</span><span class="pc">%</span>
           </p>
           <p class="verdict" :class="verdict.tone">{{ verdict.k }}</p>
@@ -240,7 +240,9 @@ const questions = computed(() => {
 .pctline { margin: 0; display: flex; align-items: baseline; gap: 1px; }
 .pctn { font-size: var(--fs-2xl); font-weight: 800; line-height: 1.1; }
 .pc { font-size: var(--fs-md); font-weight: 700; color: var(--muted); }
-.rl { margin-right: 7px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+/* 판독값 라벨. 아래 관련 공고의 .rl 과 이름이 같아 덮이고 있었다 —
+   숫자 옆이 아니라 위에 얹혀 있었다. .rd 계열로 이름을 옮긴다. */
+.rdl { margin-right: 7px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
 .verdict { margin: 0; font-size: var(--fs-sm); font-weight: 700; }
 .verdict.ok { color: var(--ok); }
 .verdict.gap { color: var(--gap); }
