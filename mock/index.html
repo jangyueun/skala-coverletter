@@ -294,6 +294,9 @@ figure.fig figcaption{margin-top:12px; font-size:12px; color:var(--muted); max-w
 .dia rect.hub{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
 .dia .rel{stroke:currentColor; stroke-width:1.4; opacity:.5; fill:none}
 .dia .nmline{stroke:var(--accent); stroke-width:2.6; fill:none}
+#s4lint .cardbody{padding-top:14px}
+.rel-post{width:100%; align-items:center; background:var(--surface); border-color:var(--border)}
+.rel-post:hover{border-color:var(--accent); background:var(--surface-2)}
 .spec-sec{margin-bottom:22px}
 .spec-sec > h3{display:flex; align-items:baseline; gap:9px; margin-bottom:4px}
 .spec-sec > h3 .no{font-family:var(--mono); font-size:11px; color:var(--accent); border:1px solid currentColor; padding:1px 5px; border-radius:2px}
@@ -396,6 +399,29 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
 .qrow{display:flex; flex-direction:column; gap:5px; padding:9px 0; border-top:1px dashed var(--border)}
 .qrow .q{font-size:12px; color:var(--ink)}
 .qrow .why{font-size:10.5px; color:var(--faint)}
+
+/* 인테이크 에디터 — 좌 후보 레일 + 우 STAR 에디터 */
+.inwrap{display:grid; grid-template-columns:168px 1fr; gap:12px; align-items:start}
+.inwrap > #inRail{
+  position:sticky; top:0; z-index:1; display:flex; flex-direction:column; gap:7px;
+  background:var(--surface); padding-bottom:6px; min-width:0;
+}
+.inwrap.solo{grid-template-columns:1fr}
+.inwrap.solo > #inRail{position:static; flex-direction:row; align-items:center; flex-wrap:wrap}
+@media(max-width:640px){
+  .inwrap{grid-template-columns:1fr}
+  .inwrap > #inRail{position:static; flex-direction:row; overflow-x:auto}
+  .inwrap > #inRail .cand{min-width:150px; flex:none}
+}
+
+/* 이 문장을 누가 썼는가 — 필드 왼쪽 스트라이프 */
+.fsrc{border-left:3px solid var(--border-strong); padding-left:10px}
+.fsrc-you{border-left-color:var(--gap)}
+.fsrc-todo{border-left-width:5px}          /* 아직 비어 있다 — 채우면 두께만 돌아온다 */
+.fsrc-edited{border-left-color:var(--accent)}
+
+/* 근거 인용 한 줄 — 전문은 title 속성 */
+.evq{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -460,10 +486,9 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
         </div>
       </div>
 
-      <div class="grid g3" style="margin-bottom:18px">
+      <div class="grid g2" style="margin-bottom:18px">
         <div class="card pad" data-note="GET /api/experiences"><div class="stat"><span class="v" id="s1cnt">0</span><span class="l">등록한 경험</span></div></div>
         <div class="card pad" data-note="experience_competency"><div class="stat"><span class="v" id="s1cov">0</span><span class="l">태그된 역량 (전체 20개 중)</span></div></div>
-        <div class="card pad"><div class="stat"><span class="v" id="s1star">0</span><span class="l">STAR 4필드가 모두 채워진 경험</span></div></div>
       </div>
 
       <div class="card" style="margin-bottom:16px" data-note="competency 마스터">
@@ -510,7 +535,7 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     <div class="dlghead">
       <h3 id="expDlgH">경험 등록</h3>
       <span class="sub" id="expDlgSub">STAR 4필드 · 역량 태그</span>
-      <button class="btn sm x" value="cancel">닫기</button>
+      <button type="button" class="btn sm x" id="exClose">닫기</button>
     </div>
   </form>
   <div class="dlgbody">
@@ -520,12 +545,16 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     </div>
 
     <div id="exIntake" hidden>
-      <div class="field" style="margin-bottom:10px">
+      <div class="field" id="inLinkBox" style="margin-bottom:10px">
         <label for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
         <textarea class="inp" id="inUrl" rows="4" spellcheck="false">https://github.com/jhyun/msa-order-service
 https://github.com/jhyun/algo-study-2025
 https://jhyun.dev/portfolio
 https://drive.example/해커톤_발표자료.pdf</textarea>
+      </div>
+      <div class="hint" id="inLinkFold" hidden style="margin-bottom:10px">
+        링크 <b id="inLinkN">4</b>개를 분석했습니다
+        <button type="button" class="btn sm" id="inLinkEdit" style="margin-left:6px">링크 고치기</button>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
         <button type="button" class="btn primary sm" id="inRun" data-note="POST /experiences/ai/intake → 202">분석</button>
@@ -614,13 +643,7 @@ https://drive.example/해커톤_발표자료.pdf</textarea>
       <div class="field"><label for="apCo">기업명 *</label><input class="inp" id="apCo" placeholder="예) 세움테크"></div>
       <div class="field"><label for="apPos">직무 *</label><input class="inp" id="apPos" placeholder="예) 백엔드 엔지니어"></div>
     </div>
-    <div class="frow f3">
-      <div class="field"><label for="apSt">상태</label>
-        <select class="inp" id="apSt">
-          <option value="PLANNED">지원 예정</option><option value="WRITING">작성 중</option>
-          <option value="SUBMITTED">제출</option><option value="INTERVIEW">면접</option><option value="RESULT">결과 대기</option>
-        </select>
-      </div>
+    <div class="frow">
       <div class="field"><label for="apDday">마감까지 (일)</label><input class="inp" id="apDday" type="number" min="0" max="365" value="14"></div>
       <div class="field"><label for="apQ">문항 수</label><input class="inp" id="apQ" type="number" min="1" max="12" value="4"></div>
     </div>
@@ -637,29 +660,32 @@ https://drive.example/해커톤_발표자료.pdf</textarea>
 const DATA = {
 
   /* --- competency 마스터 20개 -------------------------------
-     §17 IT·연구개발 핵심 키워드(문제 해결·협업·분석적 사고·조율·일정 관리)를
-     모두 포함한다. VALUE 범주는 §21 ②"그 회사 인재상 키워드"에 대응한다. */
+     2026년 하반기 실제 채용공고 72건(백엔드/프론트/풀스택/인프라/AI/신입공채)의
+     자격요건·우대사항·인재상 문장에서 반복 어휘를 뽑아 도출했다.
+     이름은 공고가 쓰는 말 그대로 잡았다 — "책임감"이 아니라 "주도성·오너십",
+     "아키텍처 설계"가 아니라 "확장 가능한 설계". 자소서에 그대로 써야 걸리기 때문.
+     제품명(Spring·React·Kubernetes·Terraform)은 전부 aliases 로 내렸다. */
   competencies: [
-    { id: 1,  name:'백엔드 개발',     category:'TECH' , aliases:['백엔드','서버 개발','REST API','API 설계'] },
-    { id: 2,  name:'아키텍처 설계',   category:'TECH' , aliases:['아키텍처','구조 설계','설계 원칙'] },
-    { id: 3,  name:'클라우드 인프라', category:'TECH' , aliases:['클라우드','쿠버네티스','Kubernetes','Docker','컨테이너','배포'] },
-    { id: 4,  name:'데이터베이스',    category:'TECH' , aliases:['데이터베이스','DB','SQL','정합성','트랜잭션'] },
-    { id: 5,  name:'디버깅',          category:'TECH' , aliases:['디버깅','원인을 추적','로그를 거슬러','장애'] },
-    { id: 6,  name:'AI 활용',         category:'TECH' , aliases:['생성형 AI','AI를 활용','AI 활용','LLM','프롬프트'] },
-    { id: 7,  name:'AI 서비스 개발',  category:'TECH' , aliases:['RAG','벡터','임베딩','AI 서비스'] },
-    { id: 8,  name:'문제 해결',       category:'SOFT' , aliases:['문제 해결','문제를 해결','원인을 추적','해결했'] },
-    { id: 9,  name:'협업·소통',       category:'SOFT' , aliases:['협업','소통','팀원','함께 일'] },
-    { id: 10, name:'갈등 조율',       category:'SOFT' , aliases:['갈등','조율','중재','이견'] },
-    { id: 11, name:'논리적 사고',     category:'SOFT' , aliases:['논리','근거','분석','가설'] },
-    { id: 12, name:'주도적 실행력',   category:'SOFT' , aliases:['주도','스스로','먼저 제안','직접 나'] },
-    { id: 13, name:'책임감',          category:'SOFT' , aliases:['책임','끝까지','맡은'] },
-    { id: 14, name:'성과 지표화',     category:'SOFT' , aliases:['지표','수치','정량','측정'] },
-    { id: 15, name:'성장 마인드셋',   category:'SOFT' , aliases:['배웠','성장','습관이 생','바꾸었'] },
-    { id: 16, name:'도메인 전문성',   category:'DOMAIN' , aliases:['도메인','업무 이해','현업'] },
-    { id: 17, name:'서비스 기획',     category:'DOMAIN' , aliases:['기획','사용자','서비스 설계'] },
-    { id: 18, name:'프로젝트 관리',   category:'DOMAIN' , aliases:['일정','프로젝트 관리','우선순위','스프린트'] },
-    { id: 19, name:'자발적 도전',     category:'VALUE' , aliases:['자발적','스스로 뛰어드','스스로 더했','스스로 나'] },
-    { id: 20, name:'높은 목표 설정',  category:'VALUE' , aliases:['더 높은 기준','기준을 올려','높은 목표','통과 기준을 시작점'] },
+    { id: 1,  name:'API 설계·연동', category:'TECH', aliases:['REST API', 'RESTful API', 'API 설계', 'API 서버', 'API 연동', '엔드포인트', 'HTTP', '외부 API 연동', 'API 문서', 'OpenAPI', '스키마 설계(API)'] },
+    { id: 2,  name:'백엔드 서버 개발', category:'TECH', aliases:['백엔드', '서버 개발', 'Java', 'Spring', 'SpringBoot', 'Spring Framework', 'JPA', 'Hibernate', 'ORM', 'FastAPI', 'Node.js', 'Python 백엔드', 'Kotlin', '서버 사이드'] },
+    { id: 3,  name:'프론트엔드 개발', category:'TECH', aliases:['프론트엔드', 'React', 'Vue', 'Next.js', 'TypeScript', 'JavaScript', 'ES6', 'HTML', 'CSS', 'SPA', 'SSR', '상태 관리', '디자인 시스템', '반응형 웹', '크로스브라우징', '웹 접근성', '웹 표준', 'UI 구현'] },
+    { id: 4,  name:'데이터 설계·처리', category:'TECH', aliases:['데이터베이스', 'RDBMS', 'SQL', 'MySQL', 'MariaDB', 'PostgreSQL', 'Oracle', '스키마 설계', '테이블 설계', '쿼리 튜닝', '인덱싱', 'NoSQL', 'Redis', 'MongoDB', 'Elasticsearch', '벡터DB', '데이터 모델링', '데이터 파이프라인', '전처리', '데이터 수집'] },
+    { id: 5,  name:'확장 가능한 설계', category:'TECH', aliases:['아키텍처 설계', '확장 가능한 코드', '유지보수성', '리팩토링', '객체지향', 'OOP', 'SOLID', 'DDD', '클린 아키텍처', '도메인 모델링', 'MSA', '마이크로서비스', '서비스 분리', '모듈화', '구조 개선'] },
+    { id: 6,  name:'테스트 코드 작성', category:'TECH', aliases:['테스트 코드', '단위 테스트', '통합 테스트', 'E2E 테스트', 'TDD', 'JUnit', 'Jest', 'Vitest', 'Playwright', '테스트 자동화', '테스트 가능한 코드', '정적 분석'] },
+    { id: 7,  name:'버전관리·CI/CD', category:'TECH', aliases:['Git', 'GitHub', 'GitLab', '형상 관리', '버전 관리', '브랜치 전략', 'Pull Request', 'CI/CD', '파이프라인', 'GitHub Actions', 'Jenkins', 'ArgoCD', 'GitOps', '배포 자동화', '빌드 자동화', 'IaC', 'Terraform', 'Ansible', 'Helm', '셸 스크립트', '운영 자동화'] },
+    { id: 8,  name:'클라우드 인프라 운영', category:'TECH', aliases:['AWS', 'GCP', 'Azure', '클라우드', 'EKS', 'Kubernetes', '쿠버네티스', 'K8s', 'Docker', '컨테이너', '오케스트레이션', '온프레미스', 'Linux', '리눅스', '서버 운영', '네트워크', '인프라 구축', '가상화'] },
+    { id: 9,  name:'성능 최적화', category:'TECH', aliases:['성능 최적화', '렌더링 최적화', 'Web Vitals', '응답 속도', '병목', '부하 테스트', '캐싱', '쿼리 최적화', '메모리 관리', '비용 최적화', '동시성', '비동기 처리', '대용량 처리'] },
+    { id: 10, name:'LLM 서비스 개발', category:'TECH', aliases:['LLM', 'RAG', '검색 증강 생성', '벡터 검색', '임베딩', 'LangChain', 'LlamaIndex', 'AI Agent', '에이전트', '워크플로우 오케스트레이션', '프롬프트 엔지니어링', '모델 서빙', 'vLLM', 'OpenAI API', '파인튜닝', 'LLMOps', 'AI 기능 개발'] },
+    { id: 11, name:'CS 기초 지식', category:'TECH', aliases:['자료구조', '알고리즘', '운영체제', '네트워크', '컴퓨터공학', '전공자', '디자인 패턴', 'CS 기초', '컴퓨터 구조', '개발자 과정 수료', '부트캠프 수료'] },
+    { id: 12, name:'협업·소통', category:'SOFT', aliases:['협업', '커뮤니케이션', '의사소통', '타 직군', '기획자', '디자이너', 'PO', 'PM', '이해관계자', '요구사항 협의', '팀워크', '현업 소통', '비개발자 소통'] },
+    { id: 13, name:'코드리뷰·피드백', category:'SOFT', aliases:['코드 리뷰', 'PR 리뷰', 'Pull Request', '페어 프로그래밍', '피드백', '리뷰 문화', '기술 문서 작성', '문서화', '지식 공유', '위키', '개발 문화 개선', '기록 기반 소통'] },
+    { id: 14, name:'문제 정의·해결', category:'SOFT', aliases:['문제 정의', '문제 해결', '원인 분석', '근본 원인', '디버깅', '트러블슈팅', '가설 검증', '분석적 사고', '논리적 사고'] },
+    { id: 15, name:'도메인 이해', category:'DOMAIN', aliases:['도메인', '비즈니스 이해', '이커머스', '커머스', '물류', '핀테크', '금융', '모빌리티', 'HR', '산업 이해', '서비스 흐름', '업무 프로세스', '도메인 모델'] },
+    { id: 16, name:'운영·장애 대응', category:'DOMAIN', aliases:['서비스 운영', '장애 대응', '트러블슈팅', '모니터링', '로깅', '알람', '가용성', 'SLO', '대규모 트래픽', '유지보수', '안정화', 'Grafana', 'Prometheus', 'ELK', '사후 분석', '운영 자동화'] },
+    { id: 17, name:'자기주도 학습', category:'VALUE', aliases:['자기주도적', '새로운 기술 학습', '빠른 습득력', '학습 의지', '성장', '지속적인 성장', '기술 트렌드', '변화를 두려워하지 않는', '능동적으로 배우는', '스터디', '독학'] },
+    { id: 18, name:'주도성·오너십', category:'VALUE', aliases:['주도적', '오너십', '책임감', '실행력', '빠른 실행', '스스로 문제를 발견', '내 서비스라는 마음', '끝까지 책임', '집요함', '우선순위를 스스로', 'POC', '가설 검증'] },
+    { id: 19, name:'사용자 중심 사고', category:'VALUE', aliases:['고객 중심', '고객중심적 사고', '사용자 중심', '사용자 문제 해결', 'UX', '사용자 경험', '제품 관점', '비즈니스 이해', '비즈니스 맥락', '서비스 개선'] },
+    { id: 20, name:'AI 도구 활용', category:'VALUE', aliases:['AI 도구', '생성형 AI', '코딩 에이전트', 'Claude Code', 'Copilot', 'AI 활용 생산성', 'LLM 활용', 'AI를 팀원으로', 'AI 기반 자동화', '개발 생산성'] },
   ],
 
   /* --- 내 경험 6건 (STAR) ---------------------------------- */
@@ -670,7 +696,7 @@ const DATA = {
       task:'서비스 간 결제 상태 불일치를 없애고, 한 서비스가 죽어도 주문이 유실되지 않게 만드는 것이 목표였다.',
       action:'Eureka·API Gateway로 서비스를 분리하고, 결제 이벤트를 Kafka로 비동기 발행했다. 이중 발행 문제는 Transactional Outbox 패턴으로 해결했다.',
       result:'결제 상태 불일치 건수를 테스트 100건 중 12건에서 0건으로 줄였다.',
-      competencyIds:[1,2,8,9,3], strength:{1:0.9, 2:0.7, 8:0.8, 9:0.7, 3:0.5}, usedInAnswers:3,
+      competencyIds:[5,2,14,1], strength:{5:0.8, 2:0.8, 14:0.8, 1:0.6}, usedInAnswers:3,
     },
     {
       id: 2, title:'주식 거래 REST API 개발', period:'2026.08', category:'개인 프로젝트',
@@ -678,7 +704,7 @@ const DATA = {
       task:'예외가 컨트롤러마다 흩어져 응답 형식이 제각각인 문제를 잡아야 했다.',
       action:'@ControllerAdvice로 전역 예외 처리를 통일하고, DTO 검증과 표준 에러 응답 스키마를 정의했다. Swagger로 명세를 자동화했다.',
       result:'엔드포인트 18개의 에러 응답 형식을 1종으로 통일하고, 프론트 연동 시 문의를 9건에서 1건으로 줄였다.',
-      competencyIds:[1,5,11,13,4], strength:{1:0.8, 5:0.7, 11:0.7, 13:0.6, 4:0.6}, usedInAnswers:2,
+      competencyIds:[1,2,5], strength:{1:0.8, 2:0.7, 5:0.5}, usedInAnswers:2,
     },
     {
       id: 3, title:'Vue 3 관리자 대시보드 SPA', period:'2026.08', category:'팀 프로젝트',
@@ -686,7 +712,7 @@ const DATA = {
       task:'화면 7개가 각자 API를 중복 호출해 로딩이 느린 문제를 해결해야 했다.',
       action:'Pinia로 전역 상태를 통합하고 Axios 인터셉터로 인증·에러를 한 곳에 모았다. 라우터 단위로 코드 스플리팅을 적용했다.',
       result:'중복 API 호출을 24회에서 7회로 줄여 초기 렌더 시간을 2.4초에서 0.9초로 단축했다.',
-      competencyIds:[9,18,17,5,14], strength:{9:0.6, 18:0.7, 17:0.6, 5:0.5, 14:0.6}, usedInAnswers:1,
+      competencyIds:[3,9,17], strength:{3:0.6, 9:0.7, 17:0.7}, usedInAnswers:1,
     },
     {
       id: 4, title:'EKS 무중단 배포 파이프라인', period:'2026.08', category:'실습 프로젝트',
@@ -694,7 +720,7 @@ const DATA = {
       task:'배포할 때마다 수 분간 서비스가 끊기는 것을 없애는 게 목표였다.',
       action:'멀티 스테이지 빌드로 이미지를 줄이고, Deployment의 롤링 업데이트와 readinessProbe를 설정했다. Harbor에 태그를 불변으로 관리하고 ArgoCD로 선언형 배포를 붙였다.',
       result:'이미지 크기를 780MB에서 210MB로, 배포 중 다운타임을 약 4분에서 0초로 줄였다.',
-      competencyIds:[3,2,12,5,14], strength:{3:0.9, 2:0.6, 12:0.7, 5:0.5, 14:0.7}, usedInAnswers:2,
+      competencyIds:[8,7,16], strength:{8:0.8, 7:0.8, 16:0.6}, usedInAnswers:2,
     },
     {
       id: 5, title:'사내 문서 RAG 질의응답 시스템', period:'2026.09', category:'개인 프로젝트',
@@ -702,7 +728,7 @@ const DATA = {
       task:'키워드가 안 겹치면 못 찾는 기존 검색의 한계를 넘는 것이 목표였다.',
       action:'문서를 청킹해 임베딩하고 벡터 스토어에 적재한 뒤, 검색 결과를 근거로 붙여 답하게 했다. "모르면 모른다고 답한다"를 시스템 프롬프트로 강제해 환각을 줄였다.',
       result:'테스트 질의 40건 중 정답 문단을 찾아낸 비율이 키워드 검색 55%에서 88%로 올랐다.',
-      competencyIds:[6,7,19,15], strength:{6:0.9, 7:0.8, 19:0.7, 15:0.6}, usedInAnswers:1,
+      competencyIds:[10,4,18], strength:{10:0.7, 4:0.6, 18:0.5}, usedInAnswers:1,
     },
     {
       id: 6, title:'학과 학회 운영진 일정 갈등 조율', period:'2025.03 – 2025.11', category:'대외활동',
@@ -710,7 +736,7 @@ const DATA = {
       task:'감정 대립으로 번지기 전에 결정을 내려야 했다.',
       action:'양쪽 주장을 참석 가능 인원수로 환산해 표로 만들고, 두 안을 4주간 시범 운영한 뒤 출석률로 결정하자고 제안했다.',
       result:'시범 운영 결과 출석률이 62%에서 84%로 오른 안을 만장일치로 채택했고, 이후 이 방식이 학회 규칙이 됐다.',
-      competencyIds:[10,9,12,11], strength:{10:0.9, 9:0.8, 12:0.6, 11:0.6}, usedInAnswers:2,
+      competencyIds:[12,18,14], strength:{12:0.9, 18:0.6, 14:0.5}, usedInAnswers:2,
     },
   ],
 
@@ -722,7 +748,7 @@ const DATA = {
   activePostingId: 9,
   postings: [
     {
-      id: 9, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
+      id: 9, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
       collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'백엔드 엔지니어 (신입)', deadline:'2026-09-12',
     rawText:
@@ -749,23 +775,22 @@ const DATA = {
 · 현재에 안주하지 않고 더 높은 기준을 세우는 분
 · 프론트엔드·기획과 적극적으로 소통하며 서비스를 완성하는 분`,
     required: [
-      { competencyId: 1,  weight:0.9, evidence:'Spring Boot · JPA 기반 REST API 설계 및 운영' },
-      { competencyId: 8,  weight:0.9, evidence:'문제가 생겼을 때 원인을 끝까지 추적해 본 경험' },
-      { competencyId: 3,  weight:0.8, evidence:'Docker · Kubernetes 기반 배포 환경을 다뤄 본 경험' },
-      { competencyId: 9,  weight:0.8, evidence:'프론트엔드·기획과 적극적으로 소통하며 서비스를 완성하는 분' },
-      { competencyId: 19, weight:0.8, evidence:'정해진 답이 없는 문제에 스스로 뛰어드는 분' },
+      { competencyId: 2,  weight:0.9, evidence:'Spring Boot · JPA 기반 서버 개발' },
+      { competencyId: 1,  weight:0.9, evidence:'REST API 설계 및 운영 경험' },
+      { competencyId: 14, weight:0.9, evidence:'문제가 생겼을 때 원인을 끝까지 추적해 본 경험' },
+      { competencyId: 8,  weight:0.8, evidence:'Docker · Kubernetes 기반 배포 환경을 다뤄 본 경험' },
+      { competencyId: 12, weight:0.8, evidence:'프론트엔드·기획과 적극적으로 소통하며 서비스를 완성하는 분' },
+      { competencyId: 17, weight:0.8, evidence:'정해진 답이 없는 문제에 스스로 뛰어드는 분' },
       { competencyId: 4,  weight:0.7, evidence:'관계형 데이터베이스 설계와 SQL 작성 능력' },
-      { competencyId: 6,  weight:0.7, evidence:'생성형 AI를 실제 업무나 프로젝트에 활용해 본 경험' },
-      { competencyId: 20, weight:0.7, evidence:'현재에 안주하지 않고 더 높은 기준을 세우는 분',
-        suggestion:'인재상 키워드입니다. 기업 AI가 직접 대조하는 항목인데 이를 덮는 경험이 없습니다. MSA 프로젝트를 "기존 대비 더 높은 기준을 세우고 달성한" 관점으로 다시 서술하세요.' },
-      { competencyId: 16, weight:0.7, evidence:'사내 물류 플랫폼의 주문·정산 도메인 백엔드 개발',
-        suggestion:'물류·정산 도메인 경험이 없습니다. 도메인 용어를 학습한 뒤, 주식 거래 API 경험을 "정합성이 곧 신뢰인 도메인" 관점으로 다시 서술하세요.' },
+      { competencyId: 20, weight:0.7, evidence:'생성형 AI 를 실제 업무나 프로젝트에 활용해 본 경험' },
+      { competencyId: 18, weight:0.7, evidence:'현재에 안주하지 않고 스스로 기준을 세우는 분' },
+      { competencyId: 15, weight:0.7, evidence:'사내 물류 플랫폼의 주문·정산 도메인 이해' },
     ],
-    newCompetencies: ['Kafka 운영', 'MSA 전환 경험'],
+    newCompetencies: ['Kafka 운영'],
     },
 
     {
-      id: 10, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
+      id: 10, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
       collectedAt:'2026-09-01 04:12',
       company:'다온소프트', position:'서버 개발 (신입)', deadline:'2026-09-15',
       rawText:
@@ -787,20 +812,19 @@ const DATA = {
 · 대량 배치 튜닝 경험
 · 동료와 근거를 놓고 토론할 수 있는 분`,
       required: [
-        { competencyId: 1,  weight:0.9, evidence:'Java 기반 웹 애플리케이션 개발 경험' },
+        { competencyId: 2,  weight:0.9, evidence:'Java 기반 웹 애플리케이션 개발 경험' },
         { competencyId: 4,  weight:0.9, evidence:'관계형 데이터베이스 설계와 복잡한 SQL 작성 능력' },
-        { competencyId: 8,  weight:0.8, evidence:'장애 발생 시 원인을 끝까지 추적해 본 경험' },
-        { competencyId: 16, weight:0.8, evidence:'보험 · 금융 도메인 업무 이해',
-          suggestion:'금융·보험 도메인 경험이 전혀 없습니다. 이 공고는 도메인 가중치가 높아 지원 우선순위를 낮추는 편이 낫습니다.' },
-        { competencyId: 13, weight:0.7, evidence:'맡은 일을 끝까지 마무리하는 책임감' },
-        { competencyId: 9,  weight:0.6, evidence:'동료와 근거를 놓고 토론할 수 있는 분' },
-        { competencyId: 11, weight:0.6, evidence:'근거를 놓고 토론' },
+        { competencyId: 14, weight:0.8, evidence:'장애 발생 시 원인을 끝까지 추적해 본 경험' },
+        { competencyId: 15, weight:0.8, evidence:'보험 · 금융 도메인 업무 이해' },
+        { competencyId: 18, weight:0.7, evidence:'맡은 일을 끝까지 마무리하는 책임감' },
+        { competencyId: 12, weight:0.6, evidence:'동료와 근거를 놓고 토론할 수 있는 분' },
+        { competencyId: 11, weight:0.6, evidence:'자료구조 · 알고리즘 등 전공 기초 지식' },
       ],
       newCompetencies: ['배치 튜닝'],
     },
 
     {
-      id: 11, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
+      id: 11, role:'PLATFORM', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
       collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21',
       rawText:
@@ -821,20 +845,21 @@ const DATA = {
 · 시키지 않은 개선을 스스로 제안하고 실행해 본 경험
 · 개발팀과 함께 배포 방식을 합의해 본 경험`,
       required: [
-        { competencyId: 3,  weight:0.9, evidence:'Docker · Kubernetes 를 직접 다뤄 본 경험' },
-        { competencyId: 2,  weight:0.8, evidence:'시스템 구조를 그려 놓고 설명할 수 있는 분' },
-        { competencyId: 8,  weight:0.8, evidence:'장애가 났을 때 원인을 좁혀 본 경험' },
-        { competencyId: 5,  weight:0.7, evidence:'로그를 따라 원인을 좁혀 본 경험' },
-        { competencyId: 12, weight:0.7, evidence:'시키지 않은 개선을 스스로 제안하고 실행해 본 경험' },
-        { competencyId: 14, weight:0.6, evidence:'개선 결과를 지표로 증명해 본 경험' },
-        { competencyId: 9,  weight:0.6, evidence:'개발팀과 함께 배포 방식을 합의해 본 경험' },
-        { competencyId: 19, weight:0.6, evidence:'시키지 않은 개선을 스스로 제안하고' },
+        { competencyId: 8,  weight:0.9, evidence:'Docker · Kubernetes 를 직접 다뤄 본 경험' },
+        { competencyId: 7,  weight:0.8, evidence:'IaC · GitOps 기반 배포 자동화 경험' },
+        { competencyId: 5,  weight:0.8, evidence:'시스템 구조를 그려 놓고 설명할 수 있는 분' },
+        { competencyId: 14, weight:0.8, evidence:'장애가 났을 때 원인을 좁혀 본 경험' },
+        { competencyId: 16, weight:0.7, evidence:'로그와 지표로 장애 원인을 추적해 본 경험' },
+        { competencyId: 18, weight:0.7, evidence:'시키지 않은 개선을 스스로 제안하고 실행해 본 경험' },
+        { competencyId: 12, weight:0.6, evidence:'개발팀과 함께 배포 방식을 합의해 본 경험' },
+        { competencyId: 17, weight:0.6, evidence:'새로운 인프라 기술을 스스로 학습해 적용해 본 경험' },
+        { competencyId: 11, weight:0.7, evidence:'네트워크 · 운영체제 등 시스템 기초 지식' },
       ],
       newCompetencies: [],
     },
 
     {
-      id: 12, questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
+      id: 12, role:'BACKEND', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
       company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28',
       rawText:
 `[코어링크] AI 프로덕트 백엔드 엔지니어 (신입)
@@ -852,17 +877,19 @@ const DATA = {
 · RAG 파이프라인 구축 경험
 · 프롬프트를 설계하고 결과를 검증해 본 경험`,
       required: [
+        { competencyId: 10, weight:0.9, evidence:'RAG 파이프라인 구축 및 LLM 을 실제 서비스에 붙여 본 경험' },
+        { competencyId: 4,  weight:0.8, evidence:'벡터DB · 임베딩 파이프라인 구성 경험' },
         { competencyId: 1,  weight:0.8, evidence:'Spring Boot 또는 FastAPI 로 API 를 만들어 본 경험' },
-        { competencyId: 6,  weight:0.9, evidence:'생성형 AI 를 실제 서비스에 붙여 본 경험' },
-        { competencyId: 7,  weight:0.9, evidence:'RAG 파이프라인 구축 경험' },
-        { competencyId: 14, weight:0.7, evidence:'검색 품질을 지표로 측정하고 개선해 본 경험' },
-        { competencyId: 8,  weight:0.6, evidence:'검색 품질을 개선해 본 경험' },
+        { competencyId: 2,  weight:0.8, evidence:'Python 또는 Java 로 서버를 만들어 본 경험' },
+        { competencyId: 14, weight:0.7, evidence:'검색 품질을 가설·검증으로 개선해 본 경험' },
+        { competencyId: 20, weight:0.6, evidence:'AI 코딩 에이전트를 개발 과정에 활용해 본 경험' },
+        { competencyId: 19, weight:0.7, evidence:'사용자 문제에서 출발해 AI 기능을 정의하는 분' },
       ],
       newCompetencies: [],
     },
 
     {
-      id: 13, questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
+      id: 13, role:'FULLSTACK', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
       company:'리버트리', position:'풀스택 엔지니어 (신입)', deadline:'2026-09-08',
       rawText:
 `[리버트리] 풀스택 엔지니어 신입 채용
@@ -881,16 +908,19 @@ const DATA = {
 · 기획·디자인과 합의하며 범위를 조정해 본 경험`,
       required: [
         { competencyId: 1,  weight:0.8, evidence:'백엔드 API 를 직접 설계해 본 경험' },
-        { competencyId: 17, weight:0.8, evidence:'Vue 또는 React 로 화면을 만들어 본 경험' },
-        { competencyId: 18, weight:0.7, evidence:'일정을 스스로 관리해 본 경험' },
-        { competencyId: 14, weight:0.7, evidence:'성능 개선을 수치로 증명해 본 경험' },
-        { competencyId: 9,  weight:0.7, evidence:'기획·디자인과 합의하며 범위를 조정해 본 경험' },
+        { competencyId: 3,  weight:0.8, evidence:'Vue 또는 React 로 화면을 만들어 본 경험' },
+        { competencyId: 2,  weight:0.7, evidence:'Node.js 또는 Spring 으로 서버를 만들어 본 경험' },
+        { competencyId: 18, weight:0.7, evidence:'일정과 우선순위를 스스로 관리해 본 경험' },
+        { competencyId: 9,  weight:0.7, evidence:'성능 개선을 수치로 증명해 본 경험' },
+        { competencyId: 12, weight:0.7, evidence:'기획·디자인과 합의하며 범위를 조정해 본 경험' },
+        { competencyId: 6,  weight:0.7, evidence:'테스트 코드를 작성하며 개발해 본 경험' },
+        { competencyId: 19, weight:0.7, evidence:'사용자 관점에서 우선순위를 판단하는 분' },
       ],
       newCompetencies: [],
     },
 
     {
-      id: 14, questionsFromServer: true, source:'CRAWLED',
+      id: 14, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://careers.seumtech.example/jobs/2026-fe', collectedAt:'2026-09-01 04:12',
       company:'세움테크', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-09-12',
       rawText:
@@ -913,18 +943,20 @@ const DATA = {
 ■ 우리가 함께 일하고 싶은 사람
 · 정해진 답이 없는 문제에 스스로 뛰어드는 분`,
       required: [
-        { competencyId: 17, weight:0.9, evidence:'Vue 또는 React 로 실제 서비스를 만들어 본 경험' },
-        { competencyId: 14, weight:0.8, evidence:'화면 성능을 수치로 개선해 본 경험' },
-        { competencyId: 9,  weight:0.7, evidence:'기획·디자인과 합의하며 범위를 조정해 본 경험' },
-        { competencyId: 2,  weight:0.7, evidence:'상태 관리 구조를 직접 설계해 본 경험' },
-        { competencyId: 19, weight:0.6, evidence:'정해진 답이 없는 문제에 스스로 뛰어드는 분' },
+        { competencyId: 3,  weight:0.9, evidence:'Vue 또는 React 로 실제 서비스를 만들어 본 경험' },
+        { competencyId: 9,  weight:0.8, evidence:'화면 성능을 수치로 개선해 본 경험' },
+        { competencyId: 12, weight:0.7, evidence:'기획·디자인과 합의하며 범위를 조정해 본 경험' },
+        { competencyId: 5,  weight:0.7, evidence:'상태 관리 구조를 직접 설계해 본 경험' },
+        { competencyId: 17, weight:0.6, evidence:'정해진 답이 없는 문제에 스스로 뛰어드는 분' },
+        { competencyId: 6,  weight:0.6, evidence:'Jest · Playwright 로 테스트를 작성해 본 경험' },
         { competencyId: 1,  weight:0.5, evidence:'백엔드 API 를 함께 설계해 본 경험' },
+        { competencyId: 13, weight:0.6, evidence:'코드 리뷰를 주고받으며 품질을 맞춰 본 경험' },
       ],
       newCompetencies: [],
     },
 
     {
-      id: 15, questionsFromServer: true, source:'CRAWLED',
+      id: 15, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://hanbit-sys.example/careers/sre', collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'SRE (신입)', deadline:'2026-09-25',
       rawText:
@@ -943,15 +975,15 @@ const DATA = {
 · 온콜 대응 경험
 · SLO 를 스스로 높여 잡고 달성해 본 경험`,
       required: [
-        { competencyId: 3,  weight:0.9, evidence:'리눅스 서버와 컨테이너 환경을 다뤄 본 경험' },
-        { competencyId: 5,  weight:0.8, evidence:'장애 원인을 로그와 지표로 추적해 본 경험' },
-        { competencyId: 14, weight:0.8, evidence:'개선 결과를 수치로 증명해 본 경험' },
-        { competencyId: 8,  weight:0.8, evidence:'장애 대응 및 사후 분석 리포트 작성' },
-        { competencyId: 13, weight:0.6, evidence:'온콜 대응 경험' },
-        { competencyId: 20, weight:0.6, evidence:'SLO 를 스스로 높여 잡고 달성해 본 경험',
-          suggestion:'인재상·태도 항목입니다. 기존에 세운 기준을 스스로 올려 달성한 경험이 없습니다 — EKS 경험을 그 관점으로 다시 서술하세요.' },
+        { competencyId: 8,  weight:0.9, evidence:'리눅스 서버와 컨테이너 환경을 다뤄 본 경험' },
+        { competencyId: 16, weight:0.9, evidence:'장애 원인을 로그와 지표로 추적해 본 경험' },
+        { competencyId: 7,  weight:0.8, evidence:'Terraform · Ansible 등 IaC 로 인프라를 코드화해 본 경험' },
+        { competencyId: 9,  weight:0.8, evidence:'병목을 찾아 응답 속도를 개선해 본 경험' },
+        { competencyId: 14, weight:0.8, evidence:'장애 사후 분석으로 근본 원인을 규명해 본 경험' },
+        { competencyId: 18, weight:0.6, evidence:'온콜 대응 경험' },
+        { competencyId: 11, weight:0.8, evidence:'네트워크 · 운영체제 등 시스템 기초 지식' },
       ],
-      newCompetencies: ['SLI/SLO 정의'],
+      newCompetencies: ['카오스 엔지니어링'],
     },
 
   ],
@@ -960,7 +992,7 @@ const DATA = {
      SKALA 서류 전형 문항 구조를 가상 공고에 맞춰 각색했다. */
   questions: [
     {
-      id: 31, applicationId: 101, versions: [], charLimit: 700,
+      id: 31, applicationId: 101, charLimit: 700,
       prompt:'현재 본인이 어떤 갈림길에 서 있다고 느끼는지 구체적으로 설명하고, 당사 지원이 그 선택에 어떤 영향을 주는지 기술해 주십시오.',
       intent:'로열티와 산업 관심도. 회사 이름만 바꾸면 어디든 낼 수 있는 글인지 본다. 진짜로 방향이 갈리는 두 경로여야 한다 — "운영이냐 개발이냐"는 갈림길이 아니다.',
       asks:['지금 서 있는 갈림길', '당사 지원이 그 선택에 주는 영향'],
@@ -969,7 +1001,7 @@ const DATA = {
       aiDraft:'정해진 답이 없는 문제를 시스템 구조로 해결하는 백엔드 엔지니어가 되기 위해 세움테크에 지원합니다. 저는 통계를 전공해 데이터 분석 직무를 준비하던 중, 부트캠프에서 MSA 주문·결제 서비스를 구축하며 방향을 바꾸었습니다. 모놀리식 서비스를 5개 마이크로서비스로 분리하는 과정에서 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 로그를 거슬러 올라가며 원인을 추적한 끝에 결제 이벤트가 이중 발행되는 문제임을 확인했고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 이 과정에서 분석 결과를 해석하는 일보다, 문제의 원인을 구조에서 찾아 다시 일어나지 않게 만드는 일이 제게 맞는다는 것을 알았습니다. 대학원에 진학해 분석을 더 깊이 파고들 것인가, 서비스를 직접 만드는 개발자가 될 것인가 사이에서 고민하던 갈림길은 이때 정리되었습니다. 세움테크의 물류 플랫폼 주문·정산 도메인은 숫자 하나가 틀리면 고객의 신뢰가 무너지는 영역이고, 정해진 답이 없는 문제에 스스로 뛰어드는 사람을 찾는다고 이해했습니다. 제가 겪은 정합성 문제와 그것을 구조로 해결한 경험을 주문·정산 도메인에서 이어가겠습니다. 입사 후 1년은 도메인 용어와 정산 로직을 정확히 익히는 데 쓰고, 3년 안에는 정합성 검증을 자동화해 장애를 사전에 잡아내는 사람이 되겠습니다.',
     },
     {
-      id: 32, applicationId: 101, versions: [], charLimit: 700,
+      id: 32, applicationId: 101, charLimit: 700,
       prompt:'본인을 가장 크게 성장시킨 경험은 무엇이며, 그 과정에서 본인의 태도에 어떤 변화가 있었는지 기술해 주십시오.',
       intent:'직무 경험은 자소서 평가 요소 1위(34%)다. STAR로 쓰되 결과에 반드시 수치가 있어야 한다.',
       asks:['가장 크게 성장시킨 경험', '그 과정에서 태도에 생긴 변화'],
@@ -978,16 +1010,16 @@ const DATA = {
       aiDraft:'코드가 돌아가는 것과 서비스가 되는 것은 다르다는 것을 EKS 배포 파이프라인을 만들며 배웠습니다. 로컬에서만 돌던 서비스를 팀 공용 쿠버네티스 클러스터에 올리는 과제를 맡았을 때, 배포할 때마다 약 4분간 서비스가 끊겼습니다. 원인은 새 파드가 요청을 받을 준비를 마치기 전에 기존 파드가 종료되는 것이었습니다. readinessProbe와 롤링 업데이트 전략을 설정해 다운타임을 0초로 줄였고, 멀티 스테이지 빌드로 이미지 크기를 780MB에서 210MB로 줄여 배포 시간 자체도 단축했습니다. 같은 조의 다른 팀들이 평균 2분대 다운타임에 머물렀던 것과 비교하면, 무중단에 도달한 것은 저희 조가 유일했습니다. 이 과정에서 이미지 태그를 불변으로 관리하지 않으면 지금 어떤 버전이 떠 있는지 아무도 모른다는 것을 직접 겪었고, 이후 Harbor에 고유 태그 규칙을 세워 팀 전체가 따르도록 제안했습니다. 그전까지 저는 기능이 동작하면 제 몫이 끝났다고 생각했습니다. 지금은 배포와 운영까지가 설계의 일부라고 생각하며, 기능을 만들 때부터 이것이 어떻게 배포되고 어떻게 롤백될지를 먼저 확인하는 습관이 생겼습니다.',
     },
     {
-      id: 33, applicationId: 101, versions: [], charLimit: 700,
+      id: 33, applicationId: 101, charLimit: 700,
       prompt:'낯선 환경에서 자발적으로 최고 수준의 성과를 만들어 낸 경험을 서술하고, 그 과정에서 세운 목표와 전략을 기술해 주십시오.',
-      intent:'인재상 "자발적 도전 · 높은 목표 설정"을 직접 검증하는 문항이다. 목표를 명확히 정의했는지, 비교 가능한 수치로 최고 수준임을 증명했는지를 본다.',
+      intent:'인재상 "주도성·오너십"을 직접 검증하는 문항이다. 목표를 스스로 정의했는지, 비교 가능한 수치로 증명했는지를 본다.',
       asks:['낯선 환경에서의 자발적 성과', '세운 목표', '세운 전략'],
       usedExperienceIds: [4],
       draft:'',
       aiDraft:'남들이 통과 기준으로 삼는 지점을 시작점으로 잡는 것이 제 방식입니다. 쿠버네티스를 처음 접한 실습에서 과제 기준은 “파드가 정상적으로 뜰 것” 하나였습니다. 저는 여기에 “배포 중 요청이 단 한 건도 실패하지 않을 것”이라는 기준을 스스로 더했습니다. 낯선 환경이었고 참고할 팀도 없었기 때문에, 먼저 무엇이 다운타임을 만드는지부터 측정했습니다. 배포 중 1초 간격으로 헬스 체크를 걸어 로그를 남겼더니 평균 4분 12초 동안 요청이 실패하고 있었습니다. 원인을 파드 교체 순서로 좁힌 뒤 readinessProbe와 maxUnavailable 설정을 바꿔 가며 여덟 번을 다시 배포했고, 마지막에는 실패 요청 0건으로 무중단 배포에 도달했습니다. 덤으로 멀티 스테이지 빌드를 적용해 이미지를 780MB에서 210MB로 줄여 배포 자체를 3분에서 50초로 단축했습니다. 과제 기준만 맞췄다면 30분이면 끝났을 일이었지만, 기준을 올려 잡은 덕분에 지금은 어떤 서비스를 봐도 “이건 배포 중에 안 끊기나”를 먼저 묻게 되었습니다. 세움테크에서도 주어진 요구사항을 완성이 아니라 시작점으로 삼고, 그 위에 제가 세운 기준을 하나씩 더해 가겠습니다.',
     },
     {
-      id: 34, applicationId: 101, versions: [], charLimit: 1000,
+      id: 34, applicationId: 101, charLimit: 1000,
       prompt:'수행한 프로젝트에서 본인이 맡은 역할과, 프로젝트를 하며 아쉬웠던 점 및 그 개선 방향을 기술해 주십시오.',
       intent:'성공 결과만 나열하면 안 되는 문항. 내 역할의 구체성과, 아쉬움을 직면하고 개선한 태도를 본다.',
       asks:['내가 맡은 역할', '아쉬웠던 점', '개선 방향'],
@@ -996,7 +1028,7 @@ const DATA = {
       aiDraft:'MSA 주문·결제 서비스에서 저는 결제 도메인과 서비스 간 통신 설계를 맡았습니다. 5인 팀이 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하는 과제였고, 저는 주문과 결제 사이의 정합성을 책임졌습니다. 초기 구현에서는 결제 완료 이벤트를 서비스가 직접 호출로 전달했는데, 결제 서비스가 잠시 죽으면 주문이 통째로 유실됐습니다. Kafka로 이벤트를 비동기 발행하도록 바꾸었지만 이번에는 이중 발행으로 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 것이 원인이었고, Transactional Outbox 패턴을 적용해 불일치를 0건으로 만들었습니다. 아쉬웠던 점은 이 문제를 설계 단계가 아니라 통합 테스트에서야 발견했다는 것입니다. 저는 “서비스를 나눈다”는 결정에만 집중했고, 나눈 뒤에 트랜잭션이 어디서 끊기는지는 코드를 다 짜고 나서 확인했습니다. 그 결과 3일치 작업을 되돌려야 했습니다. 이후 프론트엔드 대시보드 프로젝트에서는 화면을 그리기 전에 API 계약과 상태 흐름을 먼저 문서로 고정했고, 그 덕분에 중복 API 호출을 24회에서 7회로 줄이며 초기 렌더 시간을 2.4초에서 0.9초로 단축할 수 있었습니다. 경계를 나누는 일은 나누는 순간이 아니라 나눈 뒤 무엇이 끊기는지를 먼저 그려 봐야 한다는 것이 이 프로젝트에서 얻은 교훈입니다. 지금은 새로운 기능을 설계할 때 가장 먼저 트랜잭션 경계와 실패 지점을 그림으로 그린 뒤 코드를 시작합니다. 세움테크의 주문·정산 도메인처럼 여러 시스템이 하나의 숫자를 함께 책임지는 환경에서는, 이 습관이 장애를 사후에 수습하는 대신 사전에 없애는 데 쓰일 수 있다고 생각합니다.',
     },
     {
-      id: 51, applicationId: 102, versions: [], charLimit: 800,
+      id: 51, applicationId: 102, charLimit: 800,
       prompt:'데이터 정합성이 중요한 시스템을 다뤄 본 경험과, 정합성을 어떻게 보장했는지 기술해 주십시오.',
       intent:'이 회사의 핵심 업무가 청구 정산이다. 정합성을 “신경 썼다”가 아니라 어떤 장치로 보장했는지를 본다.',
       asks:['정합성이 중요했던 상황', '정합성을 보장한 방법'],
@@ -1005,7 +1037,7 @@ const DATA = {
       aiDraft:'정합성은 주의 깊게 짜는 것이 아니라 구조로 보장해야 한다는 것을 MSA 주문·결제 서비스에서 배웠습니다. 모놀리식 주문 서비스를 5개 마이크로서비스로 분리하자 결제 상태 불일치가 테스트 100건 중 12건 발생했습니다. 원인은 DB 커밋과 메시지 발행이 하나의 트랜잭션이 아니라는 데 있었습니다. 애플리케이션 코드에서 순서를 조정하는 방식으로는 재현 조건을 줄일 수 있을 뿐 없앨 수 없다고 판단해, Transactional Outbox 패턴을 도입했습니다. 이벤트를 같은 트랜잭션 안에서 Outbox 테이블에 적재하고 별도 릴레이가 발행하도록 바꾸자 불일치가 0건이 되었습니다. 주식 거래 API 에서도 같은 관점으로 접근해, 엔드포인트 18개의 에러 응답 형식을 1종으로 통일하고 DTO 검증을 표준화해 연동 시 문의를 9건에서 1건으로 줄였습니다. 청구 정산처럼 숫자 하나가 곧 신뢰인 도메인에서는, 사람이 조심하는 대신 구조가 막아 주도록 설계하겠습니다.',
     },
     {
-      id: 52, applicationId: 102, versions: [], charLimit: 600,
+      id: 52, applicationId: 102, charLimit: 600,
       prompt:'맡은 일을 끝까지 마무리한 경험을 기술해 주십시오.',
       intent:'책임감 문항. 끝까지 했다는 서술이 아니라, 중간에 그만둘 이유가 있었는데도 끝낸 근거를 본다.',
       asks:['끝까지 마무리한 경험'],
@@ -1014,27 +1046,25 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 41, applicationId: 105, versions: [], charLimit: 800,
+      id: 41, applicationId: 105, charLimit: 800,
       prompt:'화면과 API 를 함께 개발한 경험과, 그 과정에서 두 쪽을 어떻게 맞췄는지 기술해 주십시오.',
       intent:'풀스택 지원자에게 가장 중요한 문항. 두 영역을 다 만졌다는 나열이 아니라, 경계에서 무엇을 합의했는지를 본다.',
       asks:['화면과 API 를 함께 개발한 경험', '두 쪽을 맞춘 방법'],
       usedExperienceIds: [3],
       draft:'화면을 그리기 전에 API 계약을 먼저 고정하는 것이 두 영역을 맞추는 가장 빠른 길이었습니다. Vue 3 관리자 대시보드를 맡았을 때, 화면 7개가 각자 필요한 데이터를 그때그때 호출하면서 같은 API 를 중복으로 부르고 있었습니다. 초기 렌더에만 24회의 요청이 나갔고 첫 화면이 뜨는 데 2.4초가 걸렸습니다. 저는 화면별 요구 데이터를 표로 정리해 백엔드와 함께 응답 스키마를 하나로 합의한 뒤, Pinia 로 전역 상태를 통합하고 Axios 인터셉터에서 인증과 에러를 한 곳으로 모았습니다. 그 결과 요청을 7회로 줄이고 초기 렌더 시간을 0.9초로 단축했습니다. 같은 기간 다른 조들이 평균 1.8초에 머물렀던 것과 비교하면 눈에 띄는 차이였습니다. 이 경험 이후로는 화면과 API 중 어느 쪽을 먼저 잡느냐가 아니라, 둘 사이의 계약을 언제 고정하느냐가 일정을 결정한다고 생각하게 되었습니다.',
       aiDraft:'',
-      versionsSeed: 2,
     },
     {
-      id: 42, applicationId: 105, versions: [], charLimit: 600,
+      id: 42, applicationId: 105, charLimit: 600,
       prompt:'기획·디자인과 의견이 달랐을 때 범위를 조정한 경험을 기술해 주십시오.',
-      intent:'갈등 조율 문항. 감정 대립을 피했는지, 근거를 놓고 좁혔는지를 본다.',
+      intent:'협업·소통 문항. 감정 대립을 피했는지, 근거를 놓고 좁혔는지를 본다.',
       asks:['의견이 달랐던 상황', '범위를 조정한 방법'],
       usedExperienceIds: [6],
       draft:'이견은 주장으로 좁히는 것이 아니라 측정 가능한 기준으로 좁혔습니다. 학과 학회 운영진 8명이 정기 세미나 일정을 두고 두 편으로 갈려 3주간 결론을 내지 못했습니다. 양쪽 모두 참석률이 오를 것이라 주장했지만 근거는 각자의 경험뿐이었습니다. 저는 두 안을 각각 참석 가능 인원수로 환산해 표로 만든 뒤, 어느 쪽이 맞는지 말로 정하지 말고 4주간 시범 운영한 다음 출석률로 결정하자고 제안했습니다. 시범 운영 결과 한 안의 출석률이 62%에서 84%로 올랐고, 그 안이 만장일치로 채택되어 이후 학회 규칙이 되었습니다. 의견이 다를 때 필요한 것은 설득이 아니라 양쪽이 함께 인정할 수 있는 측정 기준이라는 것을 이때 배웠습니다.',
       aiDraft:'',
-      versionsSeed: 1,
     },
     {
-      id: 61, applicationId: 109, versions: [], charLimit: 700,
+      id: 61, applicationId: 109, charLimit: 700,
       prompt:'서비스가 멈췄을 때 원인을 끝까지 추적해 본 경험을 기술해 주십시오.',
       intent:'SRE 의 핵심 문항. 복구했다가 아니라 원인을 어디까지 좁혔는지를 본다.',
       asks:['장애 상황', '원인을 추적한 방법'],
@@ -1043,7 +1073,7 @@ const DATA = {
       aiDraft:'',
     },
     {
-      id: 62, applicationId: 109, versions: [], charLimit: 600,
+      id: 62, applicationId: 109, charLimit: 600,
       prompt:'개선 결과를 수치로 증명해 본 경험을 기술해 주십시오.',
       intent:'비교 대상 없는 단독 수치는 감점이다. 무엇 대비 얼마나인지를 본다.',
       asks:['개선한 것', '수치로 증명한 방법'],
@@ -1054,16 +1084,16 @@ const DATA = {
   ],
 
   /* --- 지원 현황 ------------------------------------------- */
+  /* --- 지원서 -------------------------------------------------
+     status·제출 여부·면접 결과를 두지 않는다. 우리는 알 수 없다.
+     진행 상태는 questions 의 draft 유무에서 파생한다. */
   applications: [
-    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어',   status:'WRITING',   dday:3,  match:69, remainingQuestions:'2 / 4' },
-    { id:102, postingId:10, company:'다온소프트', position:'서버 개발',         status:'WRITING',   dday:6,  match:68, remainingQuestions:'2 / 2' },
-    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어',   status:'PLANNED',   dday:12, match:null, remainingQuestions:'— / 4' },
-    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입',     status:'PLANNED',   dday:19, match:null, remainingQuestions:'— / 3' },
-    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어',   status:'SUBMITTED', dday:2,  match:86, remainingQuestions:'0 / 2' },
-    { id:106, postingId:null, company:'미르테크',   position:'백엔드 엔지니어',   status:'SUBMITTED', dday:5,  match:72, remainingQuestions:'0 / 3' },
-    { id:107, postingId:null, company:'아라시스템', position:'클라우드 엔지니어', status:'INTERVIEW', dday:4,  match:79, remainingQuestions:'0 / 4' },
-    { id:109, postingId:15, company:'한빛시스템', position:'SRE',            status:'WRITING',   dday:23, match:null, remainingQuestions:'1 / 2' },
-    { id:108, postingId:null, company:'세진데이터', position:'데이터 엔지니어',   status:'RESULT',    dday:9,  match:64, remainingQuestions:'0 / 3' },
+    { id:101, postingId:9,  company:'세움테크',   position:'백엔드 엔지니어' },
+    { id:102, postingId:10, company:'다온소프트', position:'서버 개발' },
+    { id:103, postingId:11, company:'한빛시스템', position:'플랫폼 엔지니어' },
+    { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입' },
+    { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어' },
+    { id:109, postingId:15, company:'한빛시스템', position:'SRE' },
   ],
 
 
@@ -1076,7 +1106,7 @@ const DATA = {
       situation:'order-service · payment-service 등 5개 모듈과 docker-compose, Eureka 설정이 있습니다.',
       action:'Kafka 프로듀서와 OutboxEvent 엔티티, 스케줄러 릴레이 구현이 확인됩니다.',
       evidence:[{ type:'REPO', ref:'msa-order-service', quote:'@Scheduled(fixedDelay = 500) public void relay()' }],
-      questions:[], suggestedCompetencyIds:[1,2,8,9],
+      questions:[], suggestedCompetencyIds:[5,2,1,14],
     },
     {
       key:'oss', title:'오픈소스 라이브러리 버그 수정 기여', period:'2026.06', category:'개인 프로젝트',
@@ -1093,7 +1123,7 @@ const DATA = {
         { field:'result', q:'머지까지 얼마나 걸렸고, 리뷰에서 몇 번 수정 요청을 받았나요? 이 라이브러리를 쓰는 사용자 규모를 아신다면 함께 적어 주세요.',
           why:'오픈소스 기여는 규모가 곧 임팩트입니다. 저장소 스타 수나 다운로드 수는 읽었지만 본인이 체감한 것은 다를 수 있습니다.' },
       ],
-      suggestedCompetencyIds:[5,11,9,12],
+      suggestedCompetencyIds:[14,6,13,17],
     },
     {
       key:'algo', title:'알고리즘 스터디 12주 운영', period:'2025.09 – 2025.12', category:'대외활동',
@@ -1110,7 +1140,7 @@ const DATA = {
         { field:'result', q:'6주차에 방식을 바꾼 뒤 이탈률이나 참여율이 어떻게 달라졌나요? 숫자로 답해 주세요.',
           why:'방식을 바꾼 커밋은 있지만 그 효과를 측정한 기록이 없습니다. 이 숫자가 있어야 “운영했다”가 “개선했다”가 됩니다.' },
       ],
-      suggestedCompetencyIds:[12,9,18,13],
+      suggestedCompetencyIds:[11,13,18,12],
     },
     {
       key:'hack', title:'교내 해커톤 실시간 투표 서비스', period:'2025.05', category:'수상·자격',
@@ -1127,7 +1157,7 @@ const DATA = {
         { field:'result', q:'동시 투표를 몇 건까지 처리했고, 개선 전에는 얼마나 밀렸나요?',
           why:'Redis 를 쓴 것은 확인되지만 그것이 얼마나 효과가 있었는지는 측정 기록이 없습니다.' },
       ],
-      suggestedCompetencyIds:[1,8,14,12],
+      suggestedCompetencyIds:[9,4,2,3],
     },
     {
       key:'capstone', title:'학부 캡스톤 · 설비 센서 이상 탐지', period:'2025.03 – 2025.06', category:'팀 프로젝트',
@@ -1144,7 +1174,7 @@ const DATA = {
         { field:'result', q:'최종 재현율과 오탐률이 얼마였나요? 기존 방식이나 베이스라인과 비교할 수 있다면 함께 적어 주세요.',
           why:'평가 코드는 있지만 최종 수치가 저장소에 없습니다. 비교 대상 없는 단독 수치는 감점 사유입니다.' },
       ],
-      suggestedCompetencyIds:[5,11,9,16],
+      suggestedCompetencyIds:[4,14,15,12],
     },
   ],
 
@@ -1177,6 +1207,8 @@ const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&':'&amp;','<':'&lt;','>'
 const byId = id => DATA.competencies.find(c => c.id === id);
 const P = () => DATA.postings.find(x => x.id === DATA.activePostingId);
 const CAT = { TECH:'tech', SOFT:'soft', DOMAIN:'domain', VALUE:'value' };
+const FLAB  = { situation:'S', task:'T', action:'A', result:'R' };
+const FIELDS = ['situation', 'task', 'action', 'result'];   // starbar 순서 = S T A R
 const CATLAB = { TECH:'기술', SOFT:'소프트', DOMAIN:'도메인', VALUE:'인재상' };
 
 /* ---------- 화면 전환 ---------- */
@@ -1211,20 +1243,34 @@ const appMatch    = app => { const p = postingOf(app); return p ? Math.round(com
 /* 공고 하나의 자소서 진행 — 카드·상세가 같은 함수를 쓴다 */
 function essayProgress(posting){
   const app = appOfPosting(posting);
-  if (!app) return { state:'NO_APP', label:'미지원', done:0, total:0, ratio:0, versions:0 };
+  if (!app) return { state:'NO_APP', label:'', done:0, total:0, ratio:0, thin:0 };
   const qs = DATA.questions.filter(q => q.applicationId === app.id);
-  if (!qs.length) return { state:'NO_Q', label:'문항 미등록', done:0, total:0, ratio:0, versions:0, app };
+  if (!qs.length) return { state:'NO_Q', label:'', done:0, total:0, ratio:0, thin:0, app };
   const done = qs.filter(q => (q.draft || '').trim()).length;
+  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
   return {
-    state: done === qs.length ? 'DONE' : 'WRITING',
+    state: done === qs.length ? 'DONE' : done === 0 ? 'EMPTY' : 'WRITING',
+    thin,
     label: `${done} / ${qs.length}문항`,
     done, total: qs.length, ratio: done / qs.length,
-    versions: qs.reduce((a, q) => a + (q.versions || []).length, 0), app,
+    app,
   };
 }
 const appQs       = app => DATA.questions.filter(q => q.applicationId === app.id);
 const appRemain   = app => { const qs = appQs(app); return qs.length ? `${qs.filter(q => !(q.draft||'').trim()).length} / ${qs.length}` : '— / —'; };
-const usedCount   = expId => DATA.questions.filter(q => (q.usedExperienceIds || []).includes(expId)).length;
+/* 이 경험이 실제로 쓰인 정도 — 관측 가능한 것만 센다.
+   ① 근거로 걸려 있고  ② 본문이 실제로 작성된 답변  ③ 서로 다른 공고 수
+   공고가 직무 단위라 같은 기업의 다른 직무에 쓰면 2건으로 센다.
+   체크만 하고 안 쓴 문항은 세지 않는다. 제출 여부는 알 수 없으므로 보지 않는다. */
+const usedIn = expId => {
+  const qs = DATA.questions.filter(q =>
+    (q.usedExperienceIds || []).includes(expId) && (q.draft || '').trim());
+  const postingIds = new Set(qs.map(q => {
+    const a = DATA.applications.find(x => x.id === q.applicationId);
+    return a ? a.postingId : null;
+  }).filter(Boolean));
+  return { questions: qs.length, postings: postingIds.size };
+};
 const postingOfQ  = q => postingOf(DATA.applications.find(a => a.id === q.applicationId)) || P();
 /* 오기 감지 대상 = 내가 아는 모든 기업 − 지금 쓰고 있는 그 기업.
    고정 배열로 두면 공고를 바꿀 때마다 어긋난다. */
@@ -1244,7 +1290,6 @@ function renderS1(){
   $('#s1cnt').textContent = exps.length;
   const tagged = new Set(exps.flatMap(e => e.competencyIds));
   $('#s1cov').textContent = tagged.size;
-  $('#s1star').textContent = exps.filter(e => e.situation && e.task && e.action && e.result).length;
 
   $('#s1chips').innerHTML = DATA.competencies
     .filter(c => tagged.has(c.id))
@@ -1269,8 +1314,17 @@ function renderS1(){
       <div class="cardbody">
         <div style="display:flex; gap:6px; margin-bottom:12px">
           <span class="pill mut">${esc(e.category)}</span>
-          ${e.source === 'AI_INTAKE' ? `<span class="pill info" title="${esc((e.evidenceRefs||[]).join(', '))}">포폴 인테이크</span>` : ''}
-          ${usedCount(e.id) ? `<span class="pill acc">자소서 ${usedCount(e.id)}회 사용</span>` : ''}
+          ${e.source === 'AI_INTAKE' ? (() => {
+            const ed = e.editedFields || [], refs = e.evidenceRefs || [];
+            // AI 문장이 하나도 안 남았으면 근거를 달지 않는다. 통째로 다시 쓴 문장에
+            // 'PR #412 · merged' 를 붙이면 근거가 아무 데나 찍히는 도장이 된다.
+            if (!refs.length) return `<span class="pill mut" title="포폴 인테이크에서 시작했지만 AI 가 쓴 문장은 남아 있지 않습니다">포폴 인테이크 · 본인이 다시 씀</span>`;
+            const t = refs.join(', ') + (ed.length ? ` · ${ed.map(f => FLAB[f]).join('·')} 문장은 본인이 고쳤습니다` : '');
+            return `<span class="pill info" title="${esc(t)}">포폴 인테이크${ed.length ? ' · 일부 수정' : ''}</span>`;
+          })() : ''}
+          ${(() => { const u = usedIn(e.id); return u.postings
+            ? `<span class="pill acc" title="본문이 작성된 답변에 근거로 걸린 공고 수. 공고는 직무 단위라 같은 기업의 다른 직무는 따로 센다.">자소서 ${u.postings}개 공고에 사용</span>`
+            : ''; })()}
         </div>
         <dl style="display:grid; grid-template-columns:auto 1fr; gap:5px 12px; font-size:12.5px; margin:0">
           <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(e.situation)}</dd>
@@ -1323,7 +1377,7 @@ function toggleBm(id){
   toast(bookmarks.has(id) ? '즐겨찾기에 담았습니다' : '즐겨찾기에서 뺐습니다');
 }
 const bmIcon = on => `<svg viewBox="0 0 16 16" width="12" height="12" aria-hidden="true"><path d="M3.6 1.6h8.8v12.8L8 11.2 3.6 14.4z" fill="${on ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="1.3" stroke-linejoin="round"/></svg>`;
-const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '저장됨' : '저장') : ''}</button>`;
+const bmBtn = (id, label) => `<button class="bm" data-bm="${id}" aria-pressed="${isBm(id)}" aria-label="${isBm(id) ? '즐겨찾기 해제' : '즐겨찾기 추가'}" data-note="bookmark (N:M)">${bmIcon(isBm(id))}${label ? (isBm(id) ? '즐겨찾기됨' : '즐겨찾기') : ''}</button>`;
 function bindBm(root){
   $$(`${root} [data-bm]`).forEach(b => b.addEventListener('click', e => { e.stopPropagation(); toggleBm(+b.dataset.bm); }));
 }
@@ -1342,7 +1396,6 @@ function openDetail(id, tab){
 
 function renderDetail(){
   const p = P(), m = computeMatch(p), app = appOfPosting(p), ep = essayProgress(p);
-  const siblings = DATA.postings.filter(x => x.company === p.company && x.id !== p.id && dday(x.deadline) >= 0);
   const gaps = m.rows.filter(r => r.isGap).length;
   const mc = m.overall >= SCORE.RECOMMEND ? 'var(--matched)' : m.overall >= SCORE.WEAK ? 'var(--info)' : 'var(--gap)';
   const d = dday(p.deadline);
@@ -1354,10 +1407,6 @@ function renderDetail(){
       <div class="co">${esc(p.company)}</div>
       <h2 id="dth">${esc(p.position)}</h2>
       <div style="font-size:11.5px; color:var(--faint); margin-top:4px; font-family:var(--mono)">${esc(p.sourceUrl || '직접 입력')}</div>
-      ${siblings.length ? `<div style="display:flex; align-items:center; gap:7px; margin-top:9px; flex-wrap:wrap">
-        <span style="font-size:11.5px; color:var(--muted)">같은 기업 다른 직무</span>
-        ${siblings.map(x => `<button class="btn sm" data-sib="${x.id}">${esc(x.position)} · ${Math.round(computeMatch(x).overall*100)}%</button>`).join('')}
-      </div>` : ''}
     </div>
     <div class="nums">
       <div class="num"><b style="color:${mc}">${Math.round(m.overall*100)}%</b><span>매칭</span></div>
@@ -1374,13 +1423,9 @@ function renderDetail(){
         <span class="pill" style="color:${vc}">${vl}</span>
         <span style="font-size:12.5px; color:var(--ink)">${esc(a.headline)}</span>
         ${busy ? `<span class="pill mut">${ASSESS_LABEL[st.state]}</span>` : ''}
-        <button class="btn sm" id="dtToMatch" style="margin-left:auto">평가 보기 →</button>
       </div>`;
     })()}`;
   bindBm('#dtHead');
-  $$('#dtHead [data-sib]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.sib, dtTab)));
-  const tm = $('#dtToMatch');
-  if (tm) tm.addEventListener('click', () => { dtTab = 'match'; paintDtTab(); });
 
   $('#dtEssayBadge').innerHTML = ep.total
     ? `<span class="pill ${ep.state === 'DONE' ? 'ok' : 'mut'}">${ep.done}/${ep.total}</span>`
@@ -1388,9 +1433,14 @@ function renderDetail(){
     : p.questionsFromServer === false ? `<span class="pill warn">문항 없음</span>` : '';
 
   renderJD();
+  bindRelated();
   renderS3();
   renderEssay();
   paintDtTab();
+}
+
+function bindRelated(){
+  $$('#dtPost [data-rel]').forEach(b => b.addEventListener('click', () => openDetail(+b.dataset.rel, 'post')));
 }
 
 function paintDtTab(){
@@ -1415,6 +1465,49 @@ function parseJD(raw){
   return { head, sections: out };
 }
 
+
+/* 관련 공고 — 같은 기업 다른 직무 / 다른 기업 같은 직무.
+   role 은 수집 시 분류하는 직무 계열 taxonomy 다 (기업이 쓰는 직무명은 제각각이라
+   문자열로는 못 묶는다 — "서버 개발"과 "백엔드 엔지니어"는 같은 계열이다). */
+const ROLE_LABEL = { BACKEND:'백엔드', FRONTEND:'프론트엔드', FULLSTACK:'풀스택', PLATFORM:'플랫폼·인프라' };
+
+function relatedHtml(p){
+  const live = DATA.postings.filter(x => x.id !== p.id && dday(x.deadline) >= 0);
+  const sameCo   = live.filter(x => x.company === p.company);
+  const sameRole = live.filter(x => x.role === p.role && x.company !== p.company);
+  if (!sameCo.length && !sameRole.length) return '';
+
+  const row = x => {
+    const m = Math.round(computeMatch(x).overall * 100);
+    const mc = m >= 85 ? 'var(--matched)' : m >= 70 ? 'var(--info)' : 'var(--gap)';
+    return `<button class="btn rel-post" data-rel="${x.id}" style="justify-content:flex-start; gap:10px; padding:9px 12px">
+      <span class="jc-logo" style="width:28px; height:28px; font-size:12px">${esc(x.company.slice(0,1))}</span>
+      <span style="text-align:left; line-height:1.4">
+        <span style="display:block; font-size:12.5px; color:var(--ink)">${esc(x.position)}</span>
+        <span style="display:block; font-size:11px; color:var(--muted)">${esc(x.company)} · D-${dday(x.deadline)}</span>
+      </span>
+      <span class="mono" style="margin-left:auto; font-weight:600; color:${mc}">${m}%</span>
+    </button>`;
+  };
+
+  return `<div class="card" data-note="GET /api/postings?company= / ?role=">
+    <div class="cardhead"><h3>관련 공고</h3><span class="n">지금 매칭 ${Math.round(computeMatch(p).overall*100)}%</span></div>
+    <div class="cardbody" style="display:grid; gap:16px">
+      ${sameCo.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">같은 기업 다른 직무</div>
+        <div style="display:grid; gap:7px">${sameCo.map(row).join('')}</div>
+      </div>` : ''}
+      ${sameRole.length ? `<div>
+        <div style="font-size:11.5px; font-weight:600; color:var(--muted); margin-bottom:8px">다른 기업 같은 직무 · ${esc(ROLE_LABEL[p.role] || p.role)}</div>
+        <div style="display:grid; gap:7px">${sameRole.map(row).join('')}</div>
+      </div>` : ''}
+      <p style="font-size:11.5px; color:var(--muted); border-top:1px dashed var(--border); padding-top:10px">
+        같은 직무라도 회사마다 요구 역량과 가중치가 달라 매칭이 갈린다. 공고는 기업이 아니라 <b>직무 단위 엔티티</b>다.
+      </p>
+    </div>
+  </div>`;
+}
+
 function renderJD(){
   const p = P(), { head, sections } = parseJD(p.rawText);
   $('#dtPost').innerHTML = `
@@ -1430,14 +1523,35 @@ function renderJD(){
       </div>
     </div>
 
-    <div class="card" data-note="posting_competency">
+    <div class="card" style="margin-bottom:16px" data-note="posting_competency">
       <div class="cardhead">
-        <h3>추출된 요구 역량</h3>
-        <span class="n" id="s2n">${p.required.length}건</span>
-        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출 · temperature 0.0</span>
+        <h3>요구 역량</h3>
+        <span class="n">${p.required.length}개</span>
+        <span class="pill acc" style="margin-left:8px">AX-1 · 수집 배치가 추출</span>
       </div>
-      <div class="cardbody" id="s2out"></div>
+      <div class="cardbody">
+        <div class="chips">
+          ${[...p.required].sort((a, b) => b.weight - a.weight).map(r => {
+            const c = byId(r.competencyId);
+            return `<span class="chip ${CAT[c.category]}" title="${esc(r.evidence)}">${esc(c.name)}</span>`;
+          }).join('')}
+        </div>
+        <p style="font-size:11px; color:var(--muted); margin-top:10px">
+          공고 원문에서 뽑은 역량이다. 가중치와 내 경험의 커버리지는 <b>매칭</b> 탭에서 본다.
+        </p>
+
+        ${p.newCompetencies.length ? `
+          <div style="margin-top:14px; padding-top:12px; border-top:1px dashed var(--border)" data-note="newCompetencies">
+            <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:7px">
+              역량 사전에 없는 표현 ${p.newCompetencies.length}개 · 승인 필요
+            </div>
+            <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
+            <p style="font-size:11px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
+          </div>` : ''}
+      </div>
     </div>
+
+    ${relatedHtml(p)}
 
     <div class="noteonly" style="margin-top:12px">
       <div style="font-size:11px; color:var(--muted); margin-bottom:6px">수집 배치 기록 · 읽기 전용</div>
@@ -1447,35 +1561,6 @@ function renderJD(){
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="s2">200</span> <span class="t">{ required: ${p.required.length}, newCompetencies: ${p.newCompetencies.length}, latencyMs: 1240 }</span></div>
         <div><span class="t">${esc(p.collectedAt || '—')}</span> <span class="m">UPSERT</span> <span class="t">posting_competency × ${p.required.length}</span></div>
       </div>
-    </div>`;
-  paintS2Result();
-}
-
-function paintS2Result(){
-  const p = P();
-  $('#s2out').innerHTML = `
-    <div style="display:flex; flex-direction:column; gap:10px">
-      ${p.required.map(r => { const c = byId(r.competencyId); const ev = DATA.experiences.filter(e => e.competencyIds.includes(r.competencyId)); return `
-        <div style="display:grid; grid-template-columns:118px 1fr auto; gap:12px; align-items:center">
-          <span class="chip ${ev.length ? CAT[c.category] : 'on-gap'}" style="justify-content:center">${esc(c.name)}</span>
-          <div>
-            <div class="meter ${ev.length ? '' : 'is-gap'}"><i style="width:${Math.round(r.weight*100)}%"></i></div>
-            <div style="font-size:11px; color:var(--faint); margin-top:4px">“${esc(r.evidence)}”</div>
-          </div>
-          <span class="mono" style="font-size:11.5px; color:var(--muted)">${r.weight.toFixed(1)}</span>
-        </div>`; }).join('')}
-    </div>
-
-    ${p.newCompetencies.length ? `
-      <div style="margin-top:18px; padding:12px 14px; background:var(--gap-soft); border:1px solid var(--gap); border-radius:3px" data-note="newCompetencies">
-        <div style="font-size:11.5px; font-weight:600; color:var(--gap); margin-bottom:6px">역량 사전에 없는 표현 ${p.newCompetencies.length}개 — 승인 필요</div>
-        <div class="chips">${p.newCompetencies.map(n => `<span class="chip value">${esc(n)}</span>`).join('')}</div>
-        <p style="font-size:11.5px; color:var(--muted); margin-top:8px">AI가 사전을 마음대로 늘리지 못하게 격리한다. 사람이 승인해야 <code>competency</code> 마스터에 들어간다.</p>
-      </div>` : ''}
-
-    <div style="margin-top:18px; padding-top:14px; border-top:1px dashed var(--border); font-size:11.5px; color:var(--muted)">
-      이 목록은 <b>사용자가 요청해서 만든 것이 아니다.</b> 공고를 수집하는 배치가 적재 시점에 AX-1 추출까지 끝내 둔다 —
-      그래서 이 화면을 열 때 기다릴 일이 없고, 파서와 프롬프트는 서비스 운영자만 손댄다.
     </div>`;
 }
 
@@ -1855,28 +1940,20 @@ function paintS4Live(q, list){
       <span style="position:absolute; left:80%; top:-2px; width:1px; height:11px; background:var(--ink); opacity:.55"></span>
     </div>
     <span class="mono" style="font-size:12px; color:${over || thin ? 'var(--gap)' : 'var(--matched)'}; font-variant-numeric:tabular-nums">${s4text.length} / ${q.charLimit}자</span>`;
-  const side = $('#s4side');
-  if (side){ side.innerHTML = s4SideHtml(q, list); bindS4Side(list); }
+  const lint = $('#s4lint');
+  if (lint) lint.innerHTML = s4LintHtml(q);
 }
 
 function bindS4Side(list){
   $$('#s4side .s4ex').forEach(c => c.addEventListener('change', () => {
     s4used = $$('#s4side .s4ex').filter(x => x.checked).map(x => +x.value);
     const q2 = DATA.questions.find(x => x.id === s4qid); q2.usedExperienceIds = s4used;
+    const n = $('#s4side .cardhead .n'); if (n) n.textContent = `${s4used.length}건`;
     paintS4Live(q2, list);
-  }));
-  $$('#s4side [data-ver]').forEach(b => b.addEventListener('click', () => {
-    const q2 = DATA.questions.find(x => x.id === s4qid);
-    const v = q2.versions.find(x => x.v === +b.dataset.ver);
-    s4text = v.content; q2.draft = s4text; renderEssay();
-    toast(`v${v.v} 로 되돌렸습니다`);
   }));
 }
 
-function s4SideHtml(q, list){
-  const issues = lint(s4text, q);
-  const problems = issues.filter(i => i.level !== 'info');
-  const notes = issues.filter(i => i.level === 'info');
+function s4EvidenceHtml(q, list){
   return `
       <div class="card" data-note="answer_experience">
         <div class="cardhead"><h3>근거 경험</h3><span class="n">${s4used.length}건</span></div>
@@ -1890,27 +1967,20 @@ function s4SideHtml(q, list){
             체크한 경험의 id 가 <code>usedExperienceIds</code> 로 프롬프트에 들어가고, 저장 시 <code>answer_experience</code> 에 기록된다. AI가 무엇을 근거로 썼는지 DB가 기억한다.
           </p>
         </div>
-      </div>
+      </div>`;
+}
 
-      <div class="card" data-note="answer · version 이력">
-        <div class="cardhead"><h3>저장된 버전</h3><span class="n">${(q.versions||[]).length}개</span></div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:7px">
-          ${(q.versions||[]).length ? [...q.versions].reverse().map(v => `
-            <div style="display:flex; gap:8px; align-items:center; font-size:11.5px">
-              <span class="pill ${v.source === 'AI_DRAFT' ? 'acc' : 'mut'}">v${v.v}</span>
-              <span style="color:var(--muted)">${esc(v.at)} · ${v.len}자 · ${v.source === 'AI_DRAFT' ? 'AI 초안' : '직접 작성'}</span>
-              <button class="btn sm" data-ver="${v.v}" style="margin-left:auto">되돌리기</button>
-            </div>`).join('')
-          : '<p style="font-size:11.5px; color:var(--faint)">아직 저장한 버전이 없습니다. 자소서는 고쳐 쓰는 게 본질이라 덮어쓰지 않고 버전을 쌓습니다.</p>'}
-        </div>
-      </div>
-
+function s4LintHtml(q){
+  const issues = lint(s4text, q);
+  const problems = issues.filter(i => i.level !== 'info');
+  const notes = issues.filter(i => i.level === 'info');
+  return `
       <div class="card" data-note="문자열 규칙 · AI 아님">
         <div class="cardhead">
           <h3>문장 점검</h3>
           <span class="n" style="color:${problems.length ? 'var(--gap)' : 'var(--matched)'}">${problems.length ? problems.length + '건' : '이상 없음'}</span>
         </div>
-        <div class="cardbody" style="display:flex; flex-direction:column; gap:10px">
+        <div class="cardbody" style="display:grid; gap:12px; grid-template-columns:repeat(auto-fit,minmax(300px,1fr))">
           ${problems.length ? problems.map(i => `
             <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
@@ -1921,16 +1991,16 @@ function s4SideHtml(q, list){
             </div>`).join('')
           : '<p style="font-size:12px; color:var(--matched)">분량 · 기업명 · 금지 표현 · 정량 근거 · 비교 기준 · 요구사항 · 두괄식 모두 통과했습니다.</p>'}
           ${notes.map(i => `
-            <div style="display:flex; flex-direction:column; gap:3px; padding-top:9px; border-top:1px dashed var(--border)">
+            <div style="display:flex; flex-direction:column; gap:3px">
               <div style="display:flex; gap:6px; align-items:center">
                 <span class="pill info">${i.label}</span>
                 <span style="font-size:10px; color:var(--faint); font-family:var(--mono)">${esc(i.rank)}</span>
               </div>
               <span style="font-size:12px; color:var(--muted); padding-left:2px">${esc(i.msg)}</span>
             </div>`).join('')}
-          <p style="font-size:11px; color:var(--muted); border-top:1px solid var(--border); padding-top:9px">
-            여섯 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
-          </p>
+        </div>
+        <div style="padding:0 18px 14px; font-size:11px; color:var(--muted)">
+          여덟 항목 <b>전부 문자열 규칙</b>이다. LLM을 빼도 그대로 동작한다 — 이게 이 서비스가 AI 없이도 성립하는 근거다.
         </div>
       </div>`;
 }
@@ -1938,6 +2008,7 @@ function s4SideHtml(q, list){
 function renderEssay(){
   const p = P();
   const app = appOfPosting(p);
+  const ep = essayProgress(p);
 
   if (!app){
     $('#dtEssay').innerHTML = `
@@ -1949,7 +2020,7 @@ function renderEssay(){
     $('#esMkApp').addEventListener('click', () => {
       openApp();
       $('#apCo').value = p.company; $('#apPos').value = p.position;
-      $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+      $('#apDday').value = dday(p.deadline);
     });
     return;
   }
@@ -1991,15 +2062,15 @@ function renderEssay(){
       <div class="cardhead"><h3>지원서</h3><span class="n">${list.length}문항</span></div>
       <div class="cardbody" style="padding:10px; display:flex; flex-direction:column; gap:10px">
         <div style="font-size:11px; color:var(--faint); display:flex; gap:8px; flex-wrap:wrap">
-          <span>${esc(STATUS[app.status].label)}</span>
-          <span>미작성 ${appRemain(app)}문항</span>
+          <span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>
+          <span>${esc(ep.label)}</span>
         </div>
         <button class="btn sm" data-addQ2="${app.id}" style="justify-content:center">＋ 문항 추가</button>
         <div style="display:flex; flex-direction:column; gap:6px; border-top:1px dashed var(--border); padding-top:9px">
         ${list.map(x => `
           <button class="qitem" data-q="${x.id}" aria-current="${x.id === s4qid ? 'true' : 'false'}">
             <span style="font-size:12px; line-height:1.5">${esc(x.prompt.length > 44 ? x.prompt.slice(0,44) + '…' : x.prompt)}</span>
-            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}${(x.versions||[]).length ? ' · v' + x.versions.length : ''}</span>
+            <span style="font-size:10.5px; color:var(--faint)">${x.charLimit}자 · ${x.draft ? '초안 있음' : '미작성'}</span>
           </button>`).join('')}
         </div>
       </div>
@@ -2020,7 +2091,7 @@ function renderEssay(){
         <textarea class="inp" id="s4ta" rows="13" spellcheck="false" placeholder="근거 경험을 고른 뒤 초안을 생성하거나, 직접 쓰세요">${esc(s4text)}</textarea>
         <div style="display:flex; align-items:center; gap:10px; margin-top:10px; flex-wrap:wrap">
           <button class="btn primary sm" id="s4gen" data-note="POST /answers/${q.id}/ai/draft → 202">초안 생성</button>
-          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">새 버전 저장</button>
+          <button class="btn sm" id="s4save" data-note="PUT /answers/${q.id}">저장</button>
           <span class="spacer" style="flex:1"></span>
           <div style="display:flex; align-items:center; gap:9px" id="s4count">
             <div style="position:relative; width:118px" title="80% 지점 눈금 — 그 아래는 무성의 감점 구간">
@@ -2033,20 +2104,20 @@ function renderEssay(){
       </div>
     </div>
 
-    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>`;
+    <div id="s4side" style="display:flex; flex-direction:column; gap:16px"></div>
+    </div>
 
-  $("#s4side").innerHTML = s4SideHtml(q, list);
+    <div id="s4lint" style="margin-top:16px"></div>`;
+
+  $('#s4side').innerHTML = s4EvidenceHtml(q, list);
+  $('#s4lint').innerHTML = s4LintHtml(q);
   $$('#dtEssay [data-addQ2]').forEach(b => b.addEventListener('click', () => openQ(+b.dataset.addq2)));
   $('#s4save').addEventListener('click', () => {
     const q2 = DATA.questions.find(x => x.id === s4qid);
-    const body = s4text.trim();
-    if (!body){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
-    q2.versions = q2.versions || [];
-    if (q2.versions.length && q2.versions[q2.versions.length-1].content === body){ toast('직전 버전과 같습니다'); return; }
-    q2.versions.push({ v: q2.versions.length + 1, content: body, len: body.length, at: stamp(),
-                       source: body === q2.aiDraft ? 'AI_DRAFT' : 'MANUAL' });
-    renderEssay(); renderHome();
-    toast(`v${q2.versions.length} 저장 · ${app.company} 지원서에 묶임`);
+    if (!s4text.trim()){ toast('내용이 비어 있어 저장하지 않았습니다'); return; }
+    q2.draft = s4text;
+    renderDetail(); renderHome();
+    toast(`저장했습니다 · ${app.company} 지원서에 묶임`);
   });
   $$('#dtEssay [data-ask]').forEach(b => b.addEventListener('click', () => {
     const i = +b.dataset.ask;
@@ -2086,12 +2157,14 @@ function renderEssay(){
   });
 }
 
-const STATUS = {
-  PLANNED:   { label:'지원 예정', cls:'mut' },
-  WRITING:   { label:'작성 중',   cls:'warn' },
-  SUBMITTED: { label:'제출',      cls:'info' },
-  INTERVIEW: { label:'면접',      cls:'acc' },
-  RESULT:    { label:'결과 대기', cls:'ok' },
+/* 지원서 진행 상태는 저장하지 않는다 — questions 의 draft 유무에서 파생한다.
+   제출 여부는 우리가 관측할 수 없으므로 모델에 두지 않는다. */
+const ESSAY_STATE = {
+  NO_APP:  { label:'지원서 없음',  cls:'mut' },
+  NO_Q:    { label:'문항 미등록',  cls:'mut' },
+  EMPTY:   { label:'작성 전',      cls:'warn' },
+  WRITING: { label:'작성 중',      cls:'warn' },
+  DONE:    { label:'작성 완료',    cls:'ok' },
 };
 
 /* ============================================================
@@ -2100,37 +2173,46 @@ const STATUS = {
 let homeSort = 'match';
 let homeOnlyBm = false;
 
-function progressOf(posting){
-  const app = DATA.applications.find(a => a.postingId === posting.id);
-  if (!app) return { app:null, label:'지원서 없음', done:0, total:0, ratio:0, versions:0 };
-  const qs = qOf(app.id);
-  const done = qs.filter(q => (q.draft || '').trim().length > 0).length;
-  const thin = qs.filter(q => { const L = (q.draft || '').trim().length; return L > 0 && L < q.charLimit * 0.8; }).length;
-  const versions = qs.reduce((a, q) => a + (q.versions || []).length, 0);
-  return {
-    app, done, total: qs.length, versions, thin,
-    ratio: qs.length ? done / qs.length : 0,
-    label: qs.length ? `${done} / ${qs.length}문항` : '문항 미등록',
-  };
+/* 평균 매칭 대신 이 자리에 둔다.
+   평균은 행동으로 이어지지 않는 숫자였다 — 68% 를 보고 사용자가 할 수 있는 게 없고,
+   공고를 더 담으면 본인과 무관한 이유로 숫자가 움직여 오해를 만든다.
+   대신 "지금 무엇을 채우면 가장 많이 움직이나" 를 센다. 여러 공고에서 동시에
+   갭인 역량 하나가 곧 다음에 등록할 경험이고, 그게 인테이크로 이어진다. */
+function topGapCard(live){
+  const cnt = new Map();
+  live.forEach(({ m }) => m.rows.filter(r => r.isGap)
+    .forEach(r => cnt.set(r.competencyId, (cnt.get(r.competencyId) || 0) + 1)));
+  if (!cnt.size)
+    return `<div class="card pad"><div class="stat"><span class="v" style="color:var(--matched)">0</span><span class="l">비어 있는 요구 역량</span></div></div>`;
+  // 동점이면 가중치 합이 큰 쪽을 먼저 — 같은 3건이어도 더 무겁게 요구되는 것이 있다.
+  const w = id => live.reduce((a, { m }) =>
+    a + m.rows.filter(r => r.competencyId === id && r.isGap).reduce((x, r) => x + r.weight, 0), 0);
+  const [id, n] = [...cnt.entries()].sort((a, b) => b[1] - a[1] || w(b[0]) - w(a[0]))[0];
+  const c = byId(id);
+  return `<div class="card pad" data-note="computeMatch().rows 에서 isGap 집계"
+    title="${esc(c.name)} 을 증명하는 경험을 등록하면 이 ${n}건의 매칭이 함께 오른다">
+    <div class="stat">
+      <span class="v" style="color:var(--gap); font-size:19px; line-height:1.3">${esc(c.name)}</span>
+      <span class="l">이 역량 하나가 공고 <b style="color:var(--ink-2)">${n}건</b>의 갭</span>
+    </div></div>`;
 }
 
 function renderHome(){
   const all = DATA.postings.filter(p => dday(p.deadline) >= 0);
   const live = all.filter(p => !homeOnlyBm || isBm(p.id))
-    .map(p => ({ p, m: computeMatch(p), pr: progressOf(p), d: dday(p.deadline) }));
+    .map(p => ({ p, m: computeMatch(p), pr: essayProgress(p), d: dday(p.deadline) }));
 
   live.sort((a, b) => homeSort === 'match' ? b.m.overall - a.m.overall : a.d - b.d);
 
-  const avg = live.length ? live.reduce((a, x) => a + x.m.overall, 0) / live.length : 0;
   const soon = live.filter(x => x.d <= 7).length;
-  const writing = live.filter(x => x.pr.app && x.pr.app.status === 'WRITING').length;
+  const writing = live.filter(x => x.pr.state === 'WRITING' || x.pr.state === 'EMPTY').length;
 
   $('#homeStats').innerHTML = [
     ['활성 공고', all.length, ''],
     ['마감 7일 내', soon, soon ? 'var(--gap)' : ''],
     ['즐겨찾기', all.filter(x => isBm(x.id)).length, ''],
-    ['평균 매칭', Math.round(avg * 100) + '%', avg >= 0.7 ? 'var(--matched)' : 'var(--gap)'],
-  ].map(([l, v, c]) => `<div class="card pad"><div class="stat"><span class="v" ${c ? `style="color:${c}"` : ''}>${v}</span><span class="l">${l}</span></div></div>`).join('');
+  ].map(([l, v, c]) => `<div class="card pad"><div class="stat"><span class="v" ${c ? `style="color:${c}"` : ''}>${v}</span><span class="l">${l}</span></div></div>`).join('')
+    + topGapCard(live);
 
   $('#homeList').innerHTML = live.map(({ p, m, pr, d }) => {
     const gaps = m.rows.filter(r => r.isGap);
@@ -2170,8 +2252,7 @@ function renderHome(){
             ${ep.total
               ? `<div class="meter" style="width:52px"><i style="width:${Math.round(ep.ratio*100)}%"></i></div>
                  <span class="mono" style="font-size:11px; color:${ep.state === 'DONE' ? 'var(--matched)' : 'var(--ink-2)'}">자소서 ${ep.done}/${ep.total}</span>`
-              : `<span class="pill mut">자소서 ${esc(ep.label)}</span>`}
-            ${ep.versions ? `<span class="mono" style="font-size:10.5px; color:var(--faint)">${ep.versions}버전</span>` : ''}
+              : `<span class="pill ${ESSAY_STATE[ep.state].cls}">${esc(ESSAY_STATE[ep.state].label)}</span>`}
           </div>
         </div>
         <button class="btn primary sm" data-open="${p.id}" data-tab="essay">
@@ -2184,7 +2265,7 @@ function renderHome(){
   $('#homeNote').innerHTML = '정렬은 <b>매칭순</b>과 <b>마감 임박순</b> 두 가지다. 지원자 수 기준 인기순은 넣지 않았다 — 공고 사이트가 지원자 수를 공개할 때만 가능한 지표라, 없는 데이터를 있는 척할 수 없다.';
 
   $('#onlyBm').setAttribute('aria-pressed', String(homeOnlyBm));
-  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 저장 버튼을 눌러 담아 두세요.</p>';
+  if (!live.length) $('#homeList').innerHTML = '<p class="empty">즐겨찾기한 공고가 없습니다. 카드의 즐겨찾기 버튼을 눌러 담아 두세요.</p>';
   bindBm('#homeList');
   $('#sortMatch').setAttribute('aria-pressed', String(homeSort === 'match'));
   $('#sortDday').setAttribute('aria-pressed', String(homeSort === 'dday'));
@@ -2198,7 +2279,7 @@ function renderHome(){
   $$('#homeList [data-mkApp]').forEach(b => b.addEventListener('click', () => {
     const p = DATA.postings.find(x => x.id === +b.dataset.mkapp);
     openApp(); $('#apCo').value = p.company; $('#apPos').value = p.position;
-    $('#apDday').value = dday(p.deadline); $('#apSt').value = 'PLANNED';
+    $('#apDday').value = dday(p.deadline);
   }));
 }
 $('#sortMatch').addEventListener('click', () => { homeSort = 'match'; renderHome(); });
@@ -2254,9 +2335,9 @@ const TABLES = [
   ['company',               'id, name, career_url',                                                             'career_url 이 수집 대상', ''],
   ['job_posting',           'id, company_id, position, raw_text, deadline, source, collected_at, questions_from_server', '직무 단위 · 기업 단위가 아니다', ''],
   ['posting_competency',    'posting_id, competency_id, weight, evidence_line, evidence_status',                'N:M', 'weight·인용줄·검증상태가 쌍의 속성'],
-  ['application',           'id, user_id, posting_id, status, submitted_at',                                    '', ''],
+  ['application',           'id, user_id, posting_id, created_at',                                              '', 'status·submitted_at 없음 — 제출 여부는 관측 불가라 모델에 두지 않는다'],
   ['question',              'id, application_id, seq, prompt_text, char_limit, asks[]',                         '', ''],
-  ['answer',                'id, question_id, version, content, char_count, is_final, source',                  '버전 누적 · 덮어쓰지 않는다', ''],
+  ['answer',                'id, question_id, content, char_count, source, updated_at',                        '문항당 1행', ''],
   ['answer_experience',     'answer_id, experience_id',                                                         'N:M', '이 문장이 어떤 경험을 근거로 썼는가'],
   ['assessment',            'id, application_id, verdict, headline, summary, state, input_sig, computed_at',    '이벤트로 갱신 · 화면은 읽기만', ''],
   ['assessment_action',     'id, assessment_id, seq, effort, tag, title',                                       '', ''],
@@ -2293,11 +2374,11 @@ function buildSeedSql(){
 
   L.push('', '-- application · question · answer');
   DATA.applications.filter(a => a.id).forEach(a =>
-    L.push(`INSERT INTO application (id, user_id, posting_id, status) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'}, ${sq(a.status)});`));
+    L.push(`INSERT INTO application (id, user_id, posting_id) VALUES (${a.id}, 1, ${a.postingId ?? 'NULL'});`));
   DATA.questions.forEach((q, i) => {
     L.push(`INSERT INTO question (id, application_id, seq, prompt_text, char_limit) VALUES (${q.id}, ${q.applicationId}, ${i + 1}, ${sq(q.prompt)}, ${q.charLimit});`);
-    (q.versions || []).forEach(v =>
-      L.push(`INSERT INTO answer (question_id, version, content, char_count, is_final, source) VALUES (${q.id}, ${v.v}, ${sq(v.content)}, ${v.len}, ${v.v === (q.versions.length)}, ${sq(v.source)});`));
+    if ((q.draft || '').trim())
+      L.push(`INSERT INTO answer (question_id, content, char_count, source) VALUES (${q.id}, ${sq(q.draft)}, ${q.draft.length}, 'MANUAL');`);
   });
 
   L.push('', 'COMMIT;');
@@ -2403,12 +2484,12 @@ function renderSpec(){
   const enums = [
     ['competency.category', ['TECH','SOFT','DOMAIN','VALUE'], '역량 범주'],
     ['posting.source', ['CRAWLED','MANUAL'], '공고가 어떻게 들어왔나'],
-    ['application.status', Object.keys(STATUS), '지원 진행 상태'],
+    ['(파생) 자소서 진행', Object.keys(ESSAY_STATE), '컬럼이 아니다 — questions 의 draft 유무에서 계산한다'],
     ['assessment.state', ['FRESH','QUEUED','RUNNING'], '평가 재계산 상태'],
     ['assessment.verdict', ['RECOMMEND','CONDITIONAL','HOLD'], '지원 판정'],
     ['action.effort', Object.keys(EFFORT), '액션 난이도'],
     ['experience.source', ['MANUAL','AI_INTAKE'], '경험을 어떻게 만들었나'],
-    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 버전 출처'],
+    ['answer.source', ['MANUAL','AI_DRAFT'], '답변 본문 출처'],
     ['intake.question.field', ['task','result'], 'AI 가 되물을 STAR 필드'],
   ];
 
@@ -2419,8 +2500,8 @@ function renderSpec(){
     { id:'AX-2', name:'매칭 평가 요약', trigger:'경험 변경 이벤트 · 야간 배치', temp:'0.2', sync:'이벤트 · 사용자 대기 없음',
       ep:'POST /internal/ai/match',
       out:{ verdict:'CONDITIONAL', headline:'기술 역량은 채웠지만 인재상 키워드가 비어 있습니다',
-            summary:'요구 역량 9개 중 7개를 덮어 매칭 69%입니다. …',
-            actions:[{ effort:'LOW', tag:'높은 목표 설정', title:'MSA 프로젝트를 “기존 대비 더 높은 기준” 관점으로 다시 서술하세요.' }] } },
+            summary:'요구 역량 10개 중 8개를 덮어 매칭 73%입니다. …',
+            actions:[{ effort:'LOW', tag:'AI 도구 활용', title:'MSA 프로젝트에서 AI 도구를 어떻게 썼는지 한 문단 보강하세요.' }] } },
     { id:'AX-3', name:'자소서 초안', trigger:'사용자 버튼', temp:'0.6', sync:'202 + 폴링',
       ep:'POST /api/answers/{id}/ai/draft',
       out:{ draft:'…', charCount:668, usedExperienceIds:[1], cautions:['결과에 정량 수치가 없습니다.'] } },
@@ -2439,7 +2520,7 @@ function renderSpec(){
       <p class="lead">
         AX-1(공고) · AX-2(평가) · AX-4(인테이크) 가 역량을 지목할 때 <b>반드시 이 ${DATA.competencies.length}개 안에서만</b> 고른다.
         사전 밖 표현은 <code>newCompetencies</code> 로 격리해 사람이 승인해야 들어온다 — 그래야 “협업”과 “팀워크”가 따로 쌓이지 않는다.
-        <code>aliases</code> 는 자소서 본문에서 키워드 포함 여부를 볼 때 쓰는 동의어다(“클라우드 인프라” ← 쿠버네티스 · Docker · 배포).
+        <code>aliases</code> 는 자소서 본문에서 키워드 포함 여부를 볼 때 쓰는 동의어다(“클라우드 인프라 운영” ← AWS · 쿠버네티스 · Docker · 리눅스).
       </p>
       ${['TECH','SOFT','DOMAIN','VALUE'].map(cat => `
         <div class="card" style="margin-bottom:12px">
@@ -2568,17 +2649,6 @@ function renderSpec(){
 /* ============================================================
    부트
    ============================================================ */
-DATA.questions.forEach(q => {
-  if (!q.versionsSeed || !q.draft) return;
-  q.versions = Array.from({ length: q.versionsSeed }, (_, i) => ({
-    v: i + 1,
-    content: q.draft,
-    len: q.draft.length,
-    at: `8/${28 + i} 21:0${i}`,
-    source: i === 0 ? 'AI_DRAFT' : 'MANUAL',
-  }));
-});
-seedAssess();
 renderS1(); renderHome(); renderSpec();
 (() => {
   const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
@@ -2634,26 +2704,32 @@ function openExp(editId){
 
   $('#expDlgH').textContent = e ? '경험 수정' : '경험 등록';
   $('#expDlgSub').textContent = e
-    ? `${e.title}${e.source === 'AI_INTAKE' ? ' · 포폴 인테이크로 만든 경험' : ''}`
+    ? `${e.title}${e.source === 'AI_INTAKE'
+        ? ((e.evidenceRefs || []).length ? ' · 포폴 인테이크로 만든 경험'
+                                         : ' · 포폴 인테이크에서 시작 · 문장은 본인이 다시 씀')
+        : ''}`
     : 'STAR 4필드 · 역량 태그';
   $('#exSave').textContent = e ? '저장' : '등록';
   $('#exTabs').hidden = !!e;   // 수정 중에는 인테이크 탭 자체가 없다
 
-  paintExPool(); paintStar();
-  switchTab('manual');
-  resetIntake();
-
+  // exGapText 를 switchTab 앞에서 정한다 — switchTab → paintFooter 가 이 값을 읽는다.
   const gaps = computeMatch().rows.filter(r => r.isGap).map(r => r.comp.name);
-  $('#exGapHint').innerHTML = gaps.length
+  exGapText = gaps.length
     ? `지금 비어 있는 요구 역량 — <b style="color:var(--gap)">${gaps.join(', ')}</b>. 이 경험이 그걸 증명한다면 꼭 태그하세요.`
     : '요구 역량이 모두 덮여 있습니다.';
+
+  paintExPool(); paintStar();
+  resetIntake();
+  switchTab('manual');
   $('#expDlg').showModal();
   $('#exTitle').focus();
 }
 
-function paintExPool(){
-  $('#exPicked').innerHTML = Object.keys(exPick).length
-    ? Object.entries(exPick).map(([id, st]) => {
+/* 수동 폼(#exPicked/#exPool)과 인테이크 에디터(#inPicked/#inPool)가 같은 코드를 쓴다.
+   $$ 가 root 인자를 받으므로 셀렉터만 상대화하면 된다. */
+function paintPickInto(pick, pickedEl, poolEl, after){
+  pickedEl.innerHTML = Object.keys(pick).length
+    ? Object.entries(pick).map(([id, st]) => {
         const c = byId(+id);
         return `<span class="strchip">${esc(c.name)}
           <button type="button" data-cyc="${id}" title="약 / 중 / 강 전환 · 내부값 ${st}">${strLabel(st)}<span class="noteonly-i" style="font-family:var(--mono); opacity:.75"> ${st}</span></button>
@@ -2661,32 +2737,36 @@ function paintExPool(){
       }).join('')
     : '<span class="hint">아래에서 역량을 고르세요 · 최소 1개</span>';
 
-  $('#exPool').innerHTML = DATA.competencies
-    .filter(c => !(c.id in exPick))
+  poolEl.innerHTML = DATA.competencies
+    .filter(c => !(c.id in pick))
     .map(c => `<button type="button" class="chip ${CAT[c.category]}" data-add="${c.id}">${esc(c.name)}</button>`)
     .join('');
 
-  $$('#exPool [data-add]').forEach(b => b.addEventListener('click', () => { exPick[+b.dataset.add] = SCORE.PICK_STRENGTH; paintExPool(); }));
-  $$('#exPicked [data-rm]').forEach(b => b.addEventListener('click', () => { delete exPick[+b.dataset.rm]; paintExPool(); }));
-  $$('#exPicked [data-cyc]').forEach(b => b.addEventListener('click', () => {
+  $$('[data-add]', poolEl).forEach(b => b.addEventListener('click', () => { pick[+b.dataset.add] = SCORE.PICK_STRENGTH; after(); }));
+  $$('[data-rm]', pickedEl).forEach(b => b.addEventListener('click', () => { delete pick[+b.dataset.rm]; after(); }));
+  $$('[data-cyc]', pickedEl).forEach(b => b.addEventListener('click', () => {
     const id = +b.dataset.cyc;
-    const cur = STR.findIndex(s => s.lab === strLabel(exPick[id]));
-    exPick[id] = STR[(cur + 1) % STR.length].v;   // 어떤 값이든 약→중→강 3단계로 스냅된다
-    paintExPool();
+    const cur = STR.findIndex(x => x.lab === strLabel(pick[id]));
+    pick[id] = STR[(cur + 1) % STR.length].v;   // 어떤 값이든 약→중→강 3단계로 스냅된다
+    after();
   }));
 }
+
+function paintExPool(){ paintPickInto(exPick, $('#exPicked'), $('#exPool'), paintExPool); }
 
 function paintStar(){
   const vals = ['exS','exT','exA','exR'].map(id => $('#' + id).value.trim().length > 0);
   const n = vals.filter(Boolean).length;
   $$('#exStarBar span').forEach((s, i) => s.classList.toggle('on', vals[i]));
   $('#exStarN').textContent = `${n} / 4`;
-  const r = $('#exR').value.trim();
-  $('#exRHint').innerHTML = !r ? ''
-    : /[0-9]/.test(r)
-      ? '<span style="color:var(--matched)">수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — “다른 조는 평균 10%인데 우리는 45%”</span>'
-      : '<span style="color:var(--gap)">숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.</span>';
+  $('#exRHint').innerHTML = rHintHTML($('#exR').value.trim());
 }
+
+/* 수동 폼과 인테이크 에디터가 같은 문구를 쓴다. 두 곳에 복사해 두면 한쪽만 고쳐진다. */
+const rHintHTML = r => !r ? ''
+  : /[0-9]/.test(r)
+    ? '<span style="color:var(--matched)">수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — “다른 조는 평균 10%인데 우리는 45%”</span>'
+    : '<span style="color:var(--gap)">숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.</span>';
 
 function saveExp(){
   const title = $('#exTitle').value.trim();
@@ -2733,7 +2813,7 @@ function saveExp(){
 /* ---------- 지원 등록 ---------- */
 function openApp(){
   ['apCo','apPos'].forEach(id => $('#' + id).value = '');
-  $('#apSt').selectedIndex = 0; $('#apDday').value = 14; $('#apQ').value = 4;
+  $('#apDday').value = 14; $('#apQ').value = 4;
   $('#apErr').innerHTML = '';
   $('#appDlg').showModal();
   $('#apCo').focus();
@@ -2755,10 +2835,8 @@ function saveApp(){
     id: Math.max(100, ...DATA.applications.map(a => a.id || 0)) + 1,
     postingId: DATA.postings.find(p => p.company === company)?.id ?? null,
     company, position,
-    status: $('#apSt').value,
     dday: Math.max(0, +$('#apDday').value || 0),
     match: null,
-    remainingQuestions: `— / ${q}`,
   });
   $('#appDlg').close();
   renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
@@ -2767,38 +2845,113 @@ function saveApp(){
 
 /* ---------- 배선 ---------- */
 $('#s1add').addEventListener('click', openExp);
-$('#exSave').addEventListener('click', saveExp);
+// 인테이크 탭에서는 saveExp 가 hidden 인 #exErr 에 에러를 써서 죽은 버튼이었다.
+$('#exSave').addEventListener('click', () => $('#exIntake').hidden ? saveExp() : commitIntake());
 $('#apSave').addEventListener('click', saveApp);
-$('#exCancel').addEventListener('click', () => { exEditId = null; $('#expDlg').close(); });
+$('#exCancel').addEventListener('click', () => tryCloseExp());
 $('#apCancel').addEventListener('click', () => $('#appDlg').close());
 ['exS','exT','exA','exR'].forEach(id => $('#' + id).addEventListener('input', paintStar));
 
 /* ============================================================
-   AX-4 · 포트폴리오 인테이크 (대화형 추출)
+   AX-4 · 포트폴리오 인테이크 (좌 후보 레일 + 우 STAR 에디터)
    코드·문서에서 확인되는 것만 채우고, 본인만 아는 것은 되묻는다.
    STAR 의 T(목표)와 R(수치)는 저장소에 없다 — 지어내지 않고 질문한다.
+
+   질문지가 아니라 에디터다. AI 가 쓴 S·A 도 그 자리에서 고칠 수 있다.
+   대신 "누가 쓴 문장인가" 를 네 겹으로 표시한다 — 스트라이프 · 배지 ·
+   붙는 보조정보의 종류(근거 vs 질문) · 등록 후 경험 카드의 배지.
    ============================================================ */
-let inStep = 1;                 // 1 후보 선택 / 2 질문 / 3 확인
-let inChosen = new Set();       // 선택한 후보의 key
-let inAnsAll = {};              // { key: { qIdx: 답변 } }
+let inStep    = 1;       // 1 후보 선택 / 2 에디터
+let inChosen  = new Set();
+let inDraft   = {};      // { key: {title, period, category, situation, task, action, result, comp:{id:strength}} }
+let inActive  = null;    // 지금 #inEd 에 열린 후보 key
+let inPoolOpen  = false;
+let inLinksOpen = true;
+let inCommitArmed = null;
+let inMatchCache = { sig:'', html:'' };
+let exGapText = '';      // .dlgfoot 문구 (탭 전환 시 복원용)
+
+const AI_FIELDS = ['situation', 'action'];      // 후보가 값을 들고 오는 칸
+const MINE_FALLBACK = ['task', 'result'];       // AX-4 계약의 missing 기본값
+const FDESC = { situation:'어떤 상황이었나', task:'무엇을 목표로 삼았나',
+                action:'내가 한 행동과 적용한 방식', result:'결과 (숫자로)' };
 
 const candOf = k => DATA.intakeCandidates.find(c => c.key === k);
-const answered = k => { const c = candOf(k); const a = inAnsAll[k] || {}; return c.questions.filter((_, i) => (a[i] || '').trim()).length; };
-const isReady = k => answered(k) === candOf(k).questions.length;
+const cLen   = s => (s || '').trim().length;
+const aiOf   = (c, f) => (c[f] || '').trim();
+const isAIField = (c, f) => AI_FIELDS.includes(f) && !!aiOf(c, f);
+const qsOf   = (c, f) => (c.questions || []).filter(q => q.field === f);
+
+/* 저장소에 없어 본인이 채워야 하는 칸 — 필드명을 박아 넣지 않고
+   AI 가 실제로 되물은 것에서 파생한다. AX-4 가 언젠가 R 을 저장소에서
+   찾아내 questions 에서 빼면 UI 규칙이 저절로 따라간다. */
+function mineOf(c){
+  const asked = [...new Set((c.questions || []).map(q => q.field))]
+                  .filter(f => FIELDS.includes(f) && !isAIField(c, f));
+  if (asked.length) return asked;
+  return (c.missing || MINE_FALLBACK).filter(f => FIELDS.includes(f) && !isAIField(c, f));
+}
+/* 수동 폼(saveExp)의 필수값과 합집합 — 두 경로가 같은 "유효한 경험" 정의를 쓴다 */
+const requiredTextOf = c => [...new Set([...mineOf(c), 'result'])];
+
+/* "고쳤다" 플래그를 저장하지 않고 매번 원문과 비교한다.
+   고쳤다가 원문 그대로 되돌리면 표시도 저절로 원상복구되고,
+   편집해 놓고 AI 표식만 남기는 세탁도 불가능하다. */
+const editedFieldsOf = k => {
+  const c = candOf(k), d = inDraft[k];
+  if (!d) return [];
+  return AI_FIELDS.filter(f => isAIField(c, f) && d[f].trim() !== aiOf(c, f));
+};
+
+function seedDraft(k){
+  if (inDraft[k]) return inDraft[k];
+  const c = candOf(k);
+  const comp = {};
+  (c.suggestedCompetencyIds || []).forEach(id => comp[id] = SCORE.PICK_STRENGTH);
+  return inDraft[k] = {
+    title: c.title, period: c.period || '', category: c.category,
+    situation: c.situation || '', task: '', action: c.action || '', result: '',
+    comp,
+  };
+}
+
+function missingOf(k){
+  const c = candOf(k), d = inDraft[k], m = [];
+  if (!d) return [{ f:'seed', lab:'초안 없음' }];
+  if (!cLen(d.title)) m.push({ f:'title', lab:'제목' });
+  requiredTextOf(c).forEach(f => { if (!cLen(d[f])) m.push({ f, lab:FLAB[f] }); });
+  if (!Object.keys(d.comp).length) m.push({ f:'comp', lab:'역량' });
+  return m;
+}
+const isReady = k => missingOf(k).length === 0;
+
+function resetIntakeState(){
+  inStep = 1; inChosen = new Set(); inDraft = {}; inActive = null;
+  inPoolOpen = false; inCommitArmed = null; inMatchCache = { sig:'', html:'' };
+}
+
+function paintLinkBlock(){
+  $('#inLinkBox').hidden  = !inLinksOpen;
+  $('#inLinkFold').hidden =  inLinksOpen;
+}
 
 function resetIntake(){
-  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  resetIntakeState();
+  inLinksOpen = true; paintLinkBlock();
   $('#inOut').innerHTML = '';
   $('#inLog').innerHTML = '<div class="t">요청 없음</div>';
   $('#inState').className = 'pill mut'; $('#inState').textContent = '대기';
+  $('#inRun').disabled = false; $('#inRun').textContent = '분석';
 }
 
 $$('#exTabs .tab').forEach(t => t.addEventListener('click', () => switchTab(t.dataset.tab)));
+$('#inLinkEdit').addEventListener('click', () => { inLinksOpen = true; paintLinkBlock(); });
 
 function switchTab(name){
   $$('#exTabs .tab').forEach(t => t.classList.toggle('on', t.dataset.tab === name));
   $('#exIntake').hidden = name !== 'intake';
   $('#exManual').hidden = name !== 'manual';
+  paintFooter();
 }
 
 $('#inRun').addEventListener('click', async e => {
@@ -2825,38 +2978,39 @@ $('#inRun').addEventListener('click', async e => {
 
   st.className = 'pill ok'; st.textContent = 'COMPLETED';
   btn.disabled = false; btn.textContent = '다시 분석';
-  inStep = 1; inChosen = new Set(); inAnsAll = {};
+  // inDraft 까지 비운다. 후보 key 가 'oss' 같은 고정 문자열이라
+  // 안 비우면 재분석 후 옛 초안이 조용히 되살아난다.
+  resetIntakeState();
+  inLinksOpen = false; paintLinkBlock();
+  $('#inLinkN').textContent = links.length;
   paintIntake();
 });
 
-function paintIntake(){
-  if (inStep === 1) return paintStep1();
-  if (inStep === 2) return paintStep2();
-  return paintStep3();
-}
+function paintIntake(){ return inStep === 1 ? paintStep1() : paintStep2(); }
 
 /* ---- 1단계 · 후보 선택 ---- */
 function paintStep1(){
   const dupes = DATA.intakeCandidates.filter(c => c.duplicateOfExperienceId).length;
   $('#inOut').innerHTML = `
     <div style="display:flex; align-items:center; gap:9px; margin-bottom:10px">
-      <span class="pill acc">1 / 3 · 후보 선택</span>
+      <span class="pill acc">1 / 2 · 후보 선택</span>
       <span class="hint">여러 개를 한 번에 고를 수 있습니다${dupes ? ` · 이미 등록된 ${dupes}건은 제외됨` : ''}</span>
     </div>
     <p class="hint" style="margin-bottom:12px">
-      저장소와 첨부에서 확인된 것만 채웠습니다. <b>목표와 수치는 코드에 없어 비워 두고 다음 단계에서 되묻습니다</b> — 지어내면 면접에서 그대로 무너집니다.
+      저장소와 첨부에서 확인된 것만 채웠습니다. <b>목표와 수치는 코드에 없어 비워 두고 다음 화면에서 직접 씁니다</b> — 지어내면 면접에서 그대로 무너집니다.
     </p>
     ${DATA.intakeCandidates.map(c => {
       const dup = !!c.duplicateOfExperienceId;
       const on = inChosen.has(c.key);
+      const started = !!inDraft[c.key];
       return `<label class="cand ${on ? 'sel' : ''}" style="margin-bottom:9px; ${dup ? 'opacity:.55' : 'cursor:pointer'}">
         <div style="display:flex; align-items:flex-start; gap:9px">
           <input type="checkbox" data-cand="${c.key}" ${on ? 'checked' : ''} ${dup ? 'disabled' : ''} style="margin-top:3px; accent-color:var(--accent)">
           <div style="flex:1">
             <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
               <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
-              ${dup ? `<span class="pill mut">이미 등록됨</span>`
-                    : `<span class="pill warn">되물을 것 ${c.questions.length}</span>`}
+              ${dup ? `<span class="pill mut">이미 등록됨</span>` : ''}
+              ${started ? `<span class="pill acc" title="체크를 풀어도 쓰던 내용은 남아 있습니다">작성 중</span>` : ''}
               <span class="pill mut">${esc(c.category)}</span>
             </div>
             <div style="font-size:11.5px; color:var(--muted); margin-top:5px"><b>S</b> ${esc(c.situation)}</div>
@@ -2871,7 +3025,7 @@ function paintStep1(){
     <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
       <span class="hint">${inChosen.size}건 선택</span>
       <button type="button" class="btn primary sm" id="inNext" style="margin-left:auto" ${inChosen.size ? '' : 'disabled'}>
-        선택한 ${inChosen.size}건에 대해 질문 받기 →
+        선택한 ${inChosen.size}건 편집하기 →
       </button>
     </div>`;
 
@@ -2879,127 +3033,387 @@ function paintStep1(){
     cb.checked ? inChosen.add(cb.dataset.cand) : inChosen.delete(cb.dataset.cand);
     paintStep1();
   }));
-  $('#inNext').addEventListener('click', () => { inStep = 2; paintIntake(); });
+  $('#inNext').addEventListener('click', enterStep2);
+  paintFooter();
 }
 
-/* ---- 2단계 · 후보별 질문 ---- */
-function paintStep2(){
-  const keys = [...inChosen];
-  const total = keys.reduce((a, k) => a + candOf(k).questions.length, 0);
-  const done = keys.reduce((a, k) => a + answered(k), 0);
+/* ---- 2단계 · 에디터 ---- */
+function enterStep2(){
+  if (!inChosen.size){ inStep = 1; return paintStep1(); }
+  inStep = 2;
+  [...inChosen].forEach(seedDraft);          // 일괄 시드 — missingOf/patchRailRow 의 전제
+  if (!inChosen.has(inActive))
+    inActive = [...inChosen].find(k => !isReady(k)) || [...inChosen][0] || null;
+  paintIntake();
+  focusFirstGap(inActive);
+}
 
+function fieldHTML(k, f){
+  const c = candOf(k), d = inDraft[k];
+  const ai = isAIField(c, f), mine = mineOf(c).includes(f);
+  const edited = ai && d[f].trim() !== aiOf(c, f);
+  const empty = !cLen(d[f]);
+  const badge = ai && !edited ? ['mut', 'AI · 근거 확인됨']
+              : ai            ? ['acc', empty ? 'AI 문장 지움' : 'AI 문장 → 내가 고침']
+              : empty         ? ['warn', '저장소에 없음 · 본인만 아는 것']
+              :                 ['ok', '내가 씀'];
+  const qs = qsOf(c, f);
+  // 질문이 없는데 본인 몫인 칸 — AX-4 가 되묻지 않았어도 지어내지 않는다는 것은 같다.
+  const qBlock = mine
+    ? `<div class="qrow" style="border-top:none; padding:0; gap:4px">
+         ${qs.length
+           ? qs.map(q => `<div class="q">${esc(q.q)}</div><div class="why">왜 묻는가 — ${esc(q.why)}</div>`).join('')
+           : `<div class="q">이 칸은 저장소에서 확인되지 않습니다.</div>
+              <div class="why">왜 묻는가 — AI 는 없는 것을 지어내지 않습니다. 직접 채워 주세요.</div>`}
+       </div>`
+    : '';
+  const rows = f === 'action' ? 3 : 2;
+  const ph = f === 'result' ? '숫자를 포함해 써 주세요' : mine ? '한두 문장이면 충분합니다' : '';
+  return `
+    <div class="field fsrc${ai ? '' : ' fsrc-you'}${edited ? ' fsrc-edited' : ''}${mine && empty ? ' fsrc-todo' : ''}" data-fw="${f}">
+      <div style="display:flex; align-items:center; gap:7px; flex-wrap:wrap">
+        <label for="in_${f}">${FLAB[f]} · ${FDESC[f]}</label>
+        <span class="pill ${badge[0]}" data-badge>${badge[1]}</span>
+        <button type="button" class="btn sm" data-revert="${f}" style="margin-left:auto" ${edited ? '' : 'hidden'}>AI 원문으로</button>
+      </div>
+      ${qBlock}
+      <textarea class="inp" id="in_${f}" data-f="${f}" rows="${rows}" placeholder="${ph}">${esc(d[f])}</textarea>
+      ${f === 'result' ? `<div class="hint" id="inRHint">${rHintHTML(d.result.trim())}</div>` : ''}
+      <div class="hint" data-short style="color:var(--gap)" ${mine && cLen(d[f]) > 0 && cLen(d[f]) < 6 ? '' : 'hidden'}>너무 짧습니다 — 한 문장으로 써야 자소서에서 쓸 수 있습니다.</div>
+    </div>`;
+}
+
+function railHTML(){
+  const ks = [...inChosen];
+  return `<aside id="inRail">
+    <div class="hint">후보 <b style="color:var(--ink-2)">${ks.length}건</b> · 등록 가능 <b id="inReadyN">${ks.filter(isReady).length}</b></div>
+    ${ks.map(k => {
+      const ok = isReady(k), ed = editedFieldsOf(k);
+      return `<button type="button" class="cand ${k === inActive ? 'sel' : ''}" data-k="${k}"
+              style="width:100%; text-align:left; cursor:pointer; padding:9px 10px; gap:5px" title="${esc(candOf(k).title)}">
+        <b style="color:var(--ink); font-size:12px; display:block; overflow:hidden; text-overflow:ellipsis; white-space:nowrap">${esc(inDraft[k].title || candOf(k).title)}</b>
+        <span style="display:flex; align-items:center; gap:5px; flex-wrap:wrap">
+          <span class="pill ${ok ? 'ok' : 'warn'}" data-rp>${ok ? '등록 가능' : `${missingOf(k).map(m => m.lab).join('·')} 남음`}</span>
+          <span class="pill acc" data-re ${ed.length ? '' : 'hidden'}>${ed.map(f => FLAB[f]).join('·')} 수정함</span>
+        </span>
+      </button>`;
+    }).join('')}
+    <button type="button" class="btn sm" id="inBack" style="margin-top:3px">← 후보 다시 고르기</button>
+  </aside>`;
+}
+
+function edHTML(k){
+  const c = candOf(k), d = inDraft[k], mine = mineOf(c);
+  return `<div id="inEd" style="min-width:0; display:flex; flex-direction:column; gap:12px">
+    <div class="field">
+      <label for="inTt">제목 *</label>
+      <input class="inp" id="inTt" data-f="title" value="${esc(d.title)}">
+    </div>
+    <div class="frow">
+      <div class="field"><label for="inPd">기간</label>
+        <input class="inp" id="inPd" data-f="period" value="${esc(d.period)}" placeholder="2026.08"></div>
+      <div class="field"><label for="inCt">분류</label>
+        <select class="inp" id="inCt" data-f="category">
+          ${['팀 프로젝트','개인 프로젝트','실습 프로젝트','대외활동','인턴·근무','수상·자격']
+            .map(o => `<option ${o === d.category ? 'selected' : ''}>${o}</option>`).join('')}
+        </select></div>
+    </div>
+
+    <div style="display:flex; align-items:center; gap:8px; flex-wrap:wrap">
+      <span class="pill info">AI_INTAKE</span>
+      <span class="starbar" id="inStarBar">${FIELDS.map(f => `<span class="${cLen(d[f]) ? 'on' : ''}"></span>`).join('')}</span>
+      <span class="hint" id="inStarN">STAR ${FIELDS.filter(f => cLen(d[f])).length} / 4</span>
+      <span class="hint" id="inMineN" style="color:var(--gap)">내가 쓴 것 ${mine.filter(f => cLen(d[f])).length} / ${mine.length}</span>
+    </div>
+
+    <div class="fieldset" data-note="experience (STAR) · AI_INTAKE">
+      <div class="lg">STAR <span class="pill mut">AI 가 읽은 근거 ${c.evidence.length}건</span></div>
+      <div class="hint" id="inEvNote"></div>
+      ${c.evidence.map(e => `<div class="hint evq" title="${esc(e.quote)}">
+        <span class="mono">${esc(e.type)} · ${esc(e.ref)}</span> — “${esc(e.quote)}”</div>`).join('')}
+      ${FIELDS.map(f => fieldHTML(k, f)).join('')}
+    </div>
+
+    <div class="fieldset" data-note="experience_competency">
+      <div class="lg">이 경험이 증명하는 역량
+        <button type="button" class="btn sm" id="inPoolBtn" style="margin-left:auto">${inPoolOpen ? '역량 닫기' : '＋ 역량 고치기'}</button></div>
+      <div class="chips" id="inPicked"></div>
+      <div class="hint" id="inCompNote"></div>
+      <div class="chips" id="inPool" ${inPoolOpen ? '' : 'hidden'} style="padding-top:9px; border-top:1px dashed var(--border)"></div>
+    </div>
+
+    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
+      <button type="button" class="btn sm" id="inPrev">← 이전 후보</button>
+      <button type="button" class="btn sm" id="inNextGap" style="margin-left:auto">다음 미완 후보 →</button>
+    </div>
+  </div>`;
+}
+
+/* #inOut 전체 재생성 — 클릭 시점에만 부른다. 타이핑 중에는 절대 부르지 않는다(캐럿이 날아간다). */
+function paintStep2(){
+  if (!inActive || !inDraft[inActive]){ inStep = 1; return paintStep1(); }
   $('#inOut').innerHTML = `
     <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
-      <span class="pill acc">2 / 3 · 질문</span>
-      <span class="hint">답변 ${done} / ${total}</span>
-      <div class="meter" style="width:90px; margin-left:auto"><i style="width:${total ? done/total*100 : 0}%"></i></div>
+      <span class="pill acc">2 / 2 · 편집</span>
+      <span class="hint">AI 가 쓴 문장도 그 자리에서 고칠 수 있습니다 — 고치면 표시가 남습니다</span>
     </div>
-    ${keys.map(k => {
-      const c = candOf(k);
-      return `<div class="cand ${isReady(k) ? 'sel' : ''}" style="margin-bottom:11px">
-        <div style="display:flex; align-items:center; gap:8px">
-          <b style="color:var(--ink); font-size:13px">${esc(c.title)}</b>
-          <span class="pill ${isReady(k) ? 'ok' : 'warn'}">${answered(k)} / ${c.questions.length}</span>
-        </div>
-        ${c.questions.map((q, qi) => `
-          <div class="qrow">
-            <div class="q">${qi + 1}. ${esc(q.q)}</div>
-            <div class="why">왜 묻는가 — ${esc(q.why)}</div>
-            <input class="inp" data-k="${k}" data-qi="${qi}" value="${esc((inAnsAll[k] || {})[qi] || '')}"
-              placeholder="${q.field === 'result' ? '숫자를 포함해 답해 주세요' : '한두 문장이면 충분합니다'}">
-          </div>`).join('')}
-      </div>`;
-    }).join('')}
-    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
-      <button type="button" class="btn sm" id="inBack">← 후보 다시 고르기</button>
-      <span class="hint" style="margin-left:auto">${keys.filter(isReady).length}건 답변 완료</span>
-      <button type="button" class="btn primary sm" id="inReview" ${keys.some(isReady) ? '' : 'disabled'}>확인 →</button>
-    </div>`;
-
-  $$('#inOut [data-k]').forEach(inp => inp.addEventListener('input', e => {
-    const k = e.target.dataset.k, qi = +e.target.dataset.qi;
-    inAnsAll[k] = inAnsAll[k] || {};
-    inAnsAll[k][qi] = e.target.value;
-    const head = $('#inOut .hint');
-    const t = [...inChosen].reduce((a, x) => a + candOf(x).questions.length, 0);
-    const d = [...inChosen].reduce((a, x) => a + answered(x), 0);
-    if (head) head.textContent = `답변 ${d} / ${t}`;
-    const bar = $('#inOut .meter i'); if (bar) bar.style.width = (t ? d/t*100 : 0) + '%';
-    const btn = $('#inReview'); if (btn) btn.disabled = ![...inChosen].some(isReady);
-  }));
-  $('#inBack').addEventListener('click', () => { inStep = 1; paintIntake(); });
-  $('#inReview').addEventListener('click', () => { inStep = 3; paintIntake(); });
+    <div class="inwrap${inChosen.size === 1 ? ' solo' : ''}">${railHTML()}${edHTML(inActive)}</div>`;
+  bindStep2();
+  paintEvidenceNote(inActive);
+  paintFooter();
 }
 
-/* ---- 3단계 · 확인 후 일괄 등록 ---- */
+function bindStep2(){
+  $$('#inRail [data-k]').forEach(b => b.addEventListener('click', () => openCand(b.dataset.k)));
+  $('#inBack').addEventListener('click', () => { inStep = 1; paintIntake(); });
+  $('#inPrev')?.addEventListener('click', () => stepCand(-1));
+  $('#inNextGap')?.addEventListener('click', () => { const n = nextGapKey(); if (n) openCand(n); });
+  $('#inPoolBtn').addEventListener('click', () => {
+    inPoolOpen = !inPoolOpen;
+    $('#inPool').hidden = !inPoolOpen;
+    $('#inPoolBtn').textContent = inPoolOpen ? '역량 닫기' : '＋ 역량 고치기';
+  });
+  $$('#inEd [data-f]').forEach(el =>
+    el.addEventListener('input', e => applyField(inActive, e.target.dataset.f, e.target.value, true)));
+  $('#inCt').addEventListener('change', e => applyField(inActive, 'category', e.target.value, true));
+  $$('#inEd [data-revert]').forEach(b => b.addEventListener('click', () => {
+    const f = b.dataset.revert;
+    applyField(inActive, f, aiOf(candOf(inActive), f), false);   // 되돌리기도 같은 경로를 탄다
+    $(`#in_${f}`)?.focus({ preventScroll:true });
+  }));
+  paintInPool();
+  const gapBtn = $('#inNextGap');
+  if (gapBtn && !nextGapKey()){ gapBtn.disabled = true; gapBtn.textContent = '모두 채웠습니다 · 아래에서 등록'; }
+}
+
+function paintInPool(){
+  paintPickInto(inDraft[inActive].comp, $('#inPicked'), $('#inPool'), () => {
+    paintInPool();
+    $('#inCompNote').innerHTML = compNoteHTML(inActive);
+    patchLive(inActive);
+  });
+  $('#inCompNote').innerHTML = compNoteHTML(inActive);
+}
+
+/* 값 반영의 유일한 경로. 타이핑과 되돌리기가 같은 코드를 탄다. */
+function applyField(k, f, val, fromInput){
+  inDraft[k][f] = val;
+  if (!fromInput){
+    const el = $(`#inEd [data-f="${f}"]`); if (el) el.value = val;
+  }
+  // title/period/category 는 data-fw 래퍼가 없다 — null 가드가 필수다.
+  const wrap = $(`#inEd .field[data-fw="${f}"]`);
+  if (wrap) paintFieldState(k, f, wrap);
+  if (f === 'result') $('#inRHint').innerHTML = rHintHTML(inDraft[k].result.trim());
+  patchLive(k);
+}
+
+function paintFieldState(k, f, wrap){
+  const c = candOf(k), d = inDraft[k];
+  const ai = isAIField(c, f), mine = mineOf(c).includes(f);
+  const edited = ai && d[f].trim() !== aiOf(c, f);
+  const empty = !cLen(d[f]);
+  wrap.classList.toggle('fsrc-you', !ai);
+  wrap.classList.toggle('fsrc-edited', edited);
+  wrap.classList.toggle('fsrc-todo', mine && empty);
+  const b = wrap.querySelector('[data-badge]');
+  if (b){
+    const st = ai && !edited ? ['mut', 'AI · 근거 확인됨']
+             : ai            ? ['acc', empty ? 'AI 문장 지움' : 'AI 문장 → 내가 고침']
+             : empty         ? ['warn', '저장소에 없음 · 본인만 아는 것']
+             :                 ['ok', '내가 씀'];
+    b.className = 'pill ' + st[0]; b.textContent = st[1];
+  }
+  const rev = wrap.querySelector('[data-revert]'); if (rev) rev.hidden = !edited;
+  const sh = wrap.querySelector('[data-short]');
+  if (sh) sh.hidden = !(mine && cLen(d[f]) > 0 && cLen(d[f]) < 6);
+}
+
+/* 타이핑 경로가 건드리는 노드는 전부 id 로 지목한다.
+   위치 의존 셀렉터($('#inOut .hint') 같은)는 한 줄만 추가돼도 조용히 깨진다. */
+function patchLive(k){
+  const d = inDraft[k], mine = mineOf(candOf(k));
+  $$('#inStarBar span').forEach((s, i) => s.classList.toggle('on', cLen(d[FIELDS[i]]) > 0));
+  $('#inStarN').textContent = `STAR ${FIELDS.filter(f => cLen(d[f])).length} / 4`;
+  $('#inMineN').textContent = `내가 쓴 것 ${mine.filter(f => cLen(d[f])).length} / ${mine.length}`;
+  patchRailRow(k);
+  paintEvidenceNote(k);
+  inCommitArmed = null;              // 초안이 바뀌면 2단 확인 무장은 풀린다
+  paintFooter();
+}
+
+function patchRailRow(k){
+  const row = $(`#inRail [data-k="${k}"]`); if (!row) return;
+  row.classList.toggle('sel', k === inActive);
+  const ok = isReady(k);
+  const p = row.querySelector('[data-rp]');
+  p.className = 'pill ' + (ok ? 'ok' : 'warn');
+  p.textContent = ok ? '등록 가능' : `${missingOf(k).map(m => m.lab).join('·')} 남음`;
+  const e = row.querySelector('[data-re]'), ed = editedFieldsOf(k);
+  e.hidden = !ed.length;
+  if (ed.length) e.textContent = `${ed.map(f => FLAB[f]).join('·')} 수정함`;
+  const t = row.querySelector('b'); if (t) t.textContent = inDraft[k].title || candOf(k).title;
+  const rn = $('#inReadyN'); if (rn) rn.textContent = [...inChosen].filter(isReady).length;
+}
+
+/* 근거 표시가 편집을 따라 움직인다. evidence 에 필드 귀속 정보가 없으므로
+   박스 단위로 한 번만 말한다 — 없는 인과를 지어내지 않는다. */
+function paintEvidenceNote(k){
+  const c = candOf(k), ed = editedFieldsOf(k), el = $('#inEvNote'); if (!el) return;
+  const kept = AI_FIELDS.filter(f => isAIField(c, f) && !ed.includes(f));
+  el.innerHTML = !kept.length
+    ? '<span style="color:var(--gap)">AI 가 쓴 문장이 남아 있지 않습니다 — 등록해도 아래 근거는 이 경험에 붙지 않습니다.</span>'
+    : ed.length
+      ? `아래 근거는 <b>${kept.map(f => FLAB[f]).join('·')}</b> 에 대한 것입니다.
+         <span style="color:var(--gap)">${ed.map(f => FLAB[f]).join('·')} 는 본인이 고쳤습니다 — 근거는 AI 원문 기준입니다.</span>`
+      : '아래 근거에서 <b>S·A</b> 를 뽑았습니다. 사실과 다르면 그 자리에서 고치세요 — 고치면 표시가 남습니다.';
+}
+
+/* 매칭 %를 실제로 움직이는 것은 STAR 텍스트가 아니라 역량 태그다.
+   문장에만 출처 규율을 걸고 점수 입력에 안 거는 비일관을 이 한 줄로 막는다. */
+function compNoteHTML(k){
+  const sug = new Set(candOf(k).suggestedCompetencyIds || []);
+  const now = new Set(Object.keys(inDraft[k].comp).map(Number));
+  const kept  = [...now].filter(id => sug.has(id)).length;
+  const added = [...now].filter(id => !sug.has(id)).length;
+  const gone  = [...sug].filter(id => !now.has(id)).length;
+  return (added || gone)
+    ? `AI 제안 ${sug.size}개 중 ${kept}개 유지 · 직접 ${added}개 추가 · ${gone}개 제거`
+    : `<span style="color:var(--gap)">${sug.size}개 모두 AI 제안 그대로입니다 — 매칭 점수를 움직이는 값이니 한 번 확인하세요.</span>`;
+}
+
+function focusFirstGap(k){
+  if (!k) return;
+  const first = missingOf(k).find(m => m.f !== 'comp' && m.f !== 'seed');
+  const el = first ? $(`#inEd [data-f="${first.f}"]`) : $('#inEd [data-f="task"]');
+  el?.focus({ preventScroll:true });
+}
+function openCand(k){
+  inActive = k;
+  paintStep2();
+  $('#inEd')?.scrollIntoView({ block:'start' });
+  focusFirstGap(k);
+}
+function nextGapKey(){
+  const ks = [...inChosen], i = ks.indexOf(inActive);
+  for (let n = 1; n <= ks.length; n++){ const k = ks[(i + n) % ks.length]; if (!isReady(k)) return k; }
+  return null;
+}
+function stepCand(d){
+  const ks = [...inChosen], i = ks.indexOf(inActive);
+  openCand(ks[(i + d + ks.length) % ks.length]);
+}
+
+/* ---- 등록 — 3단계 확인 화면 대신 .dlgfoot 이 상시 상태를 진다 ---- */
 function buildExp(k){
-  const c = candOf(k), a = inAnsAll[k] || {};
-  const pick = {};
-  c.suggestedCompetencyIds.forEach(id => pick[id] = SCORE.PICK_STRENGTH);
-  const get = f => { const i = c.questions.findIndex(q => q.field === f); return i >= 0 ? (a[i] || '').trim() : ''; };
+  const c = candOf(k), d = inDraft[k];
+  const edited = editedFieldsOf(k);
+  const aiKept = AI_FIELDS.filter(f => isAIField(c, f) && !edited.includes(f));
   return {
-    title: c.title, period: c.period, category: c.category,
-    situation: c.situation, task: get('task'), action: c.action, result: get('result'),
-    competencyIds: Object.keys(pick).map(Number), strength: pick,
-    source: 'AI_INTAKE', evidenceRefs: c.evidence.map(e => `${e.type} · ${e.ref}`),
+    title: d.title.trim(),
+    period: d.period.trim() || '기간 미입력',
+    category: d.category,
+    situation: d.situation.trim(), task: d.task.trim(),
+    action: d.action.trim(), result: d.result.trim(),
+    competencyIds: Object.keys(d.comp).map(Number),
+    strength: { ...d.comp },
+    usedInAnswers: 0,
+    source: 'AI_INTAKE',
+    editedFields: edited,
+    // AI 원문이 남은 칸이 하나도 없으면 근거가 따라가지 않는다.
+    evidenceRefs: aiKept.length ? c.evidence.map(e => `${e.type} · ${e.ref}`) : [],
   };
 }
 
-function paintStep3(){
-  const ready = [...inChosen].filter(isReady);
-  const skipped = [...inChosen].filter(k => !isReady(k));
+function matchDeltaHTML(ready){
+  if (!ready.length) return '';
   const drafts = ready.map(buildExp);
   const before = computeMatch().overall;
-  const after = (() => {
-    const backup = DATA.experiences.slice();
+  const backup = DATA.experiences.slice();
+  let after = before;
+  try {
     DATA.experiences = backup.concat(drafts.map((d, i) => ({ ...d, id: -1 - i })));
-    const v = computeMatch().overall;
-    DATA.experiences = backup;
-    return v;
-  })();
-  const delta = Math.round(after * 100) - Math.round(before * 100);
-
-  $('#inOut').innerHTML = `
-    <div style="display:flex; align-items:center; gap:9px; margin-bottom:12px">
-      <span class="pill acc">3 / 3 · 확인</span>
-      <span class="hint">${drafts.length}건이 등록됩니다${delta > 0 ? ` · ${P().company} 매칭 ${Math.round(before*100)}% → ${Math.round(after*100)}%` : ''}</span>
-    </div>
-    ${drafts.map(d => `
-      <div class="cand" style="margin-bottom:10px">
-        <div style="display:flex; align-items:center; gap:8px">
-          <b style="color:var(--ink); font-size:13px">${esc(d.title)}</b>
-          <span class="pill mut">${esc(d.period)}</span>
-          <span class="pill info">AI_INTAKE</span>
-        </div>
-        <dl style="display:grid; grid-template-columns:auto 1fr; gap:4px 11px; font-size:12px; margin:4px 0 0">
-          <dt style="color:var(--faint); font-weight:600">S</dt><dd style="margin:0">${esc(d.situation)}</dd>
-          <dt style="color:var(--accent); font-weight:600">T</dt><dd style="margin:0; color:var(--ink)">${esc(d.task)}</dd>
-          <dt style="color:var(--faint); font-weight:600">A</dt><dd style="margin:0">${esc(d.action)}</dd>
-          <dt style="color:var(--matched); font-weight:600">R</dt><dd style="margin:0; color:var(--ink)"><b>${esc(d.result)}</b></dd>
-        </dl>
-        <div class="chips">${d.competencyIds.map(id => { const c = byId(id); return `<span class="chip ${CAT[c.category]}">${esc(c.name)}</span>`; }).join('')}</div>
-        <div class="hint">근거 ${d.evidenceRefs.map(esc).join(' · ')}</div>
-      </div>`).join('')}
-    ${skipped.length ? `<div class="err" style="margin-bottom:10px">⚠ 답변이 덜 채워진 ${skipped.length}건(${skipped.map(k => esc(candOf(k).title)).join(', ')})은 등록하지 않습니다.</div>` : ''}
-    <div style="display:flex; gap:8px; align-items:center; padding-top:11px; border-top:1px dashed var(--border)">
-      <button type="button" class="btn sm" id="inBack2">← 답변 고치기</button>
-      <button type="button" class="btn primary sm" id="inCommit" style="margin-left:auto">${drafts.length}건 등록</button>
-    </div>`;
-
-  $('#inBack2').addEventListener('click', () => { inStep = 2; paintIntake(); });
-  $('#inCommit').addEventListener('click', () => {
-    const newIds = [];
-    drafts.forEach(d => {
-      const id = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
-      DATA.experiences.push({ ...d, id });
-      newIds.push(id);
-    });
-    $('#expDlg').close();
-    renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
-    onExperienceChanged('ExperienceCreated', newIds);
-    toast(`경험 ${drafts.length}건을 등록했습니다 · 평가 재계산을 요청했습니다`);
-  });
+    after = computeMatch().overall;
+  } finally { DATA.experiences = backup; }     // 예외가 나도 전역을 되돌린다
+  const b = Math.round(before * 100), a = Math.round(after * 100);
+  return a > b ? `${esc(P().company)} 매칭 ${b}% → <b style="color:var(--matched)">${a}%</b>` : '';
 }
+
+function commitHintHTML(ready){
+  const skipped = inChosen.size - ready.length;
+  // 서명에 comp 를 넣는다 — computeMatch 는 competencyIds·strength 만 읽으므로
+  // ready 를 유지한 채 역량 칩만 바꿔도 숫자가 실제로 움직인다.
+  const sig = ready.map(k => k + ':' + Object.entries(inDraft[k].comp).sort()
+                                        .map(([i, v]) => i + '=' + v).join('|')).join(',');
+  if (sig !== inMatchCache.sig) inMatchCache = { sig, html: matchDeltaHTML(ready) };
+  const parts = [];
+  if (skipped) parts.push(`<span style="color:var(--gap)">아직 비어 있는 ${skipped}건은 등록되지 않습니다</span>`);
+  if (inMatchCache.html) parts.push(inMatchCache.html);
+  return parts.join(' · ') || '되물은 칸을 채우면 등록 대상이 됩니다.';
+}
+
+function paintFooter(){
+  const btn = $('#exSave'), gap = $('#exGapHint');
+  if ($('#exIntake').hidden){                    // 직접 입력 탭
+    btn.textContent = exEditId != null ? '저장' : '등록';
+    btn.disabled = false; gap.innerHTML = exGapText; return;
+  }
+  if (inStep === 1 || !inChosen.size){
+    btn.textContent = '등록'; btn.disabled = true;
+    gap.innerHTML = '후보를 고르고 직접 쓸 칸을 채우면 등록할 수 있습니다.'; return;
+  }
+  const ready = [...inChosen].filter(isReady);
+  btn.textContent = ready.length ? `${ready.length}건 등록` : '등록할 건 없음';
+  btn.disabled = ready.length === 0;
+  gap.innerHTML = commitHintHTML(ready);
+}
+
+function commitIntake(){
+  const ready = [...inChosen].filter(isReady);   // 클릭 시점에 다시 계산한다
+  if (!ready.length) return;
+  const skipped = inChosen.size - ready.length;
+  // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
+  if (skipped && inCommitArmed !== ready.length){
+    inCommitArmed = ready.length;
+    $('#exSave').textContent = `${ready.length}건만 등록 · 한 번 더`;
+    $('#exGapHint').innerHTML =
+      `<span style="color:var(--gap)">비어 있는 ${skipped}건은 저장되지 않고 사라집니다. 다시 누르면 확정합니다.</span>`;
+    return;
+  }
+  const drafts = ready.map(buildExp), newIds = [];
+  drafts.forEach(d => {
+    const id = Math.max(0, ...DATA.experiences.map(e => e.id)) + 1;
+    DATA.experiences.push({ ...d, id });
+    newIds.push(id);
+  });
+  inCommitArmed = null;
+  $('#expDlg').close();
+  renderS1(); renderHome(); if ($('#detail').classList.contains('on')) renderDetail();
+  onExperienceChanged('ExperienceCreated', newIds);
+  toast(`경험 ${drafts.length}건을 등록했습니다 · 평가 재계산을 요청했습니다`);
+}
+
+/* 16칸을 채우다 Esc 한 번에 날리지 않게 */
+const intakeDirty = () => !$('#exTabs').hidden && !$('#exIntake').hidden && [...inChosen].some(k => {
+  const d = inDraft[k]; if (!d) return false;
+  const c = candOf(k);
+  return FIELDS.some(f => d[f].trim() !== (c[f] || '').trim())
+      || d.title.trim() !== c.title || d.period.trim() !== (c.period || '') || d.category !== c.category;
+});
+let exCloseArmed = false;
+function tryCloseExp(){
+  if (intakeDirty() && !exCloseArmed){
+    exCloseArmed = true;
+    toast('작성 중인 인테이크 초안이 있습니다 — 닫으려면 한 번 더 누르세요');
+    setTimeout(() => exCloseArmed = false, 4000);
+    return;
+  }
+  exEditId = null; exCloseArmed = false; $('#expDlg').close();
+}
+$('#exClose').addEventListener('click', tryCloseExp);
+$('#expDlg').addEventListener('cancel', e => {          // Esc
+  if (intakeDirty() && !exCloseArmed){ e.preventDefault(); tryCloseExp(); }
+});
 
 /* ---------- 문항 추가 — application 1:N question 의 생성 경로 ---------- */
 let qDlgApp = null;
@@ -3019,7 +3433,6 @@ $('#qSave').addEventListener('click', () => {
   DATA.questions.push({
     id: Math.max(0, ...DATA.questions.map(q => q.id)) + 1,
     applicationId: qDlgApp,
-    versions: [],
     charLimit: Math.max(100, +$('#qLimit').value || 700),
     prompt,
     intent: '직접 등록한 문항입니다. 공고의 평가 포인트를 확인해 의도를 채워 두면 점검이 정확해집니다.',

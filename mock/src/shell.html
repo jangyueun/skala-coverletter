@@ -294,6 +294,9 @@ figure.fig figcaption{margin-top:12px; font-size:12px; color:var(--muted); max-w
 .dia rect.hub{fill:var(--accent-soft); stroke:var(--accent); stroke-width:1.4}
 .dia .rel{stroke:currentColor; stroke-width:1.4; opacity:.5; fill:none}
 .dia .nmline{stroke:var(--accent); stroke-width:2.6; fill:none}
+#s4lint .cardbody{padding-top:14px}
+.rel-post{width:100%; align-items:center; background:var(--surface); border-color:var(--border)}
+.rel-post:hover{border-color:var(--accent); background:var(--surface-2)}
 .spec-sec{margin-bottom:22px}
 .spec-sec > h3{display:flex; align-items:baseline; gap:9px; margin-bottom:4px}
 .spec-sec > h3 .no{font-family:var(--mono); font-size:11px; color:var(--accent); border:1px solid currentColor; padding:1px 5px; border-radius:2px}
@@ -396,6 +399,29 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
 .qrow{display:flex; flex-direction:column; gap:5px; padding:9px 0; border-top:1px dashed var(--border)}
 .qrow .q{font-size:12px; color:var(--ink)}
 .qrow .why{font-size:10.5px; color:var(--faint)}
+
+/* 인테이크 에디터 — 좌 후보 레일 + 우 STAR 에디터 */
+.inwrap{display:grid; grid-template-columns:168px 1fr; gap:12px; align-items:start}
+.inwrap > #inRail{
+  position:sticky; top:0; z-index:1; display:flex; flex-direction:column; gap:7px;
+  background:var(--surface); padding-bottom:6px; min-width:0;
+}
+.inwrap.solo{grid-template-columns:1fr}
+.inwrap.solo > #inRail{position:static; flex-direction:row; align-items:center; flex-wrap:wrap}
+@media(max-width:640px){
+  .inwrap{grid-template-columns:1fr}
+  .inwrap > #inRail{position:static; flex-direction:row; overflow-x:auto}
+  .inwrap > #inRail .cand{min-width:150px; flex:none}
+}
+
+/* 이 문장을 누가 썼는가 — 필드 왼쪽 스트라이프 */
+.fsrc{border-left:3px solid var(--border-strong); padding-left:10px}
+.fsrc-you{border-left-color:var(--gap)}
+.fsrc-todo{border-left-width:5px}          /* 아직 비어 있다 — 채우면 두께만 돌아온다 */
+.fsrc-edited{border-left-color:var(--accent)}
+
+/* 근거 인용 한 줄 — 전문은 title 속성 */
+.evq{overflow:hidden; text-overflow:ellipsis; white-space:nowrap}
 </style>
 </head>
 <body>
@@ -460,10 +486,9 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
         </div>
       </div>
 
-      <div class="grid g3" style="margin-bottom:18px">
+      <div class="grid g2" style="margin-bottom:18px">
         <div class="card pad" data-note="GET /api/experiences"><div class="stat"><span class="v" id="s1cnt">0</span><span class="l">등록한 경험</span></div></div>
         <div class="card pad" data-note="experience_competency"><div class="stat"><span class="v" id="s1cov">0</span><span class="l">태그된 역량 (전체 20개 중)</span></div></div>
-        <div class="card pad"><div class="stat"><span class="v" id="s1star">0</span><span class="l">STAR 4필드가 모두 채워진 경험</span></div></div>
       </div>
 
       <div class="card" style="margin-bottom:16px" data-note="competency 마스터">
@@ -510,7 +535,7 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     <div class="dlghead">
       <h3 id="expDlgH">경험 등록</h3>
       <span class="sub" id="expDlgSub">STAR 4필드 · 역량 태그</span>
-      <button class="btn sm x" value="cancel">닫기</button>
+      <button type="button" class="btn sm x" id="exClose">닫기</button>
     </div>
   </form>
   <div class="dlgbody">
@@ -520,12 +545,16 @@ select.inp{appearance:none; background-image:linear-gradient(45deg,transparent 5
     </div>
 
     <div id="exIntake" hidden>
-      <div class="field" style="margin-bottom:10px">
+      <div class="field" id="inLinkBox" style="margin-bottom:10px">
         <label for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
         <textarea class="inp" id="inUrl" rows="4" spellcheck="false">https://github.com/jhyun/msa-order-service
 https://github.com/jhyun/algo-study-2025
 https://jhyun.dev/portfolio
 https://drive.example/해커톤_발표자료.pdf</textarea>
+      </div>
+      <div class="hint" id="inLinkFold" hidden style="margin-bottom:10px">
+        링크 <b id="inLinkN">4</b>개를 분석했습니다
+        <button type="button" class="btn sm" id="inLinkEdit" style="margin-left:6px">링크 고치기</button>
       </div>
       <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap">
         <button type="button" class="btn primary sm" id="inRun" data-note="POST /experiences/ai/intake → 202">분석</button>
@@ -614,13 +643,7 @@ https://drive.example/해커톤_발표자료.pdf</textarea>
       <div class="field"><label for="apCo">기업명 *</label><input class="inp" id="apCo" placeholder="예) 세움테크"></div>
       <div class="field"><label for="apPos">직무 *</label><input class="inp" id="apPos" placeholder="예) 백엔드 엔지니어"></div>
     </div>
-    <div class="frow f3">
-      <div class="field"><label for="apSt">상태</label>
-        <select class="inp" id="apSt">
-          <option value="PLANNED">지원 예정</option><option value="WRITING">작성 중</option>
-          <option value="SUBMITTED">제출</option><option value="INTERVIEW">면접</option><option value="RESULT">결과 대기</option>
-        </select>
-      </div>
+    <div class="frow">
       <div class="field"><label for="apDday">마감까지 (일)</label><input class="inp" id="apDday" type="number" min="0" max="365" value="14"></div>
       <div class="field"><label for="apQ">문항 수</label><input class="inp" id="apQ" type="number" min="1" max="12" value="4"></div>
     </div>

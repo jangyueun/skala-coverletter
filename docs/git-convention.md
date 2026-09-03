@@ -2,19 +2,29 @@
 
 ## 1. 기본 규칙
 
-- `main` 브랜치에 직접 push하지 않습니다.
-- 작업 전 `main` 브랜치의 최신 내용을 받습니다.
+- `main`과 `develop` 브랜치에 직접 push하지 않습니다.
+- 모든 작업 브랜치는 최신 `develop`에서 생성합니다.
 - 각자 작업 브랜치를 만들어 작업합니다.
 - 작업 완료 후 Pull Request(PR)를 생성합니다.
 - `.env`, API Key, 비밀번호는 커밋하지 않습니다.
+
+### 브랜치 운영 방식
+
+```text
+작업 브랜치 → develop → main
+```
+
+- `main`: 최종 발표 및 배포 가능한 버전
+- `develop`: 팀원들의 작업을 합치는 통합 브랜치
+- 작업 브랜치: 기능, 수정, 문서 작업을 진행하는 개인 브랜치
 
 ## 2. 작업 순서
 
 ### 1) 최신 코드 받기
 
 ```bash
-git checkout main
-git pull origin main
+git checkout develop
+git pull origin develop
 ```
 
 ### 2) 작업 브랜치 생성하기
@@ -40,7 +50,7 @@ git commit -m "feat: 작업 내용"
 git push -u origin 브랜치이름
 ```
 
-push 후 GitHub에서 `main` 브랜치를 대상으로 PR을 생성합니다.
+push 후 GitHub에서 `develop` 브랜치를 대상으로 PR을 생성합니다.
 
 ## 3. 브랜치 이름
 
@@ -77,6 +87,9 @@ chore: 프로젝트 설정 추가
 
 ## 5. Pull Request 규칙
 
+- 일반 작업 PR은 `작업 브랜치 → develop` 방향으로 생성합니다.
+- 최종 테스트가 끝나면 `develop → main` 방향으로 PR을 생성합니다.
+- `main`과 `develop`에는 직접 push하지 않습니다.
 - PR 제목은 커밋 메시지와 동일한 형식을 사용합니다.
 - 작업한 내용을 간단히 작성합니다.
 - 화면 변경이 있으면 스크린샷을 첨부합니다.
@@ -104,3 +117,5 @@ chore: 프로젝트 설정 추가
 - PR의 충돌 여부와 변경 내용을 확인한 후 merge합니다.
 - 병합 방식은 `Squash and merge`를 사용합니다.
 - 충돌이 발생하면 담당자와 함께 해결한 후 merge합니다.
+- 기능 개발 중에는 작업 브랜치를 `develop`에 병합합니다.
+- 발표 또는 배포할 최종 버전만 `develop`에서 `main`으로 병합합니다.

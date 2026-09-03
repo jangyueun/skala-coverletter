@@ -1,0 +1,92 @@
+# ── 비밀값 ───────────────────────────────────────────────
+# Slack client secret 이 여기로 들어간다. 절대 커밋하지 않는다.
+# 슬래시 없는 패턴은 하위 디렉터리 어디서든 걸리므로 **/ 를 덧붙일 필요가 없다.
+.env
+.env.*
+!.env.example
+!.env.*.example
+
+application-local.yml
+application-local.yaml
+application-local.properties
+application-secret.yml
+application-secret.yaml
+application-secret.properties
+
+# 인증서 · 키스토어. git add . 로 딸려 들어가는 사고가 제일 흔하다.
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+credentials.json
+
+# ── 빌드 산출물 ──────────────────────────────────────────
+# backend/ 로 묶는다. 앵커 없이 build/ 를 두면 frontend/src/lib/build/ 같은
+# 소스 디렉터리까지 조용히 무시된다.
+backend/**/build/
+backend/**/out/
+backend/**/bin/
+backend/**/target/
+.gradle/
+
+*.class
+*.war
+*.ear
+*.hprof
+hs_err_pid*
+
+# 래퍼는 커밋해야 한다. *.jar 뒤에 와야 예외가 먹는다.
+*.jar
+!**/gradle/wrapper/gradle-wrapper.jar
+
+# ── Python (ai/) ─────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+
+# ── Node (frontend/) ─────────────────────────────────────
+node_modules/
+dist/
+dist-ssr/
+.vite/
+
+# ── Docker ───────────────────────────────────────────────
+docker-compose.override.yml
+docker-compose.override.yaml
+compose.override.yml
+compose.override.yaml
+.docker/
+docker-data/
+postgres-data/
+pgdata/
+
+# ── 로그 · 임시 파일 ─────────────────────────────────────
+logs/
+*.log
+*.tmp
+*.temp
+*.pid
+tmp/
+temp/
+.cache/
+
+# ── 편집기 · OS ──────────────────────────────────────────
+.idea/
+*.iml
+.classpath
+.project
+.settings/
+
+# .vscode/ 로 디렉터리째 막으면 하위 예외가 동작하지 않는다.
+# 팀 공용 확장 추천 목록은 커밋한다.
+**/.vscode/*
+!**/.vscode/extensions.json
+
+.DS_Store
+Thumbs.db
+Desktop.ini
