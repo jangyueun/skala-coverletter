@@ -6,7 +6,7 @@ import { useAnswersStore } from '@/stores/answers.js'
 import { useUiStore } from '@/stores/ui.js'
 import { useDerivedStore } from '@/stores/derived.js'
 import { SCORE } from '@/domain/matching.js'
-import { dday, isClosed } from '@/domain/deadline.js'
+import { dday, isClosed, deadlineLabel } from '@/domain/deadline.js'
 import Skeleton from '@/components/state/Skeleton.vue'
 import MatchTable from '@/components/posting/MatchTable.vue'
 import SignInGate from '@/components/SignInGate.vue'
@@ -41,7 +41,7 @@ const gaps    = computed(() => match.value?.rows.filter(r => r.isGap) ?? [])
 const d       = computed(() => posting.value ? dday(posting.value.deadline) : 0)
 const closed  = computed(() => !!posting.value && isClosed(posting.value.deadline))
 
-/* 판정 — 숫자만 주면 사용자가 뭘 해야 할지 모른다. */
+/* 판정 — 숫자만 주면 사용자가 뭘 해야 할지 모른다. 경계는 서버의 match_verdict 와 같다. */
 const verdict = computed(() => {
   const o = match.value?.overall ?? 0
   if (o >= SCORE.RECOMMEND) return { k: '지원 권장', tone: 'ok' }
@@ -52,25 +52,24 @@ const verdict = computed(() => {
 /* 같은 기업 다른 직무 / 다른 기업 비슷한 직무.
    공고가 직무 단위라는 걸 화면에서 보이게 하는 자리다.
 
-   "같은 직무" 가 아니라 "비슷한" 이다. role 은 계열이라 "서버 개발" 과
-   "백엔드 엔지니어" 를 한 묶음으로 본다 — 기업마다 직무명이 제각각이라
-   문자열로는 못 묶기 때문이다. 같다고 말하면 과장이 된다. */
+   "비슷한" 은 요구 역량 태그가 얼마나 겹치는가로 잰다. v6 에서 직무 계열(role)이 없어졌다 —
+   기업마다 직무명이 제각각이라 문자열로는 못 묶고, 계열은 사람이 붙이던 라벨이라 데이터가 없다.
+   실제 상세 DTO 는 related.sameCompany·related.similar(겹침 수 상위 3, 다른 기업)를 서버가 계산해 준다.
+   목은 그 규칙을 여기서 그대로 돈다 — 백엔드가 붙는 날 posting.related 로 바꾼다. */
 const related = computed(() => {
-  if (!posting.value) return { sameCo: [], sameRole: [] }
+  if (!posting.value) return { sameCompany: [], similar: [] }
   const me = posting.value
+  const mine = new Set(me.requiredCompetencies.map(r => r.competencyId))
   const live = P.live.filter(p => p.id !== me.id)
-  return {
-    sameCo:   live.filter(p => p.company === me.company),
-    sameRole: live.filter(p => p.company !== me.company && p.role === me.role),
-  }
+  const similar = live
+    .filter(p => p.company !== me.company)
+    .map(p => ({ posting: p, shared: p.requiredCompetencies.filter(r => mine.has(r.competencyId)).length }))
+    .filter(x => x.shared > 0)
+    .sort((a, b) => b.shared - a.shared)
+    .slice(0, 3)
+  return { sameCompany: live.filter(p => p.company === me.company), similar }
 })
 const pctOf = p => Math.round(D.matchFor(p).overall * 100)
-
-const ROLE = {
-  BACKEND: '백엔드', FRONTEND: '프론트엔드', FULLSTACK: '풀스택',
-  PLATFORM: '플랫폼·인프라', AI: 'AI',
-}
-const roleLabel = computed(() => ROLE[posting.value?.role] || posting.value?.role || '')
 
 /* 마지막 글자의 받침 유무로 조사를 고른다.
    "도메인 이해은" 처럼 틀리면 문장 전체가 기계가 쓴 것으로 읽힌다. */
@@ -94,9 +93,6 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
       <div class="hd-l">
         <!-- 회사는 눈썹 문구가 아니라 읽는 줄이다. 카드에서 회사가 직무의
              70% 크기로 또렷하게 읽히는 것과 같은 비중으로 올린다. -->
-        <!-- 회사 이름만. 직무 계열은 바로 아래 직무명이 이미 말한다 —
-             "플랫폼·인프라 / 플랫폼 엔지니어" 는 같은 말을 두 번 하는 것이다.
-             (roleLabel 은 아래 "관련 공고" 에서 계속 쓴다) -->
         <p class="co">{{ posting.company }}</p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
@@ -104,7 +100,7 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
                아래의 매칭·자소서를 아직 지원할 수 있는 것으로 읽는다. -->
           <span v-if="closed" class="tag tag--closed">마감</span>
           <span class="tag tag--ink">
-            <b v-if="!closed" class="num">D-{{ d }}</b>{{ !closed ? '\u00a0' : '' }}{{ posting.deadline }} 마감
+            <b v-if="!closed" class="num">D-{{ d }}</b>{{ !closed ? ' ' : '' }}{{ deadlineLabel(posting.deadline) }} 마감
           </span>
           <span v-if="auth.signedIn && essay?.label" class="tag" :class="essay.state === 'DONE' ? 'tag--ok' : ''">{{ essay.label }}</span>
         </div>
@@ -141,7 +137,7 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
     <section v-show="tab === 'content'" class="pane">
       <div class="panel body">
         <p class="subhead">직무 내용 · 원문</p>
-        <pre class="raw">{{ posting.rawText }}</pre>
+        <pre class="raw">{{ posting.content }}</pre>
       </div>
 
       <div class="panel body">
@@ -158,21 +154,23 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
       <div class="panel body">
         <p class="subhead">관련 공고</p>
 
-        <div v-if="related.sameCo.length" class="relgrp">
+        <div v-if="related.sameCompany.length" class="relgrp">
           <p class="rl">같은 기업 · 다른 직무</p>
-          <button v-for="p in related.sameCo" :key="p.id" class="rel panel panel--press"
+          <button v-for="p in related.sameCompany" :key="p.id" class="rel panel panel--press"
                   @click="router.push(`/postings/${p.id}`)">
             <span class="rn">{{ p.position }}</span>
             <span v-if="auth.signedIn" class="num rp">{{ pctOf(p) }}%</span>
           </button>
         </div>
 
-        <div v-if="related.sameRole.length" class="relgrp">
-          <p class="rl">다른 기업 · 비슷한 직무 <span class="rlk">{{ roleLabel }}</span></p>
-          <button v-for="p in related.sameRole" :key="p.id" class="rel panel panel--press"
-                  @click="router.push(`/postings/${p.id}`)">
-            <span class="rn">{{ p.company }} · {{ p.position }}</span>
-            <span v-if="auth.signedIn" class="num rp">{{ pctOf(p) }}%</span>
+        <!-- 계열 라벨 대신 겹치는 역량 수를 적는다. "비슷하다" 의 근거가 그 숫자다. -->
+        <div v-if="related.similar.length" class="relgrp">
+          <p class="rl">다른 기업 · 비슷한 직무 <span class="rlk">요구 역량이 겹치는 순</span></p>
+          <button v-for="x in related.similar" :key="x.posting.id" class="rel panel panel--press"
+                  @click="router.push(`/postings/${x.posting.id}`)">
+            <span class="rn">{{ x.posting.company }} · {{ x.posting.position }}</span>
+            <span class="rs">역량 <b class="num">{{ x.shared }}</b>개 겹침</span>
+            <span v-if="auth.signedIn" class="num rp">{{ pctOf(x.posting) }}%</span>
           </button>
         </div>
       </div>
@@ -218,13 +216,14 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
       <SignInGate v-else-if="!auth.signedIn"
                   desc="자소서 초안은 계정에 저장됩니다. 로그인하면 쓰던 곳부터 이어서 쓸 수 있습니다." />
 
+      <!-- 문항은 관리자가 공고에 붙인다(v6). 사용자 등록 경로가 없으므로 버튼도 없다 —
+           눌리지 않는 버튼은 "곧 된다" 는 거짓 약속이었다. -->
       <div v-else-if="!questions.length" class="panel body empty">
         <p class="subhead">문항 없음</p>
         <p class="hint">
-          이 공고는 서버가 자소서 문항을 주지 않았습니다.
-          문항을 직접 등록하면 여기서 바로 작성할 수 있습니다.
+          이 공고에는 아직 자소서 문항이 없습니다.
+          문항이 등록되면 여기서 바로 쓸 수 있습니다.
         </p>
-        <button class="btn" disabled>문항 등록</button>
       </div>
 
       <div v-else class="panel body">
@@ -242,9 +241,6 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
 
 .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 22px; flex-wrap: wrap; }
 .hd-l { min-width: 0; flex: 1 1 340px; }
-/* 카드의 회사:직무 비율(12.5 : 18 = 0.69)을 상세에도 그대로 준다.
-   41.6 × 0.69 ≈ 26px. 직무 계열은 회사를 한정하는 말이라 같이 키우지 않는다 —
-   둘 다 26px 이면 회사 이름이 어디서 끝나는지가 안 보인다. */
 /* 카드의 회사:직무 비율(12.5 : 18 = 0.69)을 상세에도 준다. 41.6 × 0.69 ≈ 26px */
 .co {
   margin: 0; font-size: var(--fs-2xl); font-weight: 700;
@@ -300,13 +296,16 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
 
 .relgrp { margin-top: 14px; }
 .rl { margin: 0 0 7px; font-size: var(--fs-2xs); font-weight: 700; color: var(--muted); }
-.rlk { color: var(--ink); }
+.rlk { font-weight: 500; }
 .rel {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;
   padding: 9px 12px; margin-bottom: 6px; text-align: left; font: inherit; color: inherit;
   border-top-width: 2px;
 }
 .rn { font-weight: 600; font-size: var(--fs-sm); min-width: 0; }
+/* 겹침 수는 이름과 퍼센트 사이에 작게 — "왜 여기 있나" 의 답이지 판독값이 아니다 */
+.rs { margin-left: auto; font-size: var(--fs-2xs); color: var(--muted); flex: none; white-space: nowrap; }
+.rs b { color: var(--ink-2); }
 .rp { font-size: var(--fs-md); font-weight: 600; flex: none; }
 
 /* 표 머리 — 라벨 왼쪽, 사용법 힌트 오른쪽. 목업의 cardhead 와 같은 역할이다. */
@@ -321,7 +320,6 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
 .gaptext { color: var(--gap); }
 
 .empty { text-align: center; }
-.empty .btn { margin-top: 12px; }
 
 @media (max-width: 620px) {
   /* 좁아지면 매칭 판독값이 제목 아래로 내려와 왼쪽 끝에 선다 */

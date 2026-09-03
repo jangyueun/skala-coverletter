@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { strLabel } from '@/domain/matching.js'
+import { strLabel, strengthOf } from '@/domain/matching.js'
 import { catShort } from '@/domain/competency.js'
 
 /* 목업의 구성을 그대로 가져왔다 — 표 + 누르면 펼쳐지는 근거.
@@ -78,7 +78,7 @@ function toggle(id) {
             <td colspan="5">
               <div class="d">
                 <p class="dk">공고 근거</p>
-                <p class="dv src">“{{ r.evidence }}”</p>
+                <p class="dv src">“{{ r.evidenceLine }}”</p>
               </div>
 
               <div class="d">
@@ -87,7 +87,7 @@ function toggle(id) {
                   <template v-if="r.evid.length">
                     <p v-for="e in r.evid" :key="e.id" class="ev">
                       <b class="et">{{ e.title }}</b>
-                      <i class="st">{{ strLabel(e.strength?.[r.competencyId] ?? 0.6) }}</i>
+                      <i class="st">{{ strLabel(strengthOf(e, r.competencyId)) }}</i>
                       <span class="res">{{ e.result }}</span>
                     </p>
                   </template>

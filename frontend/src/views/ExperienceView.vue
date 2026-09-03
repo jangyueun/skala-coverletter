@@ -24,10 +24,10 @@ const chips = computed(() =>
   groupByCategory(
     P.competencies
       .filter(c => tagged.value.has(c.id))
-      .map(c => ({ ...c, n: E.list.filter(e => e.competencyIds.includes(c.id)).length }))))
+      .map(c => ({ ...c, n: E.list.filter(e => E.has(e, c.id)).length }))))
 
 const shown = computed(() =>
-  filter.value ? E.list.filter(e => e.competencyIds.includes(filter.value)) : E.list)
+  filter.value ? E.list.filter(e => E.has(e, filter.value)) : E.list)
 
 const filterName = computed(() =>
   filter.value ? P.competencies.find(c => c.id === filter.value)?.name : null)

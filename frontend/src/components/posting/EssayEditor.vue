@@ -3,6 +3,7 @@ import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useAnswersStore } from '@/stores/answers.js'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { lengthState } from '@/domain/essay.js'
+import { categoryLabel, periodLabel } from '@/domain/experience.js'
 import { api } from '@/api/index.js'
 
 const props = defineProps({ questions: { type: Array, required: true } })
@@ -11,6 +12,7 @@ const E = useExperiencesStore()
 
 const activeId = ref(props.questions[0]?.id ?? null)
 const q = computed(() => props.questions.find(x => x.id === activeId.value) ?? null)
+const qNo = x => props.questions.indexOf(x) + 1
 
 /* 문항이 바뀌면(공고를 옮기면) 첫 문항으로 되돌린다.
    안 하면 다른 공고의 문항 id 를 들고 있어 화면이 빈다.
@@ -22,10 +24,10 @@ watch(() => props.questions, list => {
 })
 
 /* 화면은 버퍼를 읽고 쓴다. 저장 버튼을 누르기 전까지 커밋본은 안 바뀐다. */
-const buf = computed(() => (q.value ? A.draftOf(q.value.id) : { draft: '', usedExperienceIds: [] }))
+const buf = computed(() => (q.value ? A.draftOf(q.value.id) : { content: '', usedExperienceIds: [] }))
 const text = computed({
-  get: () => buf.value.draft,
-  set: v => { if (q.value) A.editDraft(q.value.id, { draft: v }) },
+  get: () => buf.value.content,
+  set: v => { if (q.value) A.editDraft(q.value.id, { content: v }) },
 })
 
 const len = computed(() => lengthState(text.value, q.value))
@@ -47,7 +49,8 @@ function toggleExp(id) {
   })
 }
 
-/* AI 초안.
+/* AI 초안 — POST /api/questions/{id}/drafts 에 근거 경험을 보낸다. 근거가 없으면 서버가 400 을 주므로
+   버튼을 미리 잠근다. 초안은 서버에 저장되지 않는다 — 버퍼로 가고, 저장할 때 draftTaskId 로 출처가 남는다.
 
    대기 중에 문항을 옮기면 엉뚱한 문항에 꽂히던 버그가 있었다 —
    await 뒤에 q.value 를 다시 읽었기 때문이다. 시작할 때 대상을 붙잡는다.
@@ -60,10 +63,12 @@ const draftError = ref(null)
 async function makeDraft() {
   const target = q.value
   if (!target) return
+  const experienceIds = A.draftOf(target.id).usedExperienceIds
+  if (!experienceIds.length) return
   draftingId.value = target.id; draftError.value = null
   try {
-    const { draft } = await api.ai.draft(target.id, A.draftOf(target.id).usedExperienceIds)
-    A.editDraft(target.id, { draft })
+    const { draft, taskId } = await api.ai.draft(target.id, experienceIds)
+    A.editDraft(target.id, { content: draft, draftTaskId: taskId ?? null })
   } catch (e) { draftError.value = e }
   finally { draftingId.value = null }
 }
@@ -87,30 +92,31 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
     <nav class="qtabs" aria-label="문항">
       <button v-for="x in questions" :key="x.id" class="btn btn--sm"
               :aria-pressed="x.id === activeId" @click="activeId = x.id">
-        문항 {{ questions.indexOf(x) + 1 }}
+        문항 {{ qNo(x) }}
         <span class="st"
-              :class="A.isDirty(x.id) ? 'dirty' : A.draftOf(x.id).draft.trim() ? 'on' : ''"
+              :class="A.isDirty(x.id) ? 'dirty' : A.draftOf(x.id).content.trim() ? 'on' : ''"
               :title="A.isDirty(x.id) ? '저장하지 않은 변경이 있습니다' : ''">
-          {{ A.draftOf(x.id).draft.trim() ? '●' : '○' }}
+          {{ A.draftOf(x.id).content.trim() ? '●' : '○' }}
         </span>
       </button>
     </nav>
 
     <div class="two">
       <div class="main">
-        <p class="prompt">{{ q.prompt }}</p>
+        <p class="prompt">{{ q.promptText }}</p>
 
-        <!-- 분량 — 막대와 숫자가 같은 판정을 쓴다 -->
+        <!-- 분량 — 막대와 숫자가 같은 판정을 쓴다. 제한이 없는 문항은 글자 수만 센다. -->
         <div class="meterrow">
           <div class="meter" :class="len.tone"><i :style="{ width: len.pct + '%' }" /></div>
-          <span class="num cnt" :class="len.tone">{{ len.n }} / {{ len.limit }}자</span>
-          <button class="btn btn--sm" :disabled="draftingId === q.id" @click="makeDraft">
+          <span class="num cnt" :class="len.tone">{{ len.n }}<template v-if="len.limit"> / {{ len.limit }}</template>자</span>
+          <button class="btn btn--sm" :disabled="draftingId === q.id || !used.length"
+                  :title="used.length ? '' : '오른쪽에서 근거로 쓸 경험을 먼저 고르세요'" @click="makeDraft">
             {{ draftingId === q.id ? '생성 중…' : 'AI 초안' }}
           </button>
         </div>
 
         <textarea v-model="text" class="inp" rows="12"
-                  :aria-label="`${q.title} 답변`"></textarea>
+                  :aria-label="`문항 ${qNo(q)} 답변`"></textarea>
         <p v-if="draftError" class="derr">AI 초안을 못 받았습니다 — {{ draftError.body?.message || draftError.message }}</p>
 
         <!-- 저장 — 이 화면의 유일한 주요 행동 -->
@@ -136,7 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
           <input type="checkbox" :checked="used.includes(e.id)" @change="toggleExp(e.id)">
           <span class="min0">
             <b class="et">{{ e.title }}</b>
-            <span class="em">{{ e.category }} · {{ e.period }}</span>
+            <span class="em">{{ categoryLabel(e.category) }} · {{ periodLabel(e.startDate, e.endDate) }}</span>
           </span>
         </label>
       </aside>

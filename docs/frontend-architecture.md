@@ -63,7 +63,7 @@ domain/
 
 ### `api/` — 서버와 말하는 유일한 층
 
-함수마다 **Promise 를 돌려준다.** 반환 모양은 백엔드 DTO 를 그대로 따른다(변환은 스토어 몫).
+함수마다 **Promise 를 돌려준다.** 반환 모양은 백엔드 DTO(`docs/api-spec-v6.md`)를 그대로 따른다(변환은 스토어 몫). 목도 같은 모양을 준다 — 분류·범주는 코드값, 기간·마감은 ISO 문자열.
 
 ```
 api/
@@ -71,7 +71,7 @@ api/
   index.js          VITE_API_MOCK=0 이면 real, 아니면 mock — 여기서만 갈라진다
   real/
     auth.js         me() · signIn() · signOut()          ← 실제 백엔드 있음
-    ai.js           extract(text) · draft(questionId, usedExperienceIds)   ← dev 는 vite 플러그인이 서빙
+    ai.js           draft(questionId, experienceIds) · intake(links, files)   ← 202 + taskId 를 받아 /ai-tasks 폴링까지 안는다. dev 는 vite 플러그인이 서빙
     (postings·experiences·answers 는 백엔드가 생기면 여기 추가)
   mock/
     _delay.js       지연 · VITE_API_MOCK_FAIL
@@ -104,7 +104,7 @@ stores/
   auth.js         user · signedIn · loaded · load() · signIn() · signOut()
   postings.js     list · competencies(사전) · live · load()
   experiences.js  list · candidates · taggedCompetencyIds · load() · create() · update()
-  answers.js      applications · questions · drafts(버퍼) · savedAt · saving · load() · save(questionId)
+  answers.js      questions(공고별 postingId) · drafts(버퍼) · savedAt · saving · load() · save(questionId)
   ui.js           sort · bookmarks — 서버가 모르는 화면 상태
   derived.js      state 없음. 넷을 읽어 cards · myLists · topGap · matchFor · essayFor · usedIn
 ```
@@ -163,7 +163,7 @@ async load() {
 | 백엔드 붙여서 확인 | `VITE_API_MOCK=0 npm run dev` — 인증·AI 가 real 로. vite 프록시가 `/api` → `:8080`. 같은 오리진이라 CORS·쿠키 문제 없음 |
 | 로딩 상태를 오래 보고 싶다 | `VITE_API_MOCK_DELAY=3000` |
 | 실패 화면을 보고 싶다 | `VITE_API_MOCK_FAIL=postings` — 그 API 만 500 을 준다 |
-| AI 추출·초안 | `.env` 에 `ANTHROPIC_API_KEY` — vite 플러그인이 `/api/ai/*` 를 dev 에서 서빙. 키 없으면 503 + 이유 |
+| AI 추출·초안 | `.env` 에 `ANTHROPIC_API_KEY` — vite 플러그인이 `/api/experience-intakes` · `/api/ai-tasks` 를 dev 에서 서빙. 키 없으면 503 + 이유 |
 | 같은 Wi-Fi 팀원에게 보여주기 | `host: true` 라 `npm run dev` 가 찍는 Network 주소 |
 
 `VITE_` 접두사는 값이 빌드 산출물에 박히므로 **스위치에만** 쓴다. 키는 절대 안 된다(`.env.example` 참조).
@@ -186,7 +186,7 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 | `stores/` | 액션 → 상태. `api/mock` 주입 | node | `save()` 실패하면 버퍼가 남는가 · `load()` 두 번 불러도 요청 한 번인가 |
 | `components/` | 렌더 → DOM. 스토어는 pinia testing | jsdom | 로그아웃이면 `SignInGate` 가 뜨는가 · 마감 공고에 D-day 가 안 뜨는가 |
 
-**전부 쓰지 않는다.** 3일이다. 오늘 실제로 터진 것들부터 — `essayProgress` 가 주입된 questions 를 읽는가, `isClosed` 가 `-0` 에 안 속는가, 인테이크 등록 후 상태가 초기화되는가, `posting.required` 의 id 가 전부 사전에 있는가. 마지막 건 **데이터 검증 테스트**다 — 목 데이터가 사전과 어긋나면 빌드가 막힌다.
+**전부 쓰지 않는다.** 3일이다. 오늘 실제로 터진 것들부터 — `essayProgress` 가 주입된 questions 를 읽는가, `isClosed` 가 `-0` 에 안 속는가, 인테이크 등록 후 상태가 초기화되는가, `posting.requiredCompetencies` 의 id 가 전부 사전에 있는가. 마지막 건 **데이터 검증 테스트**다 — 목 데이터가 사전과 어긋나면 빌드가 막힌다.
 
 ---
 

@@ -14,16 +14,11 @@ const P = usePostingsStore()
 const ui = useUiStore()
 const D = useDerivedStore()
 const q = ref('')
-const role = ref('ALL')
 const picked = ref(new Set())      // 선택된 competencyId
 
-const ROLES = [
-  { k: 'ALL',       l: '전체' },
-  { k: 'BACKEND',   l: '백엔드' },
-  { k: 'FRONTEND',  l: '프론트엔드' },
-  { k: 'FULLSTACK', l: '풀스택' },
-  { k: 'PLATFORM',  l: '플랫폼·인프라' },
-]
+/* 직무 계열 필터는 뺐다. v6 에서 공고의 role 이 없어져 데이터가 없다 —
+   "백엔드" 는 기업마다 부르는 이름이 달라 사람이 붙이던 라벨이었고, 그 자리는 역량 필터가 맡는다.
+   "쿠버네티스를 요구하는 공고" 가 "플랫폼 계열" 보다 정확하다. */
 
 /* 사전 전체를 범주별로 묶어 낸다. 접어 두면 있는 줄도 모른다. */
 const groups = computed(() => groupByCategory(P.competencies))
@@ -43,18 +38,16 @@ function toggle(id) {
   picked.value = next
 }
 function clearAll() {
-  q.value = ''; role.value = 'ALL'; picked.value = new Set()
+  q.value = ''; picked.value = new Set()
 }
-const activeCount = computed(() =>
-  picked.value.size + (role.value !== 'ALL' ? 1 : 0)
-  + (q.value.trim() ? 1 : 0))
+const activeCount = computed(() => picked.value.size + (q.value.trim() ? 1 : 0))
 
 /* 검색은 기업·직무·역량 이름을 함께 본다.
-   "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도 요구 역량에 있으면 나와야 한다. */
+   "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도 요구 역량에 있으면 나와야 한다.
+   실제 GET /api/postings 도 q · competencyId 를 같은 뜻으로 받는다(OR). */
 const list = computed(() => {
   const kw = q.value.trim().toLowerCase()
   return D.cards.filter(c => {
-    if (role.value !== 'ALL' && c.posting.role !== role.value) return false
     // 고른 역량을 **하나라도** 요구하는 공고. AND 로 걸면 대부분 0건이 된다.
     if (picked.value.size && !c.match.rows.some(r => picked.value.has(r.competencyId))) return false
     if (!kw) return true
@@ -116,14 +109,6 @@ const list = computed(() => {
       <div class="sh">
         <p class="sht">필터<span v-if="activeCount" class="badge">{{ activeCount }}</span></p>
         <button class="btn btn--sm" :disabled="!activeCount" @click="clearAll">초기화</button>
-      </div>
-
-      <div class="fg">
-        <p class="fgt">직무 계열</p>
-        <div class="fgb">
-          <button v-for="r in ROLES" :key="r.k" class="btn btn--sm"
-                  :aria-pressed="role === r.k" @click="role = r.k">{{ r.l }}</button>
-        </div>
       </div>
 
       <!-- 역량 사전. 범주별로 접어 두고 한 번에 하나만 편다. -->
@@ -210,7 +195,7 @@ const list = computed(() => {
   padding-bottom: 11px; border-bottom: 2px solid var(--ink);
   position: sticky; top: 0; background: var(--panel); z-index: 1;
 }
-/* 아래 그룹 제목(직무 계열·기술·언어)과 같은 목소리. 모노 대문자는 여기 안 어울린다. */
+/* 아래 범주 제목(직무 역량·기술·언어)과 같은 목소리. 모노 대문자는 여기 안 어울린다. */
 .sht {
   margin: 0; display: flex; align-items: center;
   font-size: var(--fs-md); font-weight: 800; letter-spacing: var(--track-tight);
@@ -220,8 +205,6 @@ const list = computed(() => {
   margin-left: 6px; border-radius: var(--pill);
   background: var(--accent); color: var(--accent-ink); font-size: var(--fs-3xs); font-weight: 700;
 }
-.fg { display: flex; flex-direction: column; gap: 9px; }
-.fgt { margin: 0; font-size: var(--fs-sm); font-weight: 700; }
 .fgn { font-family: var(--mono); font-size: var(--fs-3xs); color: var(--muted); font-weight: 500; }
 /* 전체 개수는 제목에 딸린 수라 이름 바로 옆에 붙인다.
    오른쪽 끝에는 "내가 고른 수"(주황)와 펼침 표시만 남는다 —
