@@ -134,10 +134,6 @@ const questions = computed(() => {
         <div class="tags">
           <span v-for="r in match.rows" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
         </div>
-        <p v-if="posting.newCompetencies?.length" class="hint nc">
-          사전에 없어 매길 수 없었던 요구 —
-          <b>{{ posting.newCompetencies.join(', ') }}</b>
-        </p>
       </div>
 
       <div class="panel body">
@@ -256,8 +252,6 @@ const questions = computed(() => {
 .body { padding: 16px 18px; }
 .hint { color: var(--muted); font-size: var(--fs-xs); margin: 6px 0 0; }
 .hint b { color: var(--ink); }
-.nc { color: var(--gap); }
-.nc b { color: var(--gap); }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 11px; }
 
 /* 원문에 따로 스크롤을 주지 않는다. 화면 안에 또 스크롤이 있으면
