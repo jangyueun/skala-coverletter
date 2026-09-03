@@ -199,7 +199,7 @@ class CareerfitApplicationTest {
         MockHttpSession session = loginSession("U_POSTING_DETAIL");
         Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
         Long targetId = postingId("서버 개발자 - 데이터 플랫폼 (신입)");
-        Long similarId = postingId("Front-end Developer Experience (신입)");
+        Long similarId = postingId("Forward Deployed Engineer(FDE) (신입)");
         Long competencyId = insertCompetency("상세 API 테스트 역량");
         insertPostingCompetency(targetId, competencyId, "0.90", "상세 조회 요구 역량 근거");
         insertPostingCompetency(similarId, competencyId, "0.70", "유사 공고 요구 역량 근거");
@@ -230,7 +230,7 @@ class CareerfitApplicationTest {
     void 공고_문항과_로그인_사용자의_답변을_조회한다() throws Exception {
         MockHttpSession session = loginSession("U_POSTING_QUESTIONS");
         Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
-        Long targetId = postingId("AI/AX 분야 연구개발 및 사업개발");
+        Long targetId = postingId("AI/AX 개발 (신입)");
         Long answeredQuestionId = insertQuestion(targetId, 1, "지원 동기를 작성해 주세요.", 700);
         insertQuestion(targetId, 2, "프로젝트 경험을 작성해 주세요.", null);
         jdbcClient.sql("""

@@ -39,10 +39,10 @@ public class JobPostingQueryRepository {
                 ), 0) as required_count,
                 array(
                     select competency.name
-                    from jsonb_array_elements(coalesce(job_match.coverage, '[]'::jsonb)) coverage
+                    from jsonb_array_elements(coalesce(job_match.coverage, '[]'::jsonb)) as coverage(value)
                     join competencies competency
-                      on competency.id = (coverage ->> 'competencyId')::bigint
-                    where not coalesce((coverage ->> 'isGap')::boolean, false)
+                      on competency.id = (coverage.value ->> 'competencyId')::bigint
+                    where not coalesce((coverage.value ->> 'isGap')::boolean, false)
                     order by competency.name
                 ) as covered_competency_names,
                 coalesce((
