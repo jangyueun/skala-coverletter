@@ -8,9 +8,11 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
  * 모든 예외를 JSON 으로 바꾸는 단 하나의 자리. 도메인마다 advice 를 만들면 팀원 수만큼
@@ -23,12 +25,10 @@ public class GlobalExceptionHandler {
 
     private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
 
-    /** auth 는 이미 리뷰된 {@code {"message": ...}} 계약을 그대로 둔다. */
-    @ExceptionHandler(AuthException.class)
-    public ResponseEntity<Map<String, String>> handle(AuthException e) {
-        return ResponseEntity.status(e.status()).body(Map.of("message", e.getMessage()));
-    }
-
+    /**
+     * {@link AuthException} 도 여기로 온다 — 인터셉터({@code SessionAuthInterceptor} · {@code CsrfGuardInterceptor})가
+     * 던진 것도 마찬가지다. 핸들러가 먼저 정해진 뒤 인터셉터가 돌기 때문에 advice 가 그대로 받는다.
+     */
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, String>> handle(ApiException e) {
         return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
@@ -64,6 +64,22 @@ public class GlobalExceptionHandler {
                 .orElse("요청 값이 올바르지 않습니다.");
         return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                 .body(Map.of("code", "VALIDATION_FAILED", "message", message));
+    }
+
+    /**
+     * 없는 경로·틀린 메서드. 아래 {@link #handle(Exception)} 이 이걸 500 으로 바꾸고 error 로그까지 남기고 있었다 —
+     * 주소를 잘못 친 프론트 한 줄이 서버 장애처럼 보였다. Spring 이 이미 판정한 상태 코드를 그대로 돌려준다.
+     */
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<Map<String, String>> handle(NoResourceFoundException e) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(Map.of("code", "NOT_FOUND", "message", "요청한 경로가 없습니다."));
+    }
+
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<Map<String, String>> handle(HttpRequestMethodNotSupportedException e) {
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .body(Map.of("code", "METHOD_NOT_ALLOWED", "message", "이 경로는 " + e.getMethod() + " 를 받지 않습니다."));
     }
 
     @ExceptionHandler(Exception.class)
