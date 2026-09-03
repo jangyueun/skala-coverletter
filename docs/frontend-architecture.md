@@ -190,18 +190,25 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 
 ---
 
-## 6. 백엔드가 붙는 날
+## 6. 백엔드가 붙은 뒤 (2026-09-04)
 
-| 파일 | 하는 일 |
-|---|---|
-| `api/real/postings.js` | `client.get('/postings')` — 5줄 |
-| `api/index.js` | `postings: REAL ? realPostings : mockPostings` — 한 줄 |
-| `stores/*` | **안 고침** — `await api.postings.list()` 는 그대로 |
-| `views/`, `components/` | **안 고침** |
-| `vite.config.js` | AI 를 Spring 이 서빙하기 시작하면 `aiDevServer()` 한 줄 삭제 |
-| `.env` | `VITE_API_MOCK=0` (백엔드 있는 환경) |
+`VITE_API_MOCK=0` 이면 인증·역량 사전·공고·경험·자소서 답변이 Spring(:8080)으로 간다. AI 두 개(인테이크·초안)만 아직 vite 플러그인이다 —
+Spring 에 `GET /api/ai-tasks` 폴링 API 와 MATCH·DRAFT·INTAKE 워커가 없어서다. 그게 생기면 `vite.config.js` 의 `aiDevServer()` 한 줄만 지운다.
 
-응답 모양이 목과 다르면 **스토어에서 변환**한다. `api/` 는 DTO 를 그대로 넘기고 화면은 스토어 모양만 본다. 변환 지점이 한 곳이다.
+| 파일 | 실제 API | 목과 다른 점 |
+|---|---|---|
+| `api/real/postings.js` | `GET /competencies` · `GET /postings` · `GET /postings/{id}` · `PUT /postings/{id}/bookmark` | **목록에 상세를 합쳐 준다.** 카드의 매칭률·역량 태그·필터가 `requiredCompetencies` 로 브라우저에서 계산되는데 목록 DTO 에 그게 없고, 서버 `match` 는 MATCH 워커가 없어 늘 `null` 이다. 공고 수 + 1 번 요청. 워커가 붙으면 합치기를 지우고 `derived.matchFor` 가 `posting.match` 를 우선한다 |
+| `api/real/experiences.js` | `GET/POST /experiences` · `PUT /experiences/{id}` | 없음. PUT 은 `intakeTaskId` 를 뗀다 |
+| `api/real/answers.js` | `GET /postings/{id}/questions` · `PUT /questions/{id}/answer` | 전 공고 문항 API 가 없어 `list()` 는 `[]`. 문항은 공고를 열 때 `questions(postingId)` 로 받는다 |
+
+스토어·화면에서 바뀐 것 —
+
+- `stores/answers.js` `loadFor(postingId)` — 그 공고 문항을 갈아 끼우고 `loadedFor[postingId]` 를 켠다. 상세 화면이 로그인 확인 뒤 부른다. 목도 같은 길을 탄다.
+- `stores/derived.js` 가 서버 값과 브라우저 계산 중 고른다 — `essay` 는 `loadedFor` 면 브라우저, 아니면 목록 DTO 의 `essay` 요약; `usedIn` 은 브라우저 값과 `experience.usedInQuestions` 중 큰 쪽.
+- 즐겨찾기는 `ui.bookmarks`(Set) 에서 `postings.toggleBookmark` 로 — 공고 DTO 의 `bookmarked` 를 낙관적으로 뒤집고 `PUT` 이 거절하면 되돌린다.
+- 실제 서버는 `/api/**` 전부에 세션을 요구한다. 로그아웃 상태의 401 은 `ErrorNote` 가 아니라 `SignInGate` 로 그린다(홈·경험·상세 자소서 탭).
+
+응답 모양이 목과 다르면 **`api/real/*` 에서 목과 같은 모양으로 맞추고**, 두 값이 다 있는 자리(서버 계산 vs 브라우저 계산)는 `derived.js` 가 고른다. 화면은 여전히 스토어 모양만 본다.
 
 ---
 

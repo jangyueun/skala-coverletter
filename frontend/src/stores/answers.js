@@ -4,8 +4,14 @@ import { api } from '@/api/index.js'
 /**
  * 자소서 — 문항(questions)과 편집 버퍼(drafts).
  *
- * 문항 모양은 v6 GET /api/postings/{id}/questions 항목이다. answer 는 로그인 사용자의 답변이고
+ * 문항 모양은 v6 GET /api/postings/{id}/questions 항목 + postingId. answer 는 로그인 사용자의 답변이고
  * 없으면 null — 지원서(application)라는 중간 단계는 없어졌다. 문항은 공고에 직접 붙는다.
+ *
+ * 문항은 두 길로 들어온다 —
+ *   load()             앱을 켤 때 한 번. 목은 전 공고 문항을 다 주고, 실제 서버는 그런 API 가 없어 빈 배열이다.
+ *   loadFor(postingId) 공고 상세를 열 때. 두 모드 다 이 길을 탄다. 그 공고의 기존 행을 빼고 새로 받은 것으로 갈아 끼운다.
+ * loadedFor[postingId] 가 켜진 공고는 브라우저가 최신 문항을 들고 있다는 뜻이고, derived.essayFor 가
+ * 서버의 essay 요약 대신 이걸 센다 — 저장 직후 카드가 바로 따라오게.
  *
  * 버퍼는 questionId 를 키로 하는 맵이어야 한다. 단일 버퍼로 두면 문항 탭을
  * 옮기는 순간(activeId 만 바뀌고 아무 훅도 안 탄다) 조용히 덮인다.
@@ -17,7 +23,9 @@ import { api } from '@/api/index.js'
  */
 export const useAnswersStore = defineStore('answers', {
   state: () => ({
-    questions: [],     // 목은 전 공고를 한 번에, 실제는 공고별로 온다 — postingId 로 묶는다
+    questions: [],     // postingId 로 묶인다. 목은 전 공고, 실제는 열어 본 공고만
+    loadedFor: {},     // { [postingId]: true } — loadFor 로 그 공고 문항을 받았다
+    loadingFor: {},    // { [postingId]: true } — 받는 중
     drafts: {},        // { [questionId]: { content, usedExperienceIds, draftTaskId } } — 미커밋 편집분
     savedAt: {},       // { [questionId]: 'HH:MM' } — 서버 updatedAt
     saving: {},        // { [questionId]: true } — 저장 중인 문항
@@ -40,6 +48,23 @@ export const useAnswersStore = defineStore('answers', {
       try { this.questions = await api.answers.list() }
       catch (e) { this.error = e }
       finally { this.loading = false; this.loaded = true }
+    },
+
+    /** 이 공고의 문항을 서버에서 받아 갈아 끼운다. 버퍼(drafts)는 건드리지 않는다 — 쓰던 글은 남는다. */
+    async loadFor(postingId) {
+      const id = Number(postingId)
+      if (!id || this.loadingFor[id]) return
+      this.loadingFor[id] = true; this.error = null
+      try {
+        const rows = await api.answers.questions(id)
+        this.questions = [
+          ...this.questions.filter(q => q.postingId !== id),
+          ...rows.map(q => ({ ...q, postingId: id })),
+        ]
+        this.loadedFor[id] = true
+      }
+      catch (e) { this.error = e }
+      finally { delete this.loadingFor[id] }
     },
 
     questionById(id) { return this.questions.find(q => q.id === Number(id)) },

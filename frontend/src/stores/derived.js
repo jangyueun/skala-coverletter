@@ -5,7 +5,7 @@ import { useAnswersStore } from './answers.js'
 import { useUiStore } from './ui.js'
 import { useAuthStore } from './auth.js'
 import { computeMatch, topGap } from '@/domain/matching.js'
-import { essayProgress, usedIn } from '@/domain/essay.js'
+import { essayProgress, essayFromSummary, usedIn } from '@/domain/essay.js'
 import { dday, isClosed } from '@/domain/deadline.js'
 
 /**
@@ -16,7 +16,11 @@ import { dday, isClosed } from '@/domain/deadline.js'
  * 알게 되고, 백엔드가 붙어 갱신 시점이 갈라질 때 그 결합이 발목을 잡는다.
  *
  * 계산은 domain/ 에 있다. 여기서는 부르기만 한다.
- * v6 목록 DTO 는 match·essay 를 서버가 계산해 실어 준다 — 그날 이 게터가 서버 값을 우선하면 된다.
+ *
+ * 서버 값과 브라우저 계산이 둘 다 있는 자리는 여기서 고른다 —
+ *   match   브라우저. 서버 match 는 MATCH 워커가 없어 늘 null 이다. 워커가 붙으면 posting.match 를 우선한다.
+ *   essay   그 공고 문항을 받았으면(loadFor) 브라우저, 아니면 서버 요약(posting.essay), 그것도 없으면(목) 브라우저.
+ *   usedIn  브라우저 값과 서버 값(experience.usedInQuestions) 중 큰 쪽.
  */
 export const useDerivedStore = defineStore('derived', {
   getters: {
@@ -74,14 +78,14 @@ export const useDerivedStore = defineStore('derived', {
 
   actions: {
     cardOf(p, scope) {
-      const ui = useUiStore()
       return {
         posting: p,
         match: this.matchFor(p),
         essay: this.essayFor(p),
         d: dday(p.deadline),
         closed: isClosed(p.deadline),
-        bookmarked: ui.bookmarks.has(p.id),
+        // 서버가 공고 DTO 에 실어 준다. 목도 같은 자리에 둔다 — 스토어가 뒤집는다(postings.toggleBookmark).
+        bookmarked: !!p.bookmarked,
         // 같은 기업의 다른 직무가 몇 건인지 — 공고가 직무 단위임을 카드에서 드러낸다
         sameCompany: scope.filter(x => x.company === p.company).length,
       }
@@ -91,10 +95,19 @@ export const useDerivedStore = defineStore('derived', {
       return computeMatch(posting, E.list, P.competencies)
     },
     essayFor(posting) {
-      return essayProgress(useAnswersStore().questionsFor(posting.id))
+      const A = useAnswersStore()
+      /* 문항을 이 공고 단위로 받았으면 그게 최신이다 — 저장 직후 카드가 바로 따라온다.
+         아니면 목록 DTO 의 essay 요약(서버가 센 값). 그것도 없으면(목) 전 공고 문항에서 센다. */
+      if (A.loadedFor[posting.id] || !posting.essay) return essayProgress(A.questionsFor(posting.id))
+      return essayFromSummary(posting.essay)
     },
     usedIn(experienceId) {
-      return usedIn(experienceId, useAnswersStore().questions)
+      const local = usedIn(experienceId, useAnswersStore().questions)
+      /* 실제 서버는 문항을 공고 단위로만 주므로 브라우저가 전부를 들고 있지 않다. 서버가 세어 준
+         usedInQuestions(경험 DTO)와 브라우저 값 중 큰 쪽 — 새로고침 직후엔 서버가, 저장 직후엔 브라우저가 맞다.
+         목은 usedInQuestions 가 없어 브라우저 값 그대로다. */
+      const server = useExperiencesStore().byId(experienceId)?.usedInQuestions ?? 0
+      return { ...local, questions: Math.max(local.questions, server) }
     },
   },
 })

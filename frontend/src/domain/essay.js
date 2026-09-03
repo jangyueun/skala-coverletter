@@ -30,6 +30,16 @@ export function essayProgress(questions) {
 }
 
 /**
+ * 목록 DTO 의 essay 요약(서버 계산) → essayProgress 와 같은 모양.
+ *   { state: 'WRITING', answered: 1, total: 4 }  →  { state, done: 1, total: 4, label, tone }
+ * 문항을 브라우저에 다 들고 있지 않은 실제 서버 모드에서 카드가 이걸 쓴다. 모르는 state 는 NO_QUESTIONS 로 본다.
+ */
+export function essayFromSummary(summary) {
+  const state = ESSAY_STATE[summary?.state] ? summary.state : 'NO_QUESTIONS'
+  return { state, done: summary?.answered ?? 0, total: summary?.total ?? 0, ...ESSAY_STATE[state] }
+}
+
+/**
  * 이 경험이 실제로 쓰인 곳.
  *
  * 관측 가능한 것만 센다 — 본문이 작성된 답변에 근거로 걸린 것만.

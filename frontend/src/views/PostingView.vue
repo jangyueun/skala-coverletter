@@ -1,13 +1,13 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { usePostingsStore } from '@/stores/postings.js'
 import { useAnswersStore } from '@/stores/answers.js'
-import { useUiStore } from '@/stores/ui.js'
 import { useDerivedStore } from '@/stores/derived.js'
 import { SCORE } from '@/domain/matching.js'
 import { dday, isClosed, deadlineLabel } from '@/domain/deadline.js'
 import Skeleton from '@/components/state/Skeleton.vue'
+import ErrorNote from '@/components/state/ErrorNote.vue'
 import MatchTable from '@/components/posting/MatchTable.vue'
 import SignInGate from '@/components/SignInGate.vue'
 import { useAuthStore } from '@/stores/auth.js'
@@ -16,10 +16,15 @@ import EssayEditor from '@/components/posting/EssayEditor.vue'
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const P = usePostingsStore()
 const A = useAnswersStore()
-const ui = useUiStore()
 const D = useDerivedStore()
 const auth = useAuthStore()
 const router = useRouter()
+
+/* 문항은 공고 단위로 받는다(GET /api/postings/{id}/questions). 공고를 옮기면 그 공고 것을 받는다.
+   로그인해야 주는 API 라 로그인이 확인된 뒤에 부른다 — 로그아웃 상태에서 401 을 오류로 그리지 않게. */
+watch([() => props.id, () => auth.signedIn], ([id, signedIn]) => {
+  if (signedIn) A.loadFor(id)
+}, { immediate: true })
 
 /* 탭은 라우트가 아니라 컴포넌트 상태다.
    탭을 옮긴 뒤 뒤로 가기를 누르면 목록으로 돌아가야지 이전 탭으로 가면 안 된다. */
@@ -54,22 +59,35 @@ const verdict = computed(() => {
 
    "비슷한" 은 요구 역량 태그가 얼마나 겹치는가로 잰다. v6 에서 직무 계열(role)이 없어졌다 —
    기업마다 직무명이 제각각이라 문자열로는 못 묶고, 계열은 사람이 붙이던 라벨이라 데이터가 없다.
-   실제 상세 DTO 는 related.sameCompany·related.similar(겹침 수 상위 3, 다른 기업)를 서버가 계산해 준다.
-   목은 그 규칙을 여기서 그대로 돈다 — 백엔드가 붙는 날 posting.related 로 바꾼다. */
+   실제 상세 DTO 는 related.sameCompany·related.similar(겹침 수 상위 3, 다른 기업)를 서버가 계산해 준다 —
+   있으면 그걸 쓴다. 목은 related 가 없어 같은 규칙을 여기서 돈다.
+   두 경로가 같은 모양({ id, company, position, shared })을 내서 템플릿은 어느 쪽인지 모른다. */
 const related = computed(() => {
   if (!posting.value) return { sameCompany: [], similar: [] }
   const me = posting.value
+  if (me.related) {
+    return {
+      sameCompany: me.related.sameCompany.map(r => ({ id: r.id, company: me.company, position: r.position })),
+      similar: me.related.similar.map(r => ({ id: r.id, company: r.company, position: r.position, shared: r.sharedCompetencyCount })),
+    }
+  }
   const mine = new Set(me.requiredCompetencies.map(r => r.competencyId))
   const live = P.live.filter(p => p.id !== me.id)
+  const row = p => ({ id: p.id, company: p.company, position: p.position })
   const similar = live
     .filter(p => p.company !== me.company)
-    .map(p => ({ posting: p, shared: p.requiredCompetencies.filter(r => mine.has(r.competencyId)).length }))
+    .map(p => ({ ...row(p), shared: p.requiredCompetencies.filter(r => mine.has(r.competencyId)).length }))
     .filter(x => x.shared > 0)
     .sort((a, b) => b.shared - a.shared)
     .slice(0, 3)
-  return { sameCompany: live.filter(p => p.company === me.company), similar }
+  return { sameCompany: live.filter(p => p.company === me.company).map(row), similar }
 })
-const pctOf = p => Math.round(D.matchFor(p).overall * 100)
+/* 관련 공고의 매칭률은 브라우저가 센다(서버 related 의 score 는 MATCH 워커가 없어 null 이다).
+   목록에 없는 공고(있을 수 없지만)면 null — 템플릿이 숨긴다. */
+const pctOf = id => {
+  const p = P.byId(id)
+  return p && D.ready ? Math.round(D.matchFor(p).overall * 100) : null
+}
 
 /* 마지막 글자의 받침 유무로 조사를 고른다.
    "도메인 이해은" 처럼 틀리면 문장 전체가 기계가 쓴 것으로 읽힌다. */
@@ -109,9 +127,9 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
       <!-- 매칭과 즐겨찾기는 탭이 아니라 이 공고 자체에 붙는 것이라 머리에 둔다.
            상자로 감싸지 않는다 — 이 화면에서 테두리는 탭 아래 내용의 몫이다. -->
       <div v-if="auth.signedIn" class="hd-r">
-        <button class="btn btn--sm bm" :aria-pressed="ui.bookmarks.has(posting.id)"
-                @click="ui.toggleBookmark(posting.id)">
-          {{ ui.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
+        <button class="btn btn--sm bm" :aria-pressed="!!posting.bookmarked"
+                @click="P.toggleBookmark(posting.id)">
+          {{ posting.bookmarked ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
         </button>
         <!-- 막대 게이지는 뺐다. .gauge 정의가 어디에도 없어 10개 <i> 가
              보이지 않는 채로 18px 만 먹고 있었고, 그게 판정을 퍼센트에서
@@ -159,18 +177,18 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
           <button v-for="p in related.sameCompany" :key="p.id" class="rel panel panel--press"
                   @click="router.push(`/postings/${p.id}`)">
             <span class="rn">{{ p.position }}</span>
-            <span v-if="auth.signedIn" class="num rp">{{ pctOf(p) }}%</span>
+            <span v-if="auth.signedIn && pctOf(p.id) != null" class="num rp">{{ pctOf(p.id) }}%</span>
           </button>
         </div>
 
         <!-- 계열 라벨 대신 겹치는 역량 수를 적는다. "비슷하다" 의 근거가 그 숫자다. -->
         <div v-if="related.similar.length" class="relgrp">
           <p class="rl">다른 기업 · 비슷한 직무 <span class="rlk">요구 역량이 겹치는 순</span></p>
-          <button v-for="x in related.similar" :key="x.posting.id" class="rel panel panel--press"
-                  @click="router.push(`/postings/${x.posting.id}`)">
-            <span class="rn">{{ x.posting.company }} · {{ x.posting.position }}</span>
+          <button v-for="x in related.similar" :key="x.id" class="rel panel panel--press"
+                  @click="router.push(`/postings/${x.id}`)">
+            <span class="rn">{{ x.company }} · {{ x.position }}</span>
             <span class="rs">역량 <b class="num">{{ x.shared }}</b>개 겹침</span>
-            <span v-if="auth.signedIn" class="num rp">{{ pctOf(x.posting) }}%</span>
+            <span v-if="auth.signedIn && pctOf(x.id) != null" class="num rp">{{ pctOf(x.id) }}%</span>
           </button>
         </div>
       </div>
@@ -215,6 +233,10 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
       <Skeleton v-if="!auth.loaded || !A.loaded" :rows="6" />
       <SignInGate v-else-if="!auth.signedIn"
                   desc="자소서 초안은 계정에 저장됩니다. 로그인하면 쓰던 곳부터 이어서 쓸 수 있습니다." />
+      <!-- 이 공고의 문항은 따로 받는다(loadFor). 받기 전엔 뼈대, 못 받았으면 다시 시도. -->
+      <ErrorNote v-else-if="A.error && !A.loadedFor[posting.id]" :error="A.error" what="문항 불러오기"
+                 @retry="A.loadFor(posting.id)" />
+      <Skeleton v-else-if="!A.loadedFor[posting.id]" :rows="6" />
 
       <!-- 문항은 관리자가 공고에 붙인다(v6). 사용자 등록 경로가 없으므로 버튼도 없다 —
            눌리지 않는 버튼은 "곧 된다" 는 거짓 약속이었다. -->
