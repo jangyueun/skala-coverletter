@@ -12,6 +12,7 @@ body {
   background: var(--panel);
   color: var(--ink);
   font-family: var(--sans);
+  /* 스케일의 한 단이 아니라 rem·em 이 딛는 바닥이라 리터럴로 둔다. */
   font-size: 14px;
   line-height: 1.6;
   letter-spacing: var(--track-tight);
@@ -40,7 +41,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   background: var(--panel);
   color: var(--ink);
   font-weight: 600;
-  font-size: 13px;
+  font-size: var(--fs-sm);
   cursor: pointer;
   white-space: nowrap;
   transition: background var(--release) linear, color var(--release) linear,
@@ -62,7 +63,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
 .btn--quiet { border-color: transparent; color: var(--muted); padding: 7px 12px; }
 .btn--quiet:hover { border-color: var(--line); color: var(--ink); background: var(--panel); }
 
-.btn--sm { padding: 6px 14px; font-size: 12px; }
+.btn--sm { padding: 6px 14px; font-size: var(--fs-xs); }
 
 .btn:disabled { cursor: not-allowed; border-color: var(--line-soft); color: var(--muted); background: var(--panel); }
 .btn:disabled:hover { border-color: var(--line-soft); color: var(--muted); }
@@ -83,13 +84,37 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   border-radius: var(--r);
 }
 
+/* 눌리는 면 — 관련 공고 버튼, 인테이크 방식 고르기.
+   .panel 은 가만히 있는 면이라 누름 반응이 없다. 세 곳이 이 클래스를 달고
+   있었지만 정의가 어디에도 없어, 눌러도 아무 일도 안 일어나는 것처럼 보였다
+   (클릭은 됐다 — 반응만 없었다).
+
+   규칙은 .card 와 같다. 카드도 면이고 눌리는 것이라 둘이 달리 움직이면
+   같은 화면에서 두 가지 물성이 된다. pill 인 .btn 의 즉각 반전이 아니라,
+   면은 **앉는다** — 배경이 가라앉고 1px 내려간다(--seat-in 60ms 로 들어가고
+   --seat-out 110ms 로 돌아온다). */
+.panel--press {
+  cursor: pointer;
+  transition: border-color var(--seat-out) linear, background var(--seat-out) linear,
+              box-shadow var(--seat-out) linear, transform var(--seat-out) var(--ease);
+}
+.panel--press:hover {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
+.panel--press:active {
+  background: var(--panel-sunken);
+  transform: translateY(1px);
+  transition-duration: var(--seat-in);
+}
+
 /* ═══════════════════════════════════════════════════════════
    숫자 · 라벨 · 태그
    ═══════════════════════════════════════════════════════════ */
 
 /* 자릿수가 흔들리지 않아야 행이 나란히 놓일 때 눈이 안 피곤하다. */
 .num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
-.num--lg { font-size: 30px; font-weight: 800; line-height: 1; }
+.num--lg { font-size: var(--fs-3xl); font-weight: 800; line-height: 1; }
 
 /* 매칭 수치는 잉크다. 빨강은 급한 것(D-day·개수)의 몫이다. */
 .num--read { color: var(--ink); }
@@ -126,7 +151,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
    줄이라 4.6rem 이면 그쪽을 눌러 버린다. */
 .pagehead .display { font-size: clamp(2.1rem, 5.4vw, 3.3rem); }
 .pagehead-lede {
-  margin: 10px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink-2);
+  margin: 10px 0 0; font-size: var(--fs-md); font-weight: 600; color: var(--ink-2);
 }
 
 /* .label 은 **눈썹 문구** 다 — 화면 맨 위의 CAREER LAB · LIBRARY 처럼
@@ -158,7 +183,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   border-radius: var(--pill);
   background: var(--panel);
   color: var(--muted);
-  font-size: 11.5px; font-weight: 500;
+  font-size: var(--fs-2xs); font-weight: 500;
   letter-spacing: 0;
 }
 .tag--gap { border-color: var(--gap); color: var(--gap); }

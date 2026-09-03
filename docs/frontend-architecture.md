@@ -216,8 +216,8 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 | `stores/authStore.js` | `stores/auth.js` | `load()` 가 `/api/auth/me` 를 실제로 부름. `signIn()` 은 `location.href = '/api/auth/slack/start'` |
 | (없음) | `api/{client,index}.js` · `api/real/{auth,ai}.js` · `api/mock/*` | 신설 |
 | (없음) | `components/state/{Skeleton,ErrorNote}.vue` | 신설 |
-| (없음) | `tests/` | `domain` 3파일 · `stores` 1파일 · 데이터 정합성 1파일 — 29개 |
+| (없음) | `tests/` | `domain` 3파일 · `stores` 1파일 · 데이터 정합성 1파일 — 32개 |
 
 옮기는 순서는 **아래에서 위로** — `domain` → `api` → `stores` → `views`. 각 단계에서 화면이 그대로 돌아야 한다.
 
-**옮겼다.** 위 표대로 재구성했고 `npm run build` 가 테스트 29개를 먼저 돌린다.
+**옮겼다.** 위 표대로 재구성했고 `npm run build` 가 테스트 32개를 먼저 돌린다.

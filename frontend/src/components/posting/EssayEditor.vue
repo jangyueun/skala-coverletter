@@ -109,7 +109,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
           </button>
         </div>
 
-        <textarea v-model="text" class="inp" rows="12"></textarea>
+        <textarea v-model="text" class="inp" rows="12"
+                  :aria-label="`${q.title} 답변`"></textarea>
         <p v-if="draftError" class="derr">AI 초안을 못 받았습니다 — {{ draftError.body?.message || draftError.message }}</p>
 
         <!-- 저장 — 이 화면의 유일한 주요 행동 -->
