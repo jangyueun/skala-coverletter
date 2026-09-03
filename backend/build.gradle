@@ -1,0 +1,36 @@
+plugins {
+    id 'java'
+    id 'org.springframework.boot' version '4.1.1'
+}
+
+group = 'com.team'
+version = '0.0.1-SNAPSHOT'
+
+java {
+    toolchain {
+        languageVersion = JavaLanguageVersion.of(21)
+    }
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+    // BOM 을 직접 붙인다. io.spring.dependency-management 플러그인을 쓰지 않아도
+    // 버전이 한곳(여기)에서 결정되고, 플러그인 버전 호환을 따로 신경 쓸 필요가 없다.
+    implementation platform('org.springframework.boot:spring-boot-dependencies:4.1.1')
+
+    implementation 'org.springframework.boot:spring-boot-starter-web'
+    implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
+
+    // PostgreSQL 17. 드라이버는 컴파일 타임에 필요 없다 — 런타임에만 올린다.
+    runtimeOnly 'org.postgresql:postgresql'
+
+    testImplementation 'org.springframework.boot:spring-boot-starter-test'
+    testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+}
+
+tasks.named('test') {
+    useJUnitPlatform()
+}
