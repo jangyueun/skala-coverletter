@@ -69,7 +69,7 @@ const questions = computed(() => {
       </div>
 
       <div class="panel readout">
-        <div class="num num--lg">{{ pct }}<span class="pc">%</span></div>
+        <div class="num num--lg num--read">{{ pct }}<span class="pc">%</span></div>
         <div class="gauge big" aria-hidden="true">
           <i v-for="i in 10" :key="i"
              :class="i <= Math.round(pct / 10) ? (gaps.length && i === Math.round(pct/10) ? 'gap' : 'on') : ''"
@@ -201,7 +201,7 @@ const questions = computed(() => {
   flex: none; padding: 14px 18px 13px; text-align: right;
   display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 148px;
 }
-.pc { font-size: 0.55em; color: var(--muted); margin-left: 1px; }
+.pc { font-size: 0.55em; opacity: .6; margin-left: 1px; }
 .gauge.big { height: 18px; }
 .verdict { margin: 5px 0 0; font-size: 13px; font-weight: 700; }
 .verdict.ok { color: var(--ok); }

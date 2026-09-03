@@ -28,8 +28,9 @@ const covered = computed(() =>
   props.card.match.rows.filter(r => !r.isGap).sort((a, b) => b.weight - a.weight))
 const rest = computed(() => props.card.match.rows.length - covered.value.slice(0, 2).length - gaps.value.length)
 
-/* 매칭 수치는 잉크로 둔다. 빨강은 조작부 전용이라 여기 쓰면 "나쁨"으로 읽힌다.
-   대신 지원 권장 수준일 때만 굵기를 올려 위계를 만든다. */
+/* 매칭 수치는 액센트(청록)로 둔다 — 계기의 판독값이다.
+   빨강이었다면 못 했다. 빨간 숫자는 "나쁨"으로 읽힌다.
+   지원 권장 수준일 때만 굵기를 올려 위계를 하나 더 만든다. */
 const strong = computed(() => props.card.match.overall >= SCORE.RECOMMEND)
 const urgent = computed(() => props.card.d <= 7)
 </script>
@@ -57,7 +58,7 @@ const urgent = computed(() => props.card.d <= 7)
       </div>
 
       <div class="read">
-        <div class="num num--lg" :class="{ strong }">{{ pct }}<span class="pc">%</span></div>
+        <div class="num num--lg num--read" :class="{ strong }">{{ pct }}<span class="pc">%</span></div>
         <div class="gauge" aria-hidden="true">
           <i v-for="(t, i) in ticks" :key="i" :class="t.cls" :style="{ height: t.h + 'px' }" />
         </div>
@@ -119,7 +120,7 @@ const urgent = computed(() => props.card.d <= 7)
 
 .read { text-align: right; flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .num--lg.strong { font-weight: 700; }
-.pc { font-size: 0.55em; margin-left: 1px; color: var(--muted); }
+.pc { font-size: 0.55em; margin-left: 1px; opacity: .6; }
 .rl { font-size: 9px; }
 
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }

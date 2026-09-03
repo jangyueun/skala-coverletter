@@ -56,7 +56,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   transition-duration: var(--snap);   /* 0ms — 즉각 */
 }
 
-/* 주요 행동. 평상시부터 빨강이라, 누르면 잉크로 뒤집힌다. */
+/* 주요 행동. 평상시부터 액센트라, 누르면 잉크로 뒤집힌다. */
 .btn--primary {
   background: var(--accent);
   border-color: var(--accent);
@@ -142,10 +142,13 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
 }
 .num--lg { font-size: 30px; font-weight: 600; line-height: 1; }
 
+/* 판독값에 액센트를 준다. 청록은 "나쁨"으로 읽히지 않아 숫자에 써도 안전하다. */
+.num--read { color: var(--accent); }
+
 /* 눈금 — 값이 어디쯤인지 숫자 말고 형태로도 말한다 */
 .gauge { display: flex; gap: 2px; align-items: flex-end; height: 15px; }
 .gauge i { width: 3px; background: var(--line); border-radius: 0.5px; display: block; }
-.gauge i.on { background: var(--ink); }
+.gauge i.on { background: var(--accent); }
 .gauge i.gap { background: var(--gap); }
 
 /* ═══════════════════════════════════════════════════════════
