@@ -179,10 +179,6 @@ const questions = computed(() => {
             증명할 경험이 없거나 너무 약합니다 — <b>보강이 필요한 역량</b>입니다.
           </template>
         </p>
-        <p class="hint">
-          이 문장은 하드코딩이 아닙니다. 경험을 등록하면 그대로 바뀝니다 —
-          평가는 사용자가 돌리는 게 아니라 <b>경험 변경 이벤트로 서버가 갱신</b>합니다.
-        </p>
       </div>
 
       <div class="panel body">
