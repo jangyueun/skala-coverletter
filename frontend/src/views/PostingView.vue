@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCareerStore } from '@/stores/careerStore.js'
-import { SCORE, dday, isClosed } from '@/lib/matching.js'
+import { SCORE, dday, isClosed, essayProgress } from '@/lib/matching.js'
 import MatchTable from '@/components/posting/MatchTable.vue'
 import SignInGate from '@/components/SignInGate.vue'
 import { useAuthStore } from '@/stores/authStore.js'
@@ -24,7 +24,10 @@ const TABS = [
 
 const posting = computed(() => store.postingById(props.id))
 const match   = computed(() => posting.value ? store.matchFor(posting.value) : null)
-const essay   = computed(() => posting.value ? store.cards.find(c => c.posting.id === posting.value.id)?.essay : null)
+/* cards 는 마감 안 지난 공고만 담는다. 거기서 찾으면 마감 지난 공고는
+   undefined 가 되어 머리글에 글자 없는 빈 알약이 하나 그려졌다.
+   상세 화면은 마감 공고도 다루므로 공고에서 바로 계산한다. */
+const essay   = computed(() => posting.value ? essayProgress(posting.value, store.questions) : null)
 const pct     = computed(() => Math.round((match.value?.overall ?? 0) * 100))
 const gaps    = computed(() => match.value?.rows.filter(r => r.isGap) ?? [])
 const d       = computed(() => posting.value ? dday(posting.value.deadline) : 0)
@@ -86,7 +89,10 @@ const questions = computed(() => {
       <div class="hd-l">
         <!-- 회사는 눈썹 문구가 아니라 읽는 줄이다. 카드에서 회사가 직무의
              70% 크기로 또렷하게 읽히는 것과 같은 비중으로 올린다. -->
-        <p class="co"><b>{{ posting.company }}</b><span class="rolek"> · {{ roleLabel }}</span></p>
+        <!-- 회사 이름만. 직무 계열은 바로 아래 직무명이 이미 말한다 —
+             "플랫폼·인프라 / 플랫폼 엔지니어" 는 같은 말을 두 번 하는 것이다.
+             (roleLabel 은 아래 "관련 공고" 에서 계속 쓴다) -->
+        <p class="co">{{ posting.company }}</p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
           <!-- 끝난 공고라는 사실이 제일 먼저 읽혀야 한다. 이걸 놓치면
@@ -95,7 +101,7 @@ const questions = computed(() => {
           <span class="tag tag--ink">
             <b v-if="!closed" class="num">D-{{ d }}</b>{{ !closed ? '\u00a0' : '' }}{{ posting.deadline }} 마감
           </span>
-          <span class="tag" :class="essay?.state === 'DONE' ? 'tag--ok' : ''">{{ essay?.label }}</span>
+          <span v-if="auth.signedIn && essay?.label" class="tag" :class="essay.state === 'DONE' ? 'tag--ok' : ''">{{ essay.label }}</span>
         </div>
       </div>
 
@@ -148,7 +154,7 @@ const questions = computed(() => {
           <button v-for="p in related.sameCo" :key="p.id" class="rel panel panel--press"
                   @click="router.push(`/postings/${p.id}`)">
             <span class="rn">{{ p.position }}</span>
-            <span class="num rp">{{ pctOf(p) }}%</span>
+            <span v-if="auth.signedIn" class="num rp">{{ pctOf(p) }}%</span>
           </button>
         </div>
 
@@ -157,7 +163,7 @@ const questions = computed(() => {
           <button v-for="p in related.sameRole" :key="p.id" class="rel panel panel--press"
                   @click="router.push(`/postings/${p.id}`)">
             <span class="rn">{{ p.company }} · {{ p.position }}</span>
-            <span class="num rp">{{ pctOf(p) }}%</span>
+            <span v-if="auth.signedIn" class="num rp">{{ pctOf(p) }}%</span>
           </button>
         </div>
       </div>
@@ -227,9 +233,11 @@ const questions = computed(() => {
 /* 카드의 회사:직무 비율(12.5 : 18 = 0.69)을 상세에도 그대로 준다.
    41.6 × 0.69 ≈ 26px. 직무 계열은 회사를 한정하는 말이라 같이 키우지 않는다 —
    둘 다 26px 이면 회사 이름이 어디서 끝나는지가 안 보인다. */
-.co { margin: 0; display: flex; align-items: baseline; gap: 0; letter-spacing: var(--track-tight); }
-.co b { font-size: var(--fs-2xl); font-weight: 700; color: var(--ink-2); line-height: 1.25; }
-.rolek { font-size: var(--fs-md); font-weight: 500; color: var(--muted); }
+/* 카드의 회사:직무 비율(12.5 : 18 = 0.69)을 상세에도 준다. 41.6 × 0.69 ≈ 26px */
+.co {
+  margin: 0; font-size: var(--fs-2xl); font-weight: 700;
+  color: var(--ink-2); line-height: 1.25; letter-spacing: var(--track-tight);
+}
 .pos { margin-top: 4px; font-size: clamp(1.7rem, 4.4vw, 2.6rem); }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 

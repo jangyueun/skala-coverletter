@@ -174,6 +174,24 @@ function commit() {
   ready.forEach(k => store.addExperience(buildExp(k)))
   armed.value = null
   emit('done', ready.length)
+  reset()
+}
+
+/* 등록하고 나면 패널을 처음 상태로 되돌린다.
+
+   이 패널은 ExperienceDialog 안에서 v-show 로 감춰질 뿐 언마운트되지 않는다.
+   그래서 되돌리지 않으면 다이얼로그를 다시 열었을 때 방금 등록한 초안이
+   2/2 편집 화면 그대로 살아 있고 "1건 등록" 버튼도 눌리는 상태다 —
+   한 번 더 누르면 같은 경험이 새 id 로 또 들어간다.
+   경험 삭제 경로가 없어 그렇게 생긴 중복은 세션 안에서 지울 수도 없다. */
+function reset() {
+  state.value = 'idle'
+  step.value = 1
+  chosen.value = new Set()
+  Object.keys(drafts).forEach(k => delete drafts[k])
+  active.value = null
+  linksOpen.value = true
+  armed.value = null
 }
 
 /* 초안이 한 글자라도 바뀌면 2단 확인 무장이 풀린다 */
