@@ -29,15 +29,16 @@ const pool = computed(() =>
 const add    = id => { props.pick[id] = SCORE.PICK_STRENGTH }
 const remove = id => { delete props.pick[id] }
 
-/* 내부값은 연속이지만 사람에게는 3단계로만 보여준다.
-   어떤 값이 들어와도 약→중→강 으로 스냅된다.
+/* 내부값은 연속이지만 사람에게는 약·중·강 3단계로만 보여준다.
+   어떤 값이 들어와도 셋 중 하나로 스냅된다.
+
+   순환 버튼이 아니라 셋을 다 펼쳐 둔다. 순환은 선택지가 안 보이고,
+   원하는 값을 지나치면 한 바퀴를 더 돌아야 한다 — 세 개짜리에서는
+   그냥 원하는 걸 직접 누르는 게 언제나 한 번이다.
 
    등급 라벨에는 색을 쓰지 않는다. 액센트로 칠하면 "약" 이 강조돼 보여서
    값의 크기와 시각적 무게가 반대로 간다. 색은 조작과 판독값의 몫이다. */
-const cycle = id => {
-  const cur = STR.findIndex(s => s.lab === strLabel(props.pick[id]))
-  props.pick[id] = STR[(cur + 1) % STR.length].v
-}
+const setStr = (id, v) => { props.pick[id] = v }
 </script>
 
 <template>
@@ -45,9 +46,12 @@ const cycle = id => {
     <div class="picked">
       <span v-for="p in picked" :key="p.id" class="chip">
         {{ p.c.name }}
-        <button type="button" class="cyc" :title="`약 / 중 / 강 전환 · 내부값 ${p.s}`" @click="cycle(p.id)">
-          {{ strLabel(p.s) }}
-        </button>
+        <span class="str" role="group" :aria-label="`${p.c.name} 강도`">
+          <button v-for="s in STR" :key="s.lab" type="button" class="sv"
+                  :aria-pressed="strLabel(p.s) === s.lab"
+                  :title="`${p.c.name} · ${s.lab}`"
+                  @click="setStr(p.id, s.v)">{{ s.lab }}</button>
+        </span>
         <button type="button" class="rm" :aria-label="`${p.c.name} 제거`" @click="remove(p.id)">×</button>
       </span>
       <span v-if="!picked.length" class="none">아래에서 역량을 고르세요 · 최소 1개</span>
@@ -79,15 +83,17 @@ const cycle = id => {
 }
 .chip { padding-left: 8px; align-items: center; }
 
-.cyc, .rm {
+.sv, .rm {
   border: none; background: transparent; cursor: pointer;
   font-family: var(--mono); font-weight: 700; font-size: 11px;
-  padding: 3px 7px; color: var(--ink-2);
+  padding: 3px 6px; color: var(--faint);
   transition: background var(--release) linear, color var(--release) linear;
 }
-.cyc { border-left: 1px solid var(--line); margin-left: 7px; }
-.cyc:hover { background: var(--panel-sunken); }
-.cyc:active { background: var(--accent); color: var(--accent-ink); transition-duration: var(--snap); }
+.str { display: inline-flex; border-left: 1px solid var(--line); margin-left: 7px; }
+.sv:hover { background: var(--panel-sunken); color: var(--ink); }
+/* 고른 값은 눌린 채로 머문다 — 버튼 계열이 쓰는 것과 같은 반전이다 */
+.sv[aria-pressed='true'] { background: var(--ink); color: var(--panel-raised); }
+.sv:active { background: var(--accent); color: var(--accent-ink); transition-duration: var(--snap); }
 
 .rm { color: var(--muted); font-size: 13px; padding: 3px 8px 4px; }
 .rm:hover { color: var(--gap); }

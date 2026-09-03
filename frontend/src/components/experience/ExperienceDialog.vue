@@ -46,16 +46,6 @@ defineExpose({ open })
 
 const starDone = computed(() => FIELDS.filter(f => form[f.k].trim()).length)
 
-/* 결과에 숫자가 있는지. 막지는 않되 말해 준다 —
-   수치 없는 성과가 감점 4위(45%)다. */
-const rHint = computed(() => {
-  const r = form.result.trim()
-  if (!r) return null
-  return /[0-9]/.test(r)
-    ? { tone: 'ok', t: '수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — "다른 조는 평균 10%인데 우리는 45%"' }
-    : { tone: 'gap', t: '숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.' }
-})
-
 /* 지금 비어 있는 요구 역량 — 이 경험이 그걸 증명한다면 태그하라고 알린다 */
 const openGaps = computed(() => {
   const s = new Set()
@@ -136,7 +126,6 @@ function save() {
           <label v-for="f in FIELDS" :key="f.k" class="fld">
             <span class="lb"><b class="fl">{{ f.l }}</b> {{ f.d }}</span>
             <textarea v-model="form[f.k]" class="inp" :rows="f.rows"></textarea>
-            <span v-if="f.k === 'result' && rHint" class="hint" :class="rHint.tone">{{ rHint.t }}</span>
           </label>
         </div>
 
@@ -231,9 +220,6 @@ function save() {
 .cnt { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: auto; }
 .pick { margin-top: 2px; }
 
-.hint { font-size: 11.5px; }
-.hint.ok { color: var(--ok); }
-.hint.gap { color: var(--gap); }
 
 .errs { display: flex; flex-direction: column; gap: 5px; }
 .err {
