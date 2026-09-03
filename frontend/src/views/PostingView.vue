@@ -3,7 +3,7 @@ import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCareerStore } from '@/stores/careerStore.js'
 import { SCORE, dday } from '@/lib/matching.js'
-import MatchRow from '@/components/posting/MatchRow.vue'
+import MatchTable from '@/components/posting/MatchTable.vue'
 import EssayEditor from '@/components/posting/EssayEditor.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
@@ -173,9 +173,11 @@ const questions = computed(() => {
       </div>
 
       <div class="panel body">
-        <p class="label">역량별 커버리지 · 가중치순</p>
-        <MatchRow v-for="r in [...match.rows].sort((a,b) => b.weight - a.weight)"
-                  :key="r.competencyId" :row="r" />
+        <div class="chead">
+          <p class="label">요구 역량별 커버리지 · 가중치순</p>
+          <p class="chint">역량을 누르면 근거 경험이 펼쳐집니다</p>
+        </div>
+        <MatchTable :rows="[...match.rows].sort((a,b) => b.weight - a.weight)" />
       </div>
     </section>
 
@@ -248,6 +250,13 @@ const questions = computed(() => {
 }
 .rn { font-weight: 600; font-size: 13px; min-width: 0; }
 .rp { font-size: 15px; font-weight: 600; flex: none; }
+
+/* 표 머리 — 라벨 왼쪽, 사용법 힌트 오른쪽. 목업의 cardhead 와 같은 역할이다. */
+.chead {
+  display: flex; align-items: baseline; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap; margin-bottom: 13px;
+}
+.chint { margin: 0; font-size: 11.5px; color: var(--faint); }
 
 .assess { margin: 8px 0 0; font-size: 14.5px; line-height: 1.7; }
 .assess b { font-weight: 700; }

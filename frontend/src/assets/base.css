@@ -72,34 +72,9 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   background: var(--ink); border-color: var(--ink); color: var(--panel);
 }
 
-/* ═══════════════════════════════════════════════════════════
-   .row — 행 리스트. 카드가 아니다.
-   ═══════════════════════════════════════════════════════════
-
-   면을 채우지 않고 아래 선 하나로 나눈다. 누르면 살짝 가라앉고
-   왼쪽에 액센트 바가 선다 — 어느 행을 눌렀는지가 남는다. */
-
-.row {
-  position: relative;
-  display: block; width: 100%; text-align: left;
-  padding: 22px 4px 20px;
-  background: transparent;
-  border: none; border-bottom: 1px solid var(--line);
-  cursor: pointer; color: inherit; font: inherit;
-  transition: background var(--seat-out) linear, padding-left var(--seat-out) var(--ease);
-}
-.row::before {
-  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0;
-  background: var(--accent);
-  transition: width var(--seat-out) var(--ease);
-}
-.row:hover { background: var(--panel-sunken); padding-left: 14px; }
-.row:hover::before { width: 3px; }
-.row:active {
-  background: var(--panel-sunken); padding-left: 18px;
-  transition-duration: var(--seat-in);
-}
-.row:active::before { width: 5px; }
+/* 목록 행(.row) 프리미티브는 뺐다. 공고 목록을 카드로 되돌리면서 쓰는 곳이
+   없어졌는데, 클래스 이름이 흔해서 매칭 행의 .row 에 그대로 걸려
+   글자가 액센트 바 위로 올라탔다. 안 쓰는 전역 클래스가 사고를 낸 자리다. */
 
 /* 면이 필요한 곳 — 다이얼로그 안, 필터 사이드바. 선으로만 구분한다. */
 .panel {
