@@ -203,9 +203,18 @@ ${files.length ? `# 첨부 ${files.length}건은 위에 실려 있다.\n` : ''}
               thinking: { type: 'adaptive' },
               system: INTAKE_SYSTEM,
               tools: [{
-                type: 'web_fetch_20260209',
+                type: 'web_fetch_20260318',
                 name: 'web_fetch',
-                max_uses: Math.min(20, urls.length * 3 + 2),
+                /* 실패한 fetch 도 이 수에 들어간다. 저장소 하나를 주면 모델이
+                   그 안의 파일로 더 들어가므로 링크 수보다 넉넉히 준다 —
+                   fetch 결과에 있던 URL 은 다시 fetch 할 수 있다(그게 이 도구의 규칙이다). */
+                max_uses: Math.min(24, urls.length * 4 + 4),
+                /* 페이지 하나가 10kB 면 약 2,500 토큰, 500kB PDF 면 12만 토큰이다.
+                   상한을 안 두면 포트폴리오 한 건이 컨텍스트를 통째로 먹는다. */
+                max_content_tokens: 40000,
+                /* 가져온 원문을 응답에 도로 실어 보낼 이유가 없다 — 우리는 후보만 쓴다.
+                   출력 토큰이 그만큼 준다. */
+                response_inclusion: 'excluded',
               }],
               messages,
               output_config: { format: zodOutputFormat(IntakeResult) },
@@ -228,15 +237,23 @@ ${files.length ? `# 첨부 ${files.length}건은 위에 실려 있다.\n` : ''}
           })
           if (dropped) server.config.logger.warn(`  [ai] 사전에 없는 competencyId ${dropped}건을 버렸습니다.`)
 
-          // web_fetch 오류는 예외가 아니라 200 안의 블록으로 온다 — 세어서 알려 준다.
-          const fetchErrors = (response.content || []).filter(
-            b => b.type === 'web_fetch_tool_result' && b.content?.type === 'web_fetch_tool_error').length
+          /* web_fetch 오류는 예외가 아니라 200 안의 블록으로 온다.
+             error_code 는 url_not_accessible(비공개·404) · url_not_allowed(robots.txt·사설망) ·
+             unsupported_content_type(text·HTML·PDF 만 됨) · max_uses_exceeded 등이다. */
+          const fetchErrors = (response.content || [])
+            .filter(b => b.type === 'web_fetch_tool_result' && b.content?.type === 'web_fetch_tool_result_error')
+            .map(b => b.content.error_code)
 
           res.setHeader('Content-Type', 'application/json; charset=utf-8')
           res.end(JSON.stringify({
             candidates,
             unreadable: parsed.unreadable,
-            _meta: { ms: Date.now() - t0, usage: response.usage, droppedUnknownIds: dropped, fetchErrors },
+            _meta: {
+              ms: Date.now() - t0,
+              usage: response.usage,          // server_tool_use.web_fetch_requests 로 몇 번 읽었는지 보인다
+              droppedUnknownIds: dropped,
+              fetchErrors,
+            },
           }))
         } catch (e) {
           server.config.logger.error(`  [ai] intake 실패: ${e.message}`)
