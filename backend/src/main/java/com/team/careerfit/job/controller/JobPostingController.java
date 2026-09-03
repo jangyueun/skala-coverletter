@@ -1,11 +1,14 @@
 package com.team.careerfit.job.controller;
 
 import com.team.careerfit.global.security.CurrentUser;
+import com.team.careerfit.job.dto.BookmarkRequest;
+import com.team.careerfit.job.dto.BookmarkResponse;
 import com.team.careerfit.job.dto.PostingDetailResponse;
 import com.team.careerfit.job.dto.PostingListResponse;
 import com.team.careerfit.job.dto.PostingMatchResponse;
 import com.team.careerfit.job.dto.PostingQuestionResponse;
 import com.team.careerfit.job.service.JobPostingService;
+import com.team.careerfit.job.service.PostingBookmarkService;
 import com.team.careerfit.job.service.PostingMatchService;
 import com.team.careerfit.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -13,6 +16,8 @@ import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -23,14 +28,17 @@ public class JobPostingController {
 
     private final CurrentUser currentUser;
     private final JobPostingService jobPostings;
+    private final PostingBookmarkService postingBookmarks;
     private final PostingMatchService postingMatches;
 
     public JobPostingController(
             CurrentUser currentUser,
             JobPostingService jobPostings,
+            PostingBookmarkService postingBookmarks,
             PostingMatchService postingMatches) {
         this.currentUser = currentUser;
         this.jobPostings = jobPostings;
+        this.postingBookmarks = postingBookmarks;
         this.postingMatches = postingMatches;
     }
 
@@ -79,5 +87,14 @@ public class JobPostingController {
             HttpServletRequest request) {
         User user = currentUser.require(request);
         return ResponseEntity.ok(postingMatches.findOrRequest(user.getId(), postingId));
+    }
+
+    @PutMapping("/{postingId}/bookmark")
+    public ResponseEntity<BookmarkResponse> updateBookmark(
+            @PathVariable Long postingId,
+            @RequestBody BookmarkRequest body,
+            HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(postingBookmarks.update(user.getId(), postingId, body.bookmarked()));
     }
 }

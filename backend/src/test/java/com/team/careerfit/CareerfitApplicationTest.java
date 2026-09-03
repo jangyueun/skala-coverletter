@@ -2,6 +2,7 @@ package com.team.careerfit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -13,6 +14,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.simple.JdbcClient;
 import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
@@ -357,6 +359,72 @@ class CareerfitApplicationTest {
                 .andExpect(jsonPath("$.status").value("NOT_COMPUTED"))
                 .andExpect(jsonPath("$.taskId").isEmpty())
                 .andExpect(jsonPath("$.requiredCount").value(0));
+    }
+
+    @Test
+    void 북마크를_멱등하게_등록하고_해제한다() throws Exception {
+        MockHttpSession session = loginSession("U_POSTING_BOOKMARK");
+        Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
+        Long targetId = postingId("AI Application Development (신입)");
+
+        for (int count = 0; count < 2; count++) {
+            mockMvc.perform(put("/api/postings/{postingId}/bookmark", targetId)
+                            .session(session)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"bookmarked\":true}"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.postingId").value(targetId))
+                    .andExpect(jsonPath("$.bookmarked").value(true));
+        }
+        Integer savedCount = jdbcClient.sql("""
+                        select count(*) from bookmarks
+                        where user_id = :userId and job_posting_id = :postingId
+                        """)
+                .param("userId", userId)
+                .param("postingId", targetId)
+                .query(Integer.class)
+                .single();
+        assertThat(savedCount).isEqualTo(1);
+
+        mockMvc.perform(put("/api/postings/{postingId}/bookmark", targetId)
+                        .session(session)
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bookmarked\":false}"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.postingId").value(targetId))
+                .andExpect(jsonPath("$.bookmarked").value(false));
+
+        Integer deletedCount = jdbcClient.sql("""
+                        select count(*) from bookmarks
+                        where user_id = :userId and job_posting_id = :postingId
+                        """)
+                .param("userId", userId)
+                .param("postingId", targetId)
+                .query(Integer.class)
+                .single();
+        assertThat(deletedCount).isZero();
+    }
+
+    @Test
+    void 북마크_값이_누락되면_400을_응답한다() throws Exception {
+        Long targetId = postingId("AI Application Development (신입)");
+
+        mockMvc.perform(put("/api/postings/{postingId}/bookmark", targetId)
+                        .session(loginSession("U_POSTING_BOOKMARK_INVALID"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.code").value("VALIDATION_FAILED"));
+    }
+
+    @Test
+    void 존재하지_않는_공고는_북마크할_수_없다() throws Exception {
+        mockMvc.perform(put("/api/postings/{postingId}/bookmark", 999999)
+                        .session(loginSession("U_POSTING_BOOKMARK_NOT_FOUND"))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"bookmarked\":true}"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POSTING_NOT_FOUND"));
     }
 
     @Test
