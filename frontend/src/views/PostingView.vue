@@ -297,18 +297,12 @@ const questions = computed(() => {
 .assess b { font-weight: 700; }
 .gaptext { color: var(--gap); }
 
-.qh { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.qt { margin: 8px 0 0; font-size: var(--fs-md); font-weight: 600; line-height: 1.55; }
-.draft {
-  margin: 11px 0 0; padding: 12px 13px;
-  background: var(--panel-sunken); border-left: 3px solid var(--line-strong);
-  font-size: var(--fs-sm); line-height: 1.8; color: var(--ink-2);
-}
 .empty { text-align: center; }
 .empty .btn { margin-top: 12px; }
 
 @media (max-width: 620px) {
-  .readout { width: 100%; align-items: flex-start; text-align: left; }
-  .gauge.big { justify-content: flex-start; }
+  /* 좁아지면 매칭 판독값이 제목 아래로 내려와 왼쪽 끝에 선다 */
+  .hd-r { width: 100%; align-items: flex-start; }
+  .rd { align-items: flex-start; }
 }
 </style>

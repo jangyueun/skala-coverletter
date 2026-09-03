@@ -242,7 +242,9 @@ const list = computed(() => {
 .acch[aria-expanded='true'] .chev { color: var(--ink); }
 
 @media (max-width: 900px) {
-  .cols, .count { grid-template-columns: 1fr; gap: 28px; }
+  .cols { grid-template-columns: 1fr; gap: 28px; }
+  /* 한 열이 되면 세로선은 뜻이 없다 */
+  .listcol { padding-right: 0; border-right: none; }
   .side { position: static; order: -1; padding-top: 0; }
 }
 </style>
