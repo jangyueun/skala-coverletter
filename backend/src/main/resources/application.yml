@@ -4,11 +4,19 @@
 spring:
   application:
     name: careerfit
+  datasource:
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USERNAME}
+    password: ${SUPABASE_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 2
+  flyway:
+    baseline-on-migrate: true
+    baseline-version: 0
   jpa:
     hibernate:
-      # 3일 프로젝트라 마이그레이션 도구 없이 간다. 운영에 올릴 거면 validate 로 바꾸고
-      # Flyway 를 붙여야 한다 — update 는 컬럼을 지우지 않아 스키마가 조용히 어긋난다.
-      ddl-auto: update
+      # 공용 DB 스키마는 Flyway만 변경하고 Hibernate는 엔티티와의 일치만 검증한다.
+      ddl-auto: validate
     open-in-view: false
 
   # 로그인 세션 쿠키. HttpOnly 는 JS 가 못 읽게 하는 것이고,
@@ -25,7 +33,7 @@ server:
 
 careerfit:
   auth:
-    # 실제 값은 절대 여기 쓰지 않는다. 환경변수나 application-local.yml 로 준다.
+    # 실제 값은 절대 여기 쓰지 않는다. .env 또는 배포 환경변수로 준다.
     client-id: ${SLACK_CLIENT_ID:}
     client-secret: ${SLACK_CLIENT_SECRET:}
     # 우리 워크스페이스. 이 값과 다른 워크스페이스 계정은 403 으로 막힌다.
@@ -35,3 +43,12 @@ careerfit:
     redirect-uri: ${SLACK_REDIRECT_URI:}
     cookie-secure: ${SESSION_COOKIE_SECURE:true}
     session-ttl: 14d
+
+---
+# test 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
+# 파일이 없으면 Spring이 즉시 경로와 원인을 표시하고 종료한다.
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: file:../.env[.properties]

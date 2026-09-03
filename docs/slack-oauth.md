@@ -11,13 +11,8 @@
 
 ### ① 의존성
 
-```groovy
-implementation 'org.springframework.boot:spring-boot-starter-web'
-implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-runtimeOnly   'org.postgresql:postgresql'
-runtimeOnly   'com.h2database:h2'          // 로컬에서 DB 없이 띄울 때
-testImplementation 'org.springframework.boot:spring-boot-starter-test'
-```
+의존성의 단일 출처는 [`backend/build.gradle`](../backend/build.gradle)이다.
+문서에 목록을 복제하지 않고 항상 해당 파일의 `dependencies` 블록을 확인한다.
 
 > `spring-boot-starter-restclient` 는 **필요 없다.** Boot 4 가 `RestClient.Builder`
 > 자동 설정을 별도 모듈로 뺐기 때문에, Builder 를 주입받게 짜면 그 의존성이 없는 순간
@@ -62,13 +57,19 @@ Initializr 가 만들어 준다. 우리는 `application.yml` 을 쓰니 둘 다 
 ## 2. 로컬 실행
 
 ```bash
-cp backend/src/main/resources/application-local.yml.example backend/src/main/resources/application-local.yml
+cp .env.example .env
 ```
 
-복사한 파일에 Client ID / Secret 을 채운다. 이 파일은 `.gitignore` 되어 있다.
+`.env`에 Supabase DB 접속 정보와 Slack Client ID / Secret을 채운다.
+이 파일은 백엔드 로컬 개발 전용이고 `.gitignore`되어 있으므로 커밋하지 않는다.
+프론트엔드 환경변수는 `frontend/.env.example`을 사용한다.
+
+Spring Boot가 `.env`를 properties 형식으로 직접 읽으므로 `source`하지 않는다.
+값에 쉘용 따옴표를 붙이지 않아야 Docker·IntelliJ와도 같은 파일을 쓸 수 있다.
 
 ```bash
-cd backend && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+cd backend
+./gradlew bootRun
 ```
 
 브라우저에서 <http://localhost:8080/api/auth/slack/start> 로 들어가면 Slack 동의 화면이 뜬다.
@@ -152,7 +153,8 @@ server: { proxy: { '/api': 'http://localhost:8080' } }
 실패한다. 증상은 "로그인 눌렀는데 계속 실패" 이고 원인을 찾는 데 한참 걸린다.
 
 **로컬에서 `Secure` 쿠키는 저장되지 않는다.** `http://localhost` 로 개발하면
-`cookie-secure: false` 여야 한다. `application-local.yml.example` 에 그렇게 들어 있다.
+`cookie-secure: false` 여야 한다. 로컬 전용 `.env`에서만
+`SESSION_COOKIE_SECURE=false`로 덮어쓰고, 배포 환경은 기본값 `true`를 유지한다.
 
 **`redirect_uri` 는 문자 하나까지 같아야 한다.** Slack App 설정, `application.yml`,
 토큰 교환 요청 세 곳이 전부 같아야 한다. 끝의 `/` 하나 차이로도 거부된다.
