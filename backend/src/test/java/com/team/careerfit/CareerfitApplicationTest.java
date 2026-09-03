@@ -8,6 +8,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import com.team.careerfit.global.security.SessionKeys;
 import com.team.careerfit.user.entity.User;
 import com.team.careerfit.user.repository.UserRepository;
+import java.sql.Types;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -226,6 +227,43 @@ class CareerfitApplicationTest {
     }
 
     @Test
+    void 공고_문항과_로그인_사용자의_답변을_조회한다() throws Exception {
+        MockHttpSession session = loginSession("U_POSTING_QUESTIONS");
+        Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
+        Long targetId = postingId("AI/AX 분야 연구개발 및 사업개발");
+        Long answeredQuestionId = insertQuestion(targetId, 1, "지원 동기를 작성해 주세요.", 700);
+        insertQuestion(targetId, 2, "프로젝트 경험을 작성해 주세요.", null);
+        jdbcClient.sql("""
+                        insert into cover_letter_answers
+                            (user_id, question_id, content, char_count, used_experience_ids,
+                             created_at, updated_at)
+                        values (:userId, :questionId, '테스트 답변', 6, '{11,12}', now(), now())
+                        """)
+                .param("userId", userId)
+                .param("questionId", answeredQuestionId)
+                .update();
+
+        mockMvc.perform(get("/api/postings/{postingId}/questions", targetId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].sequence").value(1))
+                .andExpect(jsonPath("$[0].lengthLimit").value(700))
+                .andExpect(jsonPath("$[0].answer.content").value("테스트 답변"))
+                .andExpect(jsonPath("$[0].answer.usedExperienceIds[0]").value(11))
+                .andExpect(jsonPath("$[0].answer.usedExperienceIds[1]").value(12))
+                .andExpect(jsonPath("$[0].answer.updatedAt").isNotEmpty())
+                .andExpect(jsonPath("$[1].answer").isEmpty());
+    }
+
+    @Test
+    void 문항_조회에서도_존재하지_않는_공고는_404를_응답한다() throws Exception {
+        mockMvc.perform(get("/api/postings/{postingId}/questions", 999999)
+                        .session(loginSession("U_POSTING_QUESTIONS_NOT_FOUND")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POSTING_NOT_FOUND"));
+    }
+
+    @Test
     void 페이지_크기가_허용_범위를_넘으면_400을_응답한다() throws Exception {
         mockMvc.perform(get("/api/postings")
                         .session(loginSession("U_POSTING_INVALID_QUERY"))
@@ -304,5 +342,20 @@ class CareerfitApplicationTest {
                 .param("coverage", "[{\"competencyId\":" + competencyId + ",\"isGap\":false}]")
                 .param("inputHash", "test-input-hash-" + userId + "-" + postingId)
                 .update();
+    }
+
+    private Long insertQuestion(Long postingId, int sequence, String promptText, Integer lengthLimit) {
+        return jdbcClient.sql("""
+                        insert into job_posting_questions
+                            (job_posting_id, sequence, prompt_text, length_limit, created_at, updated_at)
+                        values (:postingId, :sequence, :promptText, :lengthLimit, now(), now())
+                        returning id
+                        """)
+                .param("postingId", postingId)
+                .param("sequence", sequence)
+                .param("promptText", promptText)
+                .param("lengthLimit", lengthLimit, Types.INTEGER)
+                .query(Long.class)
+                .single();
     }
 }

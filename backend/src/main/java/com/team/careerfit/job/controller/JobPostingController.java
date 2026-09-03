@@ -3,6 +3,7 @@ package com.team.careerfit.job.controller;
 import com.team.careerfit.global.security.CurrentUser;
 import com.team.careerfit.job.dto.PostingDetailResponse;
 import com.team.careerfit.job.dto.PostingListResponse;
+import com.team.careerfit.job.dto.PostingQuestionResponse;
 import com.team.careerfit.job.service.JobPostingService;
 import com.team.careerfit.user.entity.User;
 import jakarta.servlet.http.HttpServletRequest;
@@ -55,5 +56,13 @@ public class JobPostingController {
             HttpServletRequest request) {
         User user = currentUser.require(request);
         return ResponseEntity.ok(jobPostings.findDetail(user.getId(), postingId));
+    }
+
+    @GetMapping("/{postingId}/questions")
+    public ResponseEntity<List<PostingQuestionResponse>> findQuestions(
+            @PathVariable Long postingId,
+            HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(jobPostings.findQuestions(user.getId(), postingId));
     }
 }

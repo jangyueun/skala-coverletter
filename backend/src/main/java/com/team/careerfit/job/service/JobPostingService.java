@@ -6,6 +6,7 @@ import com.team.careerfit.job.dto.PostingListResponse.Essay;
 import com.team.careerfit.job.dto.PostingListResponse.EssayState;
 import com.team.careerfit.job.dto.PostingListResponse.Item;
 import com.team.careerfit.job.dto.PostingListResponse.Match;
+import com.team.careerfit.job.dto.PostingQuestionResponse;
 import com.team.careerfit.job.exception.JobException;
 import com.team.careerfit.job.repository.JobPostingDetailQueryRepository;
 import com.team.careerfit.job.repository.JobPostingQueryRepository;
@@ -13,6 +14,7 @@ import com.team.careerfit.job.repository.JobPostingQueryRepository.Page;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Row;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.SearchCondition;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Sort;
+import com.team.careerfit.job.repository.PostingQuestionQueryRepository;
 import java.math.RoundingMode;
 import java.time.ZoneId;
 import java.util.List;
@@ -28,17 +30,25 @@ public class JobPostingService {
 
     private final JobPostingQueryRepository jobPostings;
     private final JobPostingDetailQueryRepository postingDetails;
+    private final PostingQuestionQueryRepository postingQuestions;
 
     public JobPostingService(
             JobPostingQueryRepository jobPostings,
-            JobPostingDetailQueryRepository postingDetails) {
+            JobPostingDetailQueryRepository postingDetails,
+            PostingQuestionQueryRepository postingQuestions) {
         this.jobPostings = jobPostings;
         this.postingDetails = postingDetails;
+        this.postingQuestions = postingQuestions;
     }
 
     @Transactional(readOnly = true)
     public PostingDetailResponse findDetail(Long userId, Long postingId) {
         return postingDetails.findById(postingId, userId).orElseThrow(JobException::postingNotFound);
+    }
+
+    @Transactional(readOnly = true)
+    public List<PostingQuestionResponse> findQuestions(Long userId, Long postingId) {
+        return postingQuestions.findByPostingId(postingId, userId).orElseThrow(JobException::postingNotFound);
     }
 
     @Transactional(readOnly = true)
