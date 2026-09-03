@@ -1,5 +1,6 @@
 package com.team.careerfit.global.exception;
 
+import com.team.careerfit.job.exception.JobException;
 import java.util.Map;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
@@ -15,6 +16,11 @@ public class AuthExceptionHandler {
 
     @ExceptionHandler(AuthException.class)
     public ResponseEntity<Map<String, String>> handle(AuthException e) {
+        return ResponseEntity.status(e.status()).body(Map.of("message", e.getMessage()));
+    }
+
+    @ExceptionHandler(JobException.class)
+    public ResponseEntity<Map<String, String>> handle(JobException e) {
         return ResponseEntity.status(e.status()).body(Map.of("message", e.getMessage()));
     }
 }

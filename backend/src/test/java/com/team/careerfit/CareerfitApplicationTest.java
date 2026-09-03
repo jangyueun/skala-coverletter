@@ -1,21 +1,31 @@
 package com.team.careerfit;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import com.team.careerfit.global.security.SessionKeys;
+import com.team.careerfit.user.entity.User;
+import com.team.careerfit.user.repository.UserRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.jdbc.core.simple.JdbcClient;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
-import static org.assertj.core.api.Assertions.assertThat;
-
 @SpringBootTest
 @ActiveProfiles("test")
 @Testcontainers(disabledWithoutDocker = true)
+@AutoConfigureMockMvc
 class CareerfitApplicationTest {
 
     @Container
@@ -30,6 +40,12 @@ class CareerfitApplicationTest {
 
     @Autowired
     private JdbcClient jdbcClient;
+
+    @Autowired
+    private MockMvc mockMvc;
+
+    @Autowired
+    private UserRepository users;
 
     @Test
     void contextLoads() {
@@ -55,5 +71,153 @@ class CareerfitApplicationTest {
                 .single();
 
         assertThat(postingCount).isEqualTo(10);
+    }
+
+    @Test
+    void 로그인한_사용자는_공고_목록을_조회한다() throws Exception {
+        mockMvc.perform(get("/api/postings")
+                        .session(loginSession("U_POSTING_LIST"))
+                        .queryParam("sort", "deadline")
+                        .queryParam("page", "0")
+                        .queryParam("size", "3"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(3))
+                .andExpect(jsonPath("$.items[0].company").value("에코마케팅"))
+                .andExpect(jsonPath("$.items[0].content").doesNotExist())
+                .andExpect(jsonPath("$.items[0].match").isEmpty())
+                .andExpect(jsonPath("$.items[0].essay.state").value("NO_QUESTIONS"))
+                .andExpect(jsonPath("$.page").value(0))
+                .andExpect(jsonPath("$.size").value(3))
+                .andExpect(jsonPath("$.totalCount").value(10));
+    }
+
+    @Test
+    void 회사명으로_공고를_검색한다() throws Exception {
+        mockMvc.perform(get("/api/postings")
+                        .session(loginSession("U_POSTING_SEARCH"))
+                        .queryParam("q", "카카오페이"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].position").value("서버 개발자 - 데이터 플랫폼 (신입)"))
+                .andExpect(jsonPath("$.totalCount").value(1));
+    }
+
+    @Test
+    void 역량과_북마크를_필터링하고_매칭과_자소서_진행률을_반환한다() throws Exception {
+        MockHttpSession session = loginSession("U_POSTING_FILTER");
+        Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
+        Long postingId = jdbcClient.sql("""
+                        select id
+                        from job_postings
+                        where position = '서버 개발자 - 데이터 플랫폼 (신입)'
+                        """)
+                .query(Long.class)
+                .single();
+        Long competencyId = jdbcClient.sql("""
+                        insert into competencies (name, category, created_at, updated_at)
+                        values ('Spring Boot 테스트 역량', 'TECH', now(), now())
+                        returning id
+                        """)
+                .query(Long.class)
+                .single();
+
+        jdbcClient.sql("""
+                        insert into posting_competencies
+                            (job_posting_id, competency_id, weight, evidence_line, created_at, updated_at)
+                        values (:postingId, :competencyId, 0.80, 'Spring Boot 기반 서버 개발', now(), now())
+                        """)
+                .param("postingId", postingId)
+                .param("competencyId", competencyId)
+                .update();
+        jdbcClient.sql("""
+                        insert into bookmarks (user_id, job_posting_id, created_at)
+                        values (:userId, :postingId, now())
+                        """)
+                .param("userId", userId)
+                .param("postingId", postingId)
+                .update();
+        jdbcClient.sql("""
+                        insert into job_matches
+                            (user_id, job_posting_id, match_score, verdict, covered_count, coverage,
+                             input_hash, created_at, updated_at)
+                        values (:userId, :postingId, 0.755, 'CONDITIONAL', 1,
+                                cast(:coverage as jsonb), 'test-input-hash', now(), now())
+                        """)
+                .param("userId", userId)
+                .param("postingId", postingId)
+                .param("coverage", "[{\"competencyId\":" + competencyId + ",\"isGap\":false}]")
+                .update();
+        Long firstQuestionId = jdbcClient.sql("""
+                        insert into job_posting_questions
+                            (job_posting_id, sequence, prompt_text, length_limit, created_at, updated_at)
+                        values (:postingId, 1, '지원 동기를 작성해 주세요.', 1000, now(), now())
+                        returning id
+                        """)
+                .param("postingId", postingId)
+                .query(Long.class)
+                .single();
+        jdbcClient.sql("""
+                        insert into job_posting_questions
+                            (job_posting_id, sequence, prompt_text, length_limit, created_at, updated_at)
+                        values (:postingId, 2, '직무 역량을 작성해 주세요.', 1000, now(), now())
+                        """)
+                .param("postingId", postingId)
+                .update();
+        jdbcClient.sql("""
+                        insert into cover_letter_answers
+                            (user_id, question_id, content, char_count, used_experience_ids,
+                             created_at, updated_at)
+                        values (:userId, :questionId, '작성 중인 답변', 8, '{}', now(), now())
+                        """)
+                .param("userId", userId)
+                .param("questionId", firstQuestionId)
+                .update();
+
+        mockMvc.perform(get("/api/postings")
+                        .session(session)
+                        .queryParam("competencyId", competencyId.toString(), "999999")
+                        .queryParam("bookmarked", "true")
+                        .queryParam("sort", "match"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.items.length()").value(1))
+                .andExpect(jsonPath("$.items[0].company").value("카카오페이"))
+                .andExpect(jsonPath("$.items[0].bookmarked").value(true))
+                .andExpect(jsonPath("$.items[0].match.score").value(76))
+                .andExpect(jsonPath("$.items[0].match.verdict").value("CONDITIONAL"))
+                .andExpect(jsonPath("$.items[0].match.coveredCompetencyNames[0]")
+                        .value("Spring Boot 테스트 역량"))
+                .andExpect(jsonPath("$.items[0].match.requiredCount").value(1))
+                .andExpect(jsonPath("$.items[0].essay.state").value("WRITING"))
+                .andExpect(jsonPath("$.items[0].essay.answered").value(1))
+                .andExpect(jsonPath("$.items[0].essay.total").value(2))
+                .andExpect(jsonPath("$.totalCount").value(1));
+    }
+
+    @Test
+    void 페이지_크기가_허용_범위를_넘으면_400을_응답한다() throws Exception {
+        mockMvc.perform(get("/api/postings")
+                        .session(loginSession("U_POSTING_INVALID_QUERY"))
+                        .queryParam("size", "101"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value("공고 조회 조건이 올바르지 않습니다."));
+    }
+
+    @Test
+    void 로그인하지_않으면_공고_목록을_조회할_수_없다() throws Exception {
+        mockMvc.perform(get("/api/postings"))
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.message").value("로그인이 필요합니다."));
+    }
+
+    private MockHttpSession loginSession(String slackUserId) {
+        User user = users.save(User.firstLogin(
+                "T_TEST",
+                slackUserId,
+                "공고 조회 사용자",
+                slackUserId.toLowerCase() + "@example.com",
+                null));
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute(SessionKeys.USER_ID, user.getId());
+        return session;
     }
 }
