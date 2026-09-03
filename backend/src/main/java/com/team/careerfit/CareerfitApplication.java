@@ -14,6 +14,8 @@ import org.springframework.boot.context.properties.ConfigurationPropertiesScan;
  * {@code @ConfigurationProperties} 만 붙은 record 고 {@code @Component} 가 없다. 이 스캔이
  * 없으면 빈으로 등록되지 않아 {@code SlackOAuthClient} · {@code CurrentUser} 의 생성자 주입이
  * 실패하고 기동 자체가 깨진다. 지우지 말 것.
+ *
+ * <p>{@code @EnableScheduling} 은 여기 안 둔다 — {@code global.config.SchedulingConfig} 를 본다.
  */
 @SpringBootApplication
 @ConfigurationPropertiesScan

@@ -1,6 +1,7 @@
 package com.team.careerfit.global.exception;
 
 import com.team.careerfit.competency.exception.CompetencyException;
+import com.team.careerfit.internal.exception.InternalApiException;
 import com.team.careerfit.job.exception.JobException;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -33,7 +34,13 @@ public class GlobalExceptionHandler {
         return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
     }
 
-    /** competency·job 도메인은 {@link ApiException} 이전에 만들어져 따로 code()·status() 를 들고 있다. */
+    /**
+     * competency·job·internal 도메인은 {@link ApiException} 이전에 만들어져 따로 code()·status() 를
+     * 들고 있다. 예전엔 internal 만 별도 {@code @RestControllerAdvice}(InternalApiExceptionHandler)를
+     * 따로 뒀는데, 이 프로젝트에 advice 가 둘이면 Spring 이 advice 빈을 도는 순서(이름순으로
+     * GlobalExceptionHandler 가 먼저 걸린다)에 따라 여기 {@link #handle(Exception)} 이 먼저 매치돼서
+     * InternalApiException 이 항상 500 으로 새는 버그가 있었다 — 실제로 겪었다. 그래서 여기 하나로 합쳤다.
+     */
     @ExceptionHandler(CompetencyException.class)
     public ResponseEntity<Map<String, String>> handle(CompetencyException e) {
         return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
@@ -41,6 +48,11 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(JobException.class)
     public ResponseEntity<Map<String, String>> handle(JobException e) {
+        return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(InternalApiException.class)
+    public ResponseEntity<Map<String, String>> handle(InternalApiException e) {
         return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
     }
 
