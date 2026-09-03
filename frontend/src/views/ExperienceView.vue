@@ -25,12 +25,16 @@ const shown = computed(() =>
 const filterName = computed(() =>
   filter.value ? store.competencies.find(c => c.id === filter.value)?.name : null)
 
+/* 필터는 접을 수 있다. 태그가 21개라 늘 펴 두면 목록이 한 화면 아래로 밀린다.
+   고른 게 있으면 접혀 있어도 개수가 머리에 남아, 접어 둔 걸 잊고
+   "왜 6건이 아니지" 하는 일이 없다. */
+const filtOpen = ref(true)
+
 </script>
 
 <template>
   <header class="hero">
     <div class="hl">
-      <p class="label">Career Lab · Library</p>
       <h1 class="display">경험 라이브러리</h1>
       <p class="lede">STAR 기법을 사용해 본인의 경험을 적어 두세요.</p>
       <!-- 글자와 설명은 등록 폼의 FIELDS 와 같은 문구다.
@@ -42,25 +46,31 @@ const filterName = computed(() =>
         <div><dt>R</dt><dd><b>Result</b> 결과 — 숫자로</dd></div>
       </dl>
     </div>
-    <!-- 이 화면에 하나뿐인 주요 행동. 제목 옆 빈자리가 그 자리다. -->
-    <button class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
+    <!-- 오른쪽은 "얼마나 모았나" 와 "더 모으기" 다. 같은 이야기라 붙여 둔다.
+         숫자에는 패널 테두리를 두르지 않는다 — 헤더에 카드가 뜨면 제목보다 무거워지고,
+         이 줄에서 채워진 것은 등록 버튼 하나여야 한다. -->
+    <div class="hr">
+      <div class="stat">
+        <div class="num num--lg num--read">{{ store.experiences.length }}</div>
+        <p class="sl">등록한 경험</p>
+      </div>
+      <div class="stat">
+        <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
+        <p class="sl">태그된 역량</p>
+      </div>
+      <button class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
+    </div>
   </header>
 
   <section class="readout" aria-label="현황">
-    <div class="nums">
-      <div class="panel cell">
-        <p class="ct">등록한 경험</p>
-        <div class="num num--lg num--read">{{ store.experiences.length }}</div>
-      </div>
-      <div class="panel cell">
-        <p class="ct">태그된 역량</p>
-        <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
-      </div>
-    </div>
-
-    <div class="panel cell filt" aria-label="역량으로 필터링">
-    <p class="ct">역량으로 필터링</p>
-    <div class="grps">
+    <div class="panel cell filt">
+    <button class="fh" :aria-expanded="filtOpen" @click="filtOpen = !filtOpen">
+      <span class="ct">역량으로 필터링</span>
+      <span class="fn">{{ chips.reduce((n, g) => n + g.items.length, 0) }}</span>
+      <span v-if="filterName" class="fp">1</span>
+      <span class="chev" aria-hidden="true">{{ filtOpen ? '−' : '+' }}</span>
+    </button>
+    <div v-show="filtOpen" class="grps">
       <div v-for="g in chips" :key="g.k" class="grp">
         <p class="label gl">{{ g.label }}</p>
         <div class="tags">
@@ -90,11 +100,19 @@ const filterName = computed(() =>
 </template>
 
 <style scoped>
-/* 제목 왼쪽, 등록 버튼 오른쪽. 버튼은 리드 문장 아래끝에 맞춰 앉는다 —
-   위로 붙이면 제목 옆에 떠 보이고, 여기 두면 글 덩어리가 버튼을 받친다. */
+/* 제목·STAR 안내가 왼쪽, "얼마나 모았나 + 더 모으기" 가 오른쪽.
+   오른쪽 덩어리는 왼쪽 글의 아래끝에 맞춰 앉는다 — 위로 붙이면
+   제목 옆에 떠 보이고, 여기 두면 글 덩어리가 그걸 받친다. */
 .hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
 .hl { min-width: 0; }
+.hr { display: flex; align-items: flex-end; gap: 22px; flex: none; }
 .hb { flex: none; }
+
+/* 숫자는 테두리 없이 세로 구분선으로만 나눈다. 헤더에 카드를 세우면
+   제목보다 무거워지고, 이 줄에서 채워진 것은 등록 버튼 하나여야 한다. */
+.stat { display: flex; flex-direction: column; gap: 2px; padding-left: 22px; border-left: 1px solid var(--line); }
+.stat:first-child { padding-left: 0; border-left: none; }
+.sl { margin: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 
 .lede { max-width: 58ch; color: var(--ink); margin: 14px 0 0; font-weight: 600; }
 
@@ -106,31 +124,39 @@ const filterName = computed(() =>
 .star dd { margin: 0; font-size: 12.5px; color: var(--muted); }
 .star dd b { color: var(--ink-2); font-weight: 600; margin-right: 5px; }
 
-.readout { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0 0; }
-/* 숫자는 가로로 나란히 두지 않고 쌓는다 — 둘 다 "얼마나 모았나" 라
-   같은 종류이고, 세로로 두면 필터가 가로를 다 쓴다.
-   높이는 필터 패널이 정하고, 두 칸이 그걸 반씩 나눠 갖는다. */
-.nums { display: flex; flex-direction: column; gap: 12px; flex: none; width: 152px; }
-.nums .cell { flex: 1; }
-/* 세 칸 모두 제목이 왼쪽 위에 먼저 온다 — 무엇을 세는 칸인지 읽고
-   숫자를 본다. 칸마다 제목 위치가 다르면 눈이 매번 찾아야 한다. */
+.readout { margin: 26px 0 0; }
 .cell { padding: 14px 20px; display: flex; flex-direction: column; gap: 9px; }
-.ct {
-  margin: 0; font-size: 13.5px; font-weight: 700;
-  color: var(--ink); letter-spacing: var(--track-tight);
+.ct { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: var(--track-tight); }
+
+/* 접기 머리 — 홈의 필터 아코디언(.acch)과 같은 어법이다.
+   이름은 왼쪽, 개수와 펼침 표시는 오른쪽. */
+.fh {
+  display: flex; align-items: center; gap: 8px; width: 100%;
+  padding: 0; background: transparent; border: none;
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
 }
+.fn { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 500; }
+/* 접혀 있어도 고른 게 있다는 건 보여야 한다 */
+.fp {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: var(--pill); background: var(--accent); color: var(--accent-ink);
+  font-size: 9.5px; font-weight: 700;
+}
+.chev { font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
+.fh[aria-expanded='true'] .chev { color: var(--ink); }
 .of { font-size: 0.5em; color: var(--muted); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; min-height: 22px; }
 .count { margin-left: auto; font-size: 12.5px; }
 
-@media (max-width: 640px) {
-  /* 좁아지면 버튼이 제목 아래로 내려가 가로를 다 쓴다 */
+@media (max-width: 760px) {
+  /* 좁아지면 오른쪽 덩어리가 제목 아래로 내려가 왼쪽 끝에 맞춰 선다 */
   .hero { align-items: stretch; }
+  .hr { flex-wrap: wrap; gap: 16px; }
   .hb { width: 100%; }
 }
 
-.filt { padding: 13px 16px; flex: 1 1 340px; min-width: 0; }
+.filt { padding: 13px 16px; min-width: 0; }
 /* 범주 이름은 왼쪽 홈통에 고정한다 — 위에 얹으면 줄 수가 두 배가 되고,
    필터가 목록보다 길어진다. 좁아지면 홈통을 접는다. */
 /* 범주 사이 간격은 태그가 줄바꿈되는 간격(5px)보다 확실히 커야 한다.
