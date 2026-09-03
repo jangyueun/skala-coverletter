@@ -264,6 +264,102 @@ class CareerfitApplicationTest {
     }
 
     @Test
+    void 매칭_결과가_없으면_작업을_만들고_완료된_결과를_상세하게_반환한다()
+            throws Exception {
+        MockHttpSession session = loginSession("U_POSTING_MATCH");
+        Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
+        Long targetId = postingId("SW개발 (신입)");
+        Long competencyId = insertCompetency("매칭 API 테스트 역량");
+        insertPostingCompetency(targetId, competencyId, "0.90", "매칭 API 공고 근거");
+        Long experienceId = jdbcClient.sql("""
+                        insert into experiences
+                            (user_id, title, category, result, created_at, updated_at)
+                        values (:userId, '매칭 테스트 경험', 'TEAM_PROJECT',
+                                '처리 시간을 절반으로 줄였다.', now(), now())
+                        returning id
+                        """)
+                .param("userId", userId)
+                .query(Long.class)
+                .single();
+        jdbcClient.sql("""
+                        insert into experience_competencies
+                            (experience_id, competency_id, strength, created_at)
+                        values (:experienceId, :competencyId, 0.80, now())
+                        """)
+                .param("experienceId", experienceId)
+                .param("competencyId", competencyId)
+                .update();
+
+        mockMvc.perform(get("/api/postings/{postingId}/match", targetId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("PENDING"))
+                .andExpect(jsonPath("$.taskId").isNumber())
+                .andExpect(jsonPath("$.requiredCount").value(1))
+                .andExpect(jsonPath("$.rows.length()").value(0));
+
+        MatchTaskFixture task = jdbcClient.sql("""
+                        select id, input_hash
+                        from ai_tasks
+                        where task_type = 'MATCH' and user_id = :userId and job_posting_id = :postingId
+                        """)
+                .param("userId", userId)
+                .param("postingId", targetId)
+                .query((resultSet, rowNumber) -> new MatchTaskFixture(
+                        resultSet.getLong("id"),
+                        resultSet.getString("input_hash")))
+                .single();
+        jdbcClient.sql("""
+                        update ai_tasks
+                        set status = 'COMPLETED', model = 'mock', prompt_version = 'match/v1',
+                            result_payload = '{}', started_at = now(), completed_at = now()
+                        where id = :taskId
+                        """)
+                .param("taskId", task.id())
+                .update();
+        jdbcClient.sql("""
+                        insert into job_matches
+                            (user_id, job_posting_id, match_score, verdict, covered_count, coverage,
+                             input_hash, created_at, updated_at)
+                        values (:userId, :postingId, 0.755, 'CONDITIONAL', 1,
+                                cast(:coverage as jsonb), :inputHash, now(), now())
+                        """)
+                .param("userId", userId)
+                .param("postingId", targetId)
+                .param("coverage", """
+                        [{"competencyId":%d,"score":1.0,"isGap":false,
+                          "experiences":[{"id":%d,"strength":0.8}]}]
+                        """.formatted(competencyId, experienceId))
+                .param("inputHash", task.inputHash())
+                .update();
+
+        mockMvc.perform(get("/api/postings/{postingId}/match", targetId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("COMPLETED"))
+                .andExpect(jsonPath("$.taskId").value(task.id()))
+                .andExpect(jsonPath("$.score").value(76))
+                .andExpect(jsonPath("$.verdict").value("CONDITIONAL"))
+                .andExpect(jsonPath("$.coveredCount").value(1))
+                .andExpect(jsonPath("$.rows[0].competencyId").value(competencyId))
+                .andExpect(jsonPath("$.rows[0].name").value("매칭 API 테스트 역량"))
+                .andExpect(jsonPath("$.rows[0].score").value(1.0))
+                .andExpect(jsonPath("$.rows[0].isGap").value(false))
+                .andExpect(jsonPath("$.rows[0].experiences[0].id").value(experienceId))
+                .andExpect(jsonPath("$.rows[0].experiences[0].strength").value(0.8));
+    }
+
+    @Test
+    void 분석되지_않은_공고의_매칭_상태는_NOT_COMPUTED이다() throws Exception {
+        Long targetId = postingId("AI 개발 (신입)");
+
+        mockMvc.perform(get("/api/postings/{postingId}/match", targetId)
+                        .session(loginSession("U_POSTING_MATCH_NOT_COMPUTED")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("NOT_COMPUTED"))
+                .andExpect(jsonPath("$.taskId").isEmpty())
+                .andExpect(jsonPath("$.requiredCount").value(0));
+    }
+
+    @Test
     void 페이지_크기가_허용_범위를_넘으면_400을_응답한다() throws Exception {
         mockMvc.perform(get("/api/postings")
                         .session(loginSession("U_POSTING_INVALID_QUERY"))
@@ -357,5 +453,8 @@ class CareerfitApplicationTest {
                 .param("lengthLimit", lengthLimit, Types.INTEGER)
                 .query(Long.class)
                 .single();
+    }
+
+    private record MatchTaskFixture(Long id, String inputHash) {
     }
 }
