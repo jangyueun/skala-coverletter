@@ -10,6 +10,17 @@ with kakaopay as (
 delete from posting_competencies
 where job_posting_id in (select id from kakaopay);
 
+-- 이 문항들을 근거로 실제로 저장된 답변(수동 검증 중 만든 테스트 계정 데이터)이 있으면
+-- FK(fk_cover_letter_answers_question)에 걸린다. 문항을 지우기 전에 먼저 치운다.
+with kakaopay_questions as (
+    select jpq.id
+    from job_posting_questions jpq
+    join job_postings jp on jp.id = jpq.job_posting_id
+    where jp.source_url = 'https://jasoseol.com/companies/5463/careers' and jpq.sequence in (3, 4)
+)
+delete from cover_letter_answers
+where question_id in (select id from kakaopay_questions);
+
 with kakaopay as (
     select id from job_postings where source_url = 'https://jasoseol.com/companies/5463/careers'
 )
