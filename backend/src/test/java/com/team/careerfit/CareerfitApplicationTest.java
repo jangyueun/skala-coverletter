@@ -36,11 +36,24 @@ class CareerfitApplicationTest {
         Integer appliedMigrations = jdbcClient.sql("""
                         select count(*)
                         from "flyway_schema_history"
-                        where "success" = true and "version" = '1'
+                        where "success" = true and "version" in ('1', '2', '3')
                         """)
                 .query(Integer.class)
                 .single();
 
-        assertThat(appliedMigrations).isEqualTo(1);
+        assertThat(appliedMigrations).isEqualTo(3);
+    }
+
+    @Test
+    void it_공고_시드_10건이_적용된다() {
+        Integer postingCount = jdbcClient.sql("""
+                        select count(*)
+                        from job_postings
+                        where source_url like 'https://jasoseol.com/%'
+                        """)
+                .query(Integer.class)
+                .single();
+
+        assertThat(postingCount).isEqualTo(10);
     }
 }
