@@ -1,14 +1,10 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
-import { usePostingsStore } from '@/stores/postings.js'
-import { useDerivedStore } from '@/stores/derived.js'
 import CompetencyPicker from './CompetencyPicker.vue'
 import IntakePanel from './IntakePanel.vue'
 
 const E = useExperiencesStore()
-const P = usePostingsStore()
-const D = useDerivedStore()
 const el = ref(null)
 const editId = ref(null)
 const tab = ref('manual')   // manual | intake
@@ -49,14 +45,6 @@ function open(id) {
 defineExpose({ open })
 
 const starDone = computed(() => FIELDS.filter(f => form[f.k].trim()).length)
-
-/* 지금 비어 있는 요구 역량 — 이 경험이 그걸 증명한다면 태그하라고 알린다 */
-const openGaps = computed(() => {
-  const s = new Set()
-  P.live.forEach(p =>
-    D.matchFor(p).rows.filter(r => r.isGap).forEach(r => s.add(r.comp.name)))
-  return [...s]
-})
 
 /* 서버에 await 한다. 성공해야 닫는다 — 실패하면 폼이 남고 이유가 errors 에 뜬다. */
 async function save() {
@@ -150,13 +138,6 @@ async function save() {
       </div>
 
       <footer v-show="tab === 'manual'" class="ft">
-        <p class="gaph">
-          <template v-if="openGaps.length">
-            지금 비어 있는 요구 역량 — <b>{{ openGaps.join(', ') }}</b>.
-            이 경험이 그걸 증명한다면 꼭 태그하세요.
-          </template>
-          <template v-else>요구 역량이 모두 덮여 있습니다.</template>
-        </p>
         <div class="acts">
           <button type="button" class="btn btn--sm" @click="el.close()">취소</button>
           <button type="button" class="btn btn--primary" @click="save()">
@@ -241,8 +222,6 @@ async function save() {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 13px 20px; border-top: 1px solid var(--line); background: var(--panel);
 }
-.gaph { margin: 0; font-size: var(--fs-2xs); color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
-.gaph b { color: var(--gap); }
 .acts { display: flex; gap: 8px; margin-left: auto; }
 
 @media (max-width: 560px) {
