@@ -8,6 +8,14 @@ import { catShort } from '@/domain/competency.js'
    표는 같은 축(커버리지·가중치)이 세로로 정렬돼 한눈에 대조된다. */
 defineProps({ rows: { type: Array, required: true } })
 
+/* 가중치를 눈금 5칸으로. 데이터는 0.5~0.9 이고 스키마 상한이 1.0 이라
+   0.5→1칸 … 0.9→5칸 으로 떨어진다.
+
+   커버리지가 이미 가로 막대라 가중치까지 막대로 하면 두 축이 섞인다.
+   높이가 커지는 세로 눈금은 형태가 달라서 헷갈리지 않고, "무게" 를 계단으로 말한다.
+   숫자는 그대로 옆에 둔다 — 이 표는 가중치순 정렬이라 정확한 값도 봐야 한다. */
+const ticks = w => Math.max(1, Math.min(5, Math.round(w * 10) - 4))
+
 const open = ref(new Set())
 function toggle(id) {
   const next = new Set(open.value)
@@ -22,7 +30,7 @@ function toggle(id) {
       <thead>
         <tr>
           <th>요구 역량</th>
-          <th class="c">가중치</th>
+          <th>가중치</th>
           <th class="c">구분</th>
           <th class="cov">커버리지</th>
           <th class="c">근거</th>
@@ -41,7 +49,13 @@ function toggle(id) {
             </td>
             <!-- 가중치는 역량 바로 옆이다. 이 공고가 그 역량을 얼마나 무겁게 요구하는지가
                  역량 이름에 딸린 값이라, 표 끝에 두면 이름과 눈으로 이어 붙여야 했다. -->
-            <td class="c num wt">{{ r.weight.toFixed(1) }}</td>
+            <td class="wtd">
+              <span class="wg" :title="`가중치 ${r.weight.toFixed(1)}`">
+                <i v-for="i in 5" :key="i" :class="{ on: i <= ticks(r.weight) }"
+                   :style="{ height: 3 + i * 2 + 'px' }" />
+              </span>
+              <span class="num wt">{{ r.weight.toFixed(1) }}</span>
+            </td>
             <td class="c cat">{{ catShort(r.comp.category) }}</td>
             <td>
               <div class="mt">
@@ -107,7 +121,11 @@ th:first-child, td:first-child { padding-left: 2px; }
 th:last-child,  td:last-child  { padding-right: 2px; }
 .c { text-align: center; }
 .r { text-align: right; }
-.cov { width: 38%; }
+/* 커버리지가 남는 폭을 전부 가져간다.
+   나머지 열은 내용 폭으로 줄인다 — 역량 이름은 최장 14자라 넓을 이유가 없고,
+   막대는 넓어야 60%와 80%가 구분된다. width:100% 를 준 열이 잔여를 먹는 표 규칙이다. */
+th, td { white-space: nowrap; }
+.cov { width: 100%; }
 
 td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-align: middle; }
 
@@ -132,7 +150,14 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
    문단까지 600 으로 굵어지고 있었다. */
 .evc { font-size: var(--fs-xs); font-weight: 600; }
 .evc.gap { color: var(--gap); }
-.wt { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
+/* 눈금 + 숫자. 둘을 한 칸에 붙여 놓아야 "0.9 = 다섯 칸" 이 한 번에 읽힌다. */
+.wtd { white-space: nowrap; }
+.wg { display: inline-flex; align-items: flex-end; gap: 2px; height: 13px; vertical-align: -2px; }
+.wg i { width: 3px; display: block; border-radius: 0.5px; background: var(--line); }
+.wg i.on { background: var(--ink-2); }
+.mrow:hover .wg i, .mrow.on .wg i { background: var(--line-strong); }
+.mrow:hover .wg i.on, .mrow.on .wg i.on { background: var(--ink-2); }
+.wt { font-size: var(--fs-xs); color: var(--muted); margin-left: 7px; }
 
 /* ── 펼친 근거 ─────────────────────────────────────────────
    앞의 모양이 안 좋았던 이유는 세 가지였다 —
