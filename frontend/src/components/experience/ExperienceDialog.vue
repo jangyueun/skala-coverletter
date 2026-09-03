@@ -174,9 +174,13 @@ function save() {
 </template>
 
 <style scoped>
+/* 폭은 역량 사전이 정한다. 45개를 5개 범주로 묶어 늘어놓는 자리라
+   좁으면 태그가 두세 개씩 끊겨 범주 하나가 네 줄이 된다.
+   탭(직접 입력/포폴에서 가져오기)마다 폭을 달리하면 전환할 때 화면이 튀므로
+   넓은 쪽에 맞춰 하나로 둔다. */
 .dlg {
   padding: 0; border: none; background: transparent;
-  max-width: 720px; width: calc(100% - 32px);
+  max-width: 1000px; width: calc(100% - 32px);
 }
 .dlg::backdrop { background: rgba(10, 12, 11, 0.55); backdrop-filter: blur(2px); }
 .inner {
