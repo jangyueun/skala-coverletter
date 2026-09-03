@@ -121,7 +121,7 @@ DTO로 바꾸는 위치에 주의합니다. `application.yml` 에 `open-in-view:
 
 **성공 응답은 DTO를 그대로 내보냅니다.** `{"data": ...}` 같은 껍데기를 씌우지 않습니다.
 목록은 배열 그대로, 단건은 객체 그대로입니다. 성공과 실패는 상태 코드로 구분하고,
-실패일 때만 `{"message": "..."}` 형식을 씁니다 (7절).
+실패일 때만 `{"code": "...", "message": "..."}` 형식을 씁니다 (7절).
 
 ```java
 return ResponseEntity.ok(CoverLetterResponse.from(saved));   // 좋음
@@ -234,15 +234,19 @@ public ResponseEntity<CoverLetterResponse> create(@Valid @RequestBody CoverLette
 
 - 예외 클래스는 **도메인별로** 만듭니다. `RuntimeException` 을 상속하고, 상태 코드를 예외가 들고 있게 합니다.
 - 예외 생성은 `static` 팩토리 메서드로 합니다 — `AuthException.loginRequired()`.
-- **`@RestControllerAdvice` 는 프로젝트에 하나뿐입니다.** `global/exception` 에 두고 모든 예외를 여기서 받습니다.
-  도메인마다 만들면 팀원 수만큼 에러 응답 형식이 갈립니다. 지금은 `AuthExceptionHandler` 가 그 자리이고,
-  도메인이 늘면 `GlobalExceptionHandler` 로 이름을 바꿔 거기에 모읍니다.
-- 응답 형식은 `{"message": "..."}` 하나로 통일합니다.
+- **`@RestControllerAdvice` 는 프로젝트에 하나뿐입니다.** `global/exception/GlobalExceptionHandler` 에 두고
+  모든 예외를 여기서 받습니다. 도메인마다 만들면 팀원 수만큼 에러 응답 형식이 갈립니다.
+- 도메인 예외는 `global/exception/ApiException` 을 상속해 상태 코드와 명세(docs/api-spec-v6.md 9절)의 `code` 를 들고 있게 합니다.
+- 응답 형식은 `{"code": "...", "message": "..."}` 하나로 통일합니다. 인증(`AuthException`)도 같습니다.
 - **응답 메시지에 내부 사정을 담지 않습니다.** 원인·스택트레이스·내부 ID는 로그에만 남깁니다.
 
 ```java
-throw AuthException.workspaceNotAllowed();   // 응답: 403 {"message": "허용되지 않은 Slack 워크스페이스입니다."}
+throw AuthException.workspaceNotAllowed();
+// 응답: 403 {"code": "WORKSPACE_NOT_ALLOWED", "message": "허용되지 않은 Slack 워크스페이스입니다."}
 ```
+
+로그인 확인은 컨트롤러가 아니라 `global/security/SessionAuthInterceptor` 가 `/api/**` 앞에서 합니다(`/api/auth/**` · `/internal/**` 제외).
+컨트롤러는 사용자 객체가 필요할 때 `currentUser.require(request)` 를 그대로 부릅니다 — 같은 요청 안에서는 DB 를 다시 읽지 않습니다.
 
 핸들러가 받아야 할 것은 셋입니다.
 

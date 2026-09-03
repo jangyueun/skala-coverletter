@@ -118,11 +118,15 @@ AI 서버는 상태를 갖지 않는다. 요청을 받아 LLM을 호출하고 �
 |---|---|---|
 | `VALIDATION_FAILED` | 400 | `@Valid` 실패, 허용되지 않은 첨부 형식 |
 | `STATE_MISMATCH` | 400 | Slack 콜백 state 불일치 |
-| `LOGIN_REQUIRED` | 401 | 세션 없음. `/api/auth/me`만 200 + null |
+| `LOGIN_REQUIRED` | 401 | 세션 없음. `/api/auth/me`만 200 + null. `/api/**` 인터셉터가 컨트롤러 앞에서 준다 |
+| `LOGIN_FAILED` | 401 | Slack 토큰 교환·프로필 조회 실패, 콜백에 code 없음 |
 | `INTERNAL_TOKEN_INVALID` | 401 | `/internal/*` 토큰 불일치 |
 | `WORKSPACE_NOT_ALLOWED` | 403 | 허용 워크스페이스 아님 |
 | `FORBIDDEN` | 403 | 다른 사용자의 경험·답변·작업 |
+| `CSRF_REJECTED` | 403 | 다른 사이트에서 온 상태 변경 요청(POST·PUT·PATCH·DELETE, `Sec-Fetch-Site: cross-site`). 같은 오리진의 프론트에서는 나올 수 없다 |
 | `POSTING_NOT_FOUND` `QUESTION_NOT_FOUND` `EXPERIENCE_NOT_FOUND` `TASK_NOT_FOUND` | 404 | |
+| `NOT_FOUND` | 404 | 없는 경로 (예전엔 500 `INTERNAL_ERROR` 로 샜다) |
+| `METHOD_NOT_ALLOWED` | 405 | 있는 경로에 틀린 메서드 |
 | `DRAFT_ALREADY_RUNNING` `INTAKE_ALREADY_RUNNING` `ANALYSIS_ALREADY_RUNNING` | 409 | 같은 대상에 다른 입력으로 진행 중 |
 | `FILE_TOO_LARGE` | 413 | 인테이크 첨부 10 MB 초과 |
 | `AI_PROVIDER_ERROR` | 작업 FAILED | AI 서비스 4xx·5xx·타임아웃. 재시도 소진 후 폴링 응답의 `error` |

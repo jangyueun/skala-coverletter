@@ -117,7 +117,8 @@ public class SlackAuthController {
     }
 
     /**
-     * state 대조.
+     * state 대조. 틀리면 400 {@code STATE_MISMATCH}(명세 1절) — 쿠키가 만료된 경우(동의 화면을 10분 넘게
+     * 열어 둠)도 같은 응답이다. 사용자가 할 일은 둘 다 "다시 로그인" 하나라 구분하지 않는다.
      *
      * <p>일반 {@code equals} 대신 상수 시간 비교를 쓴다. 응답 시간 차이로 state 를 한
      * 글자씩 맞혀 가는 경로를 남기지 않는다.
@@ -127,7 +128,7 @@ public class SlackAuthController {
                 || expected == null
                 || !MessageDigest.isEqual(
                         actual.getBytes(StandardCharsets.UTF_8), expected.getBytes(StandardCharsets.UTF_8))) {
-            throw AuthException.loginFailed();
+            throw AuthException.stateMismatch();
         }
     }
 
