@@ -28,21 +28,29 @@ const filterName = computed(() =>
 </script>
 
 <template>
-  <p class="label">Career Lab · Library</p>
-  <h1 class="display">경험 라이브러리</h1>
-  <p class="lede">
-    지원할 때마다 새로 쓰는 게 아니라, 한 번 구조화해 두고 계속 꺼내 쓴다.
-    <b>AI가 하나도 없어도 이 화면은 그 자체로 도구다.</b>
-  </p>
+  <header class="hero">
+    <div class="hl">
+      <p class="label">Career Lab · Library</p>
+      <h1 class="display">경험 라이브러리</h1>
+      <p class="lede">
+        지원할 때마다 새로 쓰는 게 아니라, 한 번 구조화해 두고 계속 꺼내 쓴다.
+        <b>AI가 하나도 없어도 이 화면은 그 자체로 도구다.</b>
+      </p>
+    </div>
+    <!-- 이 화면에 하나뿐인 주요 행동. 제목 옆 빈자리가 그 자리다. -->
+    <button class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
+  </header>
 
   <section class="readout" aria-label="현황">
-    <div class="panel cell">
-      <div class="num num--lg num--read">{{ store.experiences.length }}</div>
-      <p class="label">등록한 경험</p>
-    </div>
-    <div class="panel cell">
-      <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
-      <p class="label">태그된 역량</p>
+    <div class="nums">
+      <div class="panel cell">
+        <div class="num num--lg num--read">{{ store.experiences.length }}</div>
+        <p class="label">등록한 경험</p>
+      </div>
+      <div class="panel cell">
+        <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
+        <p class="label">태그된 역량</p>
+      </div>
     </div>
 
     <div class="panel cell filt" aria-label="역량으로 필터링">
@@ -64,7 +72,6 @@ const filterName = computed(() =>
   </section>
 
   <section class="controls">
-    <button class="btn btn--primary" @click="dlg.open()">＋ 경험 등록</button>
     <button v-if="filter" class="btn btn--sm" @click="filter = null">필터 초기화</button>
     <span class="muted count">{{ filterName ? `${filterName} · ${shown.length}건` : `전체 ${shown.length}건` }}</span>
   </section>
@@ -78,15 +85,37 @@ const filterName = computed(() =>
 </template>
 
 <style scoped>
+/* 제목 왼쪽, 등록 버튼 오른쪽. 버튼은 리드 문장 아래끝에 맞춰 앉는다 —
+   위로 붙이면 제목 옆에 떠 보이고, 여기 두면 글 덩어리가 버튼을 받친다. */
+.hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
+.hl { min-width: 0; }
+.hb { flex: none; }
+
 .lede { max-width: 58ch; color: var(--muted); margin: 14px 0 0; }
 .lede b { color: var(--ink); font-weight: 600; }
 
 .readout { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0 0; }
-.cell { padding: 14px 20px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
+/* 숫자는 가로로 나란히 두지 않고 쌓는다 — 둘 다 "얼마나 모았나" 라
+   같은 종류이고, 세로로 두면 필터가 가로를 다 쓴다.
+   높이는 필터 패널이 정하고, 두 칸이 그걸 반씩 나눠 갖는다. */
+.nums { display: flex; flex-direction: column; gap: 12px; flex: none; width: 152px; }
+.nums .cell { flex: 1; }
+/* 늘어난 칸에서 숫자가 위에만 붙어 있으면 아래가 텅 빈다. 가운데 앉힌다. */
+.cell {
+  padding: 14px 20px; display: flex; flex-direction: column;
+  justify-content: center; gap: 4px;
+}
+.filt { justify-content: flex-start; }
 .of { font-size: 0.5em; color: var(--muted); }
 
-.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 22px 0 0; }
+.controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; min-height: 22px; }
 .count { margin-left: auto; font-size: 12.5px; }
+
+@media (max-width: 640px) {
+  /* 좁아지면 버튼이 제목 아래로 내려가 가로를 다 쓴다 */
+  .hero { align-items: stretch; }
+  .hb { width: 100%; }
+}
 
 .filt { padding: 13px 16px; flex: 1 1 340px; min-width: 0; }
 /* 범주 이름은 왼쪽 홈통에 고정한다 — 위에 얹으면 줄 수가 두 배가 되고,
