@@ -3,6 +3,7 @@ import { usePostingsStore } from './postings.js'
 import { useExperiencesStore } from './experiences.js'
 import { useAnswersStore } from './answers.js'
 import { useUiStore } from './ui.js'
+import { useAuthStore } from './auth.js'
 import { computeMatch, topGap } from '@/domain/matching.js'
 import { essayProgress, usedIn } from '@/domain/essay.js'
 import { dday, isClosed } from '@/domain/deadline.js'
@@ -18,7 +19,8 @@ import { dday, isClosed } from '@/domain/deadline.js'
  */
 export const useDerivedStore = defineStore('derived', {
   getters: {
-    /** 네 스토어가 다 왔나. 하나라도 안 왔으면 화면은 Skeleton 을 그린다. */
+    /** 세 스토어가 다 왔나. 하나라도 안 왔으면 화면은 Skeleton 을 그린다.
+        auth 는 여기 안 넣는다 — 카드가 무엇을 보여줄지는 가르지만, 안 와도 그릴 것은 있다. */
     ready() {
       return usePostingsStore().loaded && useExperiencesStore().loaded && useAnswersStore().loaded
     },
@@ -26,9 +28,13 @@ export const useDerivedStore = defineStore('derived', {
     /** 카드가 필요한 것을 전부 계산해 붙인 목록. 정렬까지 적용된 최종형. */
     cards() {
       const P = usePostingsStore(), ui = useUiStore()
+      /* 매칭순은 로그인 상태에서만 뜻이 있다. ui.sort 를 사인아웃에서만 되돌리면
+         **한 번도 로그인 안 한 첫 방문**이 그 경로를 안 지나 숨긴 값으로 정렬된다.
+         값을 고치는 대신 여기서 파생하면 두 경로가 한 번에 덮인다. */
+      const sort = useAuthStore().signedIn ? ui.sort : 'deadline'
       const list = P.live.map(p => this.cardOf(p, P.live))
       return list.sort((a, b) =>
-        ui.sort === 'match' ? b.match.overall - a.match.overall : a.d - b.d)
+        sort === 'match' ? b.match.overall - a.match.overall : a.d - b.d)
     },
 
     /**
@@ -67,7 +73,7 @@ export const useDerivedStore = defineStore('derived', {
 
   actions: {
     cardOf(p, scope) {
-      const E = useExperiencesStore(), A = useAnswersStore(), ui = useUiStore()
+      const ui = useUiStore()
       return {
         posting: p,
         match: this.matchFor(p),

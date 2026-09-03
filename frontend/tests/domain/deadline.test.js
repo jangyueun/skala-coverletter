@@ -22,6 +22,17 @@ describe('deadline', () => {
     expect(isClosed('2026-09-21 18:00', now)).toBe(false)
   })
 
+  it('ISO 형식도 받는다 — 백엔드가 어떤 걸 줄지 모른다', () => {
+    expect(deadlineAt('2026-09-21T18:00:00').getHours()).toBe(18)
+    expect(isClosed('2026-09-21T18:00:00', at('2026-09-21 20:00'))).toBe(true)
+  })
+
+  it('읽을 수 없는 형식은 열려 있는 척하지 않고 터진다', () => {
+    /* 옛 코드는 Invalid Date 를 만들었고, isClosed 의 `NaN < now` 가 false 라
+       마감된 공고가 전부 살아 있는 것으로 보였다 — 조용한 fail-open. */
+    expect(() => deadlineAt('2026년 9월 21일')).toThrow(/읽을 수 없/)
+  })
+
   it('남은 시간을 올림한다 — 19일 6시간 남았으면 D-20', () => {
     expect(dday('2026-09-21 18:00', at('2026-09-02 12:00'))).toBe(20)   // 19.25 → 20
     expect(dday('2026-09-21 18:00', at('2026-09-02 18:00'))).toBe(19)   // 정확히 19.0

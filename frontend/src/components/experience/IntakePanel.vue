@@ -20,10 +20,12 @@ const FIELDS = [
 const AI_FIELDS = ['situation', 'action']   // 후보가 값을 들고 오는 칸
 const MINE_FALLBACK = ['task', 'result']
 
-const links = ref(`https://github.com/jhyun/msa-order-service
-https://github.com/jhyun/algo-study-2025
-https://jhyun.dev/portfolio
-https://drive.example/해커톤_발표자료.pdf`)
+/* 빈 칸으로 시작한다. 예시를 ref 기본값에 두면 지우지 않고 분석을 누른 사람이
+   **남의 저장소를 실제로 web_fetch 한다** — 모르는 사람 코드로 후보가 만들어지고
+   토큰과 fetch 횟수도 그리로 나간다. 예시는 placeholder 로 보여준다. */
+const links = ref('')
+const LINK_PLACEHOLDER = `https://github.com/내계정/프로젝트
+https://내도메인.dev/portfolio`
 
 const state = ref('idle')      // idle | running | done
 const step = ref(1)
@@ -48,9 +50,12 @@ const ACCEPT = '.pdf,.md,.txt'
 const okName = n => /\.(pdf|md|txt)$/i.test(n)
 const mediaOf = n => /\.pdf$/i.test(n) ? 'application/pdf' : 'text/plain'
 
-/* 업로드 스토리지가 없어 요청 본문에 base64 로 싣는다. Anthropic 한도가 32MB 라
-   여유를 두고 20MB 에서 막는다 — 넘으면 서버가 아니라 여기서 말해 준다. */
-const MAX_BYTES = 20 * 1024 * 1024
+/* 업로드 스토리지가 없어 요청 본문에 base64 로 싣는다.
+   base64 는 원본의 4/3 이라 서버의 본문 상한(24MB)을 원본 기준으로 환산해야 한다 —
+   20MB 로 두면 17.2~20MB 구간이 여기를 통과하고 서버에서 죽는다.
+   "넘으면 서버가 아니라 여기서 말해 준다" 가 뒤집히는 자리였다. */
+const SERVER_BODY_LIMIT = 24_000_000
+const MAX_BYTES = Math.floor(SERVER_BODY_LIMIT * 3 / 4) - 512 * 1024   // 여유 0.5MB
 const fileBytes = computed(() => files.value.reduce((a, f) => a + f.size, 0))
 
 const readB64 = f => new Promise((ok, no) => {
@@ -122,7 +127,7 @@ async function analyze() {
   // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
   if (!linkCount.value && !files.value.length) return
   if (fileBytes.value > MAX_BYTES) {
-    runError.value = new Error(`첨부가 너무 큽니다 (${(fileBytes.value / 1048576).toFixed(1)}MB). 20MB 아래로 줄여 주세요.`)
+    runError.value = new Error(`첨부가 너무 큽니다 (${kb(fileBytes.value)}). ${kb(MAX_BYTES)} 아래로 줄여 주세요.`)
     return
   }
 
@@ -272,7 +277,7 @@ const onEdit = () => { armed.value = null }
       <div class="fld">
         <label class="lb" for="inUrl">링크 <span class="lbn">GitHub 저장소 · 포트폴리오 · 블로그</span></label>
         <textarea id="inUrl" v-model="links" class="inp" rows="5" spellcheck="false"
-                  placeholder="한 줄에 하나씩"></textarea>
+                  :placeholder="LINK_PLACEHOLDER"></textarea>
       </div>
 
       <div class="fld">

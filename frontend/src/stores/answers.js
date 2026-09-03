@@ -89,11 +89,20 @@ export const useAnswersStore = defineStore('answers', {
       const b = this.drafts[questionId]
       if (!b || this.saving[questionId]) return
       this.saving[questionId] = true; this.error = null
+      /* 보낸 값을 붙잡아 둔다. await 이 도는 300~800ms 동안 사용자는 계속 타이핑하고,
+         그 사이 입력까지 지우면 저장을 누른 사람이 쓴 글을 잃는다 —
+         목 지연이 실제 네트워크와 비슷해 평범한 리듬에서 바로 걸린다. */
+      const sent = { draft: b.draft, usedExperienceIds: [...b.usedExperienceIds] }
       try {
-        const saved = await api.answers.save(questionId, b)
+        const saved = await api.answers.save(questionId, sent)
         const i = this.questions.findIndex(q => q.id === Number(questionId))
         if (i >= 0) this.questions[i] = saved
-        delete this.drafts[questionId]
+        // 그 사이 더 쳤으면 버퍼를 남긴다. isDirty 가 새 커밋본과 비교해 판정한다.
+        const now = this.drafts[questionId]
+        const same = now && now.draft === sent.draft
+          && now.usedExperienceIds.length === sent.usedExperienceIds.length
+          && now.usedExperienceIds.every((v, i2) => v === sent.usedExperienceIds[i2])
+        if (same) delete this.drafts[questionId]
         const d = new Date()
         this.savedAt[questionId] =
           `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`

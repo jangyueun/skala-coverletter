@@ -104,7 +104,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
         <div class="meterrow">
           <div class="meter" :class="len.tone"><i :style="{ width: len.pct + '%' }" /></div>
           <span class="num cnt" :class="len.tone">{{ len.n }} / {{ len.limit }}자</span>
-          <button class="btn btn--sm" :disabled="draftingId !== null" @click="makeDraft">
+          <button class="btn btn--sm" :disabled="draftingId === q.id" @click="makeDraft">
             {{ draftingId === q.id ? '생성 중…' : 'AI 초안' }}
           </button>
         </div>

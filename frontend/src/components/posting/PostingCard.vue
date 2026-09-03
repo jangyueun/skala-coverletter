@@ -27,7 +27,9 @@ const covered = computed(() => {
 
    앞의 3개까지만 내고 나머지는 개수로 접는다 — 다 펼치면 공고마다
    역량 수가 달라(6~10개) 카드 높이가 들쭉날쭉해진다. */
-const rest = computed(() => props.card.match.rows.length - covered.value.slice(0, 3).length)
+/* 보여준 3개 말고 **덮은 것 중** 남은 수다. 요구 역량 전체에서 빼면 갭까지 세어,
+   경험이 하나도 없는 사람이 태그 없이 "+8" 만 보게 된다 — 목록에 안 내기로 한 수치가 배지로 샌다. */
+const rest = computed(() => Math.max(0, covered.value.length - 3))
 
 /* 마감이 급한 것만 주황으로 채운다. 전부 채우면 급한 게 하나도 없는 것과 같다. */
 /* 마감이 지난 것은 급할 것이 없다 — 음수 D 가 urgent 로 잡혀 주황이 되던 걸 막는다 */
@@ -43,14 +45,14 @@ const urgent = computed(() => !props.card.closed && props.card.d <= 7)
 
     <!-- 윗줄 — 판독값과 즐겨찾기.
          수치는 제목보다 작게 둔다. 카드의 머리는 직무명이지 숫자가 아니다. -->
+    <!-- 매칭률과 즐겨찾기는 나에 관한 것이라 로그인해야 나온다.
+         상세의 매칭 탭을 막아 놓고 목록에서 그 결과를 보여 주면 앞뒤가 안 맞는다. -->
     <header v-if="auth.signedIn" class="top">
-      <!-- 매칭률과 즐겨찾기는 나에 관한 것이라 로그인해야 나온다.
-           상세의 매칭 탭을 막아 놓고 목록에서 그 결과를 보여 주면 앞뒤가 안 맞는다. -->
-      <div v-if="auth.signedIn" class="read">
+      <div class="read">
         <span class="ml">매칭률 :</span>
         <span class="num pct">{{ pct }}<span class="pc">%</span></span>
       </div>
-      <button v-if="auth.signedIn" class="bm" :aria-pressed="card.bookmarked"
+      <button class="bm" :aria-pressed="card.bookmarked"
               :aria-label="`${p.company} ${p.position} 즐겨찾기`"
               @click.stop="emit('bookmark', p.id)">
         {{ card.bookmarked ? '★ 즐겨찾기됨' : '☆ 즐겨찾기' }}

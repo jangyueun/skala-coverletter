@@ -146,7 +146,11 @@ const questions = computed(() => posting.value ? A.questionsFor(posting.value.id
 
       <div class="panel body">
         <p class="subhead">연관 태그</p>
-        <div class="tags">
+        <!-- match 는 세 스토어가 다 와야 생긴다. 공고가 먼저 오는 창(목 지연 300~800ms 라
+             매번 열린다)에 이 줄이 null.rows 를 읽어 렌더가 통째로 터지고 있었다.
+             아래 매칭 탭이 이미 쓰는 가드와 같은 것을 여기도 둔다. -->
+        <Skeleton v-if="!D.ready" :rows="2" />
+        <div v-else class="tags">
           <span v-for="r in match.rows" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
         </div>
       </div>

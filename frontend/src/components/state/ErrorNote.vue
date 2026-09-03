@@ -9,7 +9,9 @@ defineEmits(['retry'])
 
 const text = () => {
   const e = props.error
-  if (e?.status === 503 && e?.body?.message) return e.body.message   // dev AI 서버가 이유를 준다
+  /* 서버가 사용자용 문구를 만들어 보냈으면 그걸 쓴다 — 401 '키가 올바르지 않습니다',
+     429 '요청이 몰렸습니다' 처럼. status 줄로 덮으면 원인을 알 방법이 사라진다. */
+  if (e?.body?.message) return e.body.message
   if (e?.status) return `서버가 ${e.status} 을 돌려줬습니다`
   if (e?.message?.includes('fetch')) return '서버에 닿지 않습니다. 백엔드가 떠 있는지 확인하세요'
   return e?.message || '알 수 없는 오류'

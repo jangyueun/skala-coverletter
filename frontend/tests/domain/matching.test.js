@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, vi } from 'vitest'
 import { computeMatch, topGap, SCORE, strLabel } from '@/domain/matching.js'
 
 const DICT = [
@@ -41,10 +41,29 @@ describe('computeMatch', () => {
     expect(rows[1].isGap).toBe(true)     // 0.4 < 0.45
   })
 
-  it('사전에 없는 id 는 조용히 지나가지 않고 터진다', () => {
-    // 오늘 posting 9 가 옛 번호로 엉뚱한 역량을 그린 사고 — 이제는 여기서 잡힌다
-    const bad = { id: 1, required: [{ competencyId: 99, weight: 1, evidence: '' }] }
-    expect(() => computeMatch(bad, [], DICT)).toThrow(/99/)
+  it('사전에 없는 id 는 그 행만 버리고 화면은 산다', () => {
+    /* posting 9 가 옛 번호로 엉뚱한 역량을 그린 사고가 있었다. 던지면 잡히긴 하지만,
+       이 함수는 derived.cards() 게터에서 불려 렌더 중에 돈다 — 한 줄 때문에 홈이 통째로 죽는다.
+       경고는 남기고 나머지 행으로 계산을 이어 간다. */
+    const bad = { id: 1, required: [
+      { competencyId: 99, weight: 1, evidence: '' },
+      { competencyId: 1, weight: 1, evidence: '' },
+    ] }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    const exps = [{ id: 10, competencyIds: [1], strength: { 1: 0.9 } }]
+    const { rows, overall } = computeMatch(bad, exps, DICT)
+    expect(rows).toHaveLength(1)                       // 없는 행은 빠지고
+    expect(rows[0].competencyId).toBe(1)
+    expect(overall).toBeCloseTo(0.9)                   // 남은 행으로 평균을 낸다
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('99'))
+    warn.mockRestore()
+  })
+
+  it('요구 역량이 하나도 안 남으면 0 이다 — 0 으로 나누지 않는다', () => {
+    const allBad = { id: 1, required: [{ competencyId: 99, weight: 1, evidence: '' }] }
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => {})
+    expect(computeMatch(allBad, [], DICT).overall).toBe(0)
+    warn.mockRestore()
   })
 })
 

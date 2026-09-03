@@ -25,7 +25,10 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 
 const RequiredCompetency = z.object({
   competencyId: z.number().describe('반드시 주어진 역량 사전 안의 id 중 하나'),
-  weight: z.number().describe('0.5~1.0. 공고가 이 역량을 얼마나 무겁게 요구하는가'),
+  /* 범위를 스키마로 막는다. weight 는 computeMatch 가중평균의 **분모**라
+     0 이 오면 모든 공고가 0.0 이 되고 음수면 "매칭률 : -40%" 가 나온다.
+     id 를 검증하는 이유("지어낸 값이 매칭 점수로 흘러든다")가 그대로 적용된다. */
+  weight: z.number().min(0.5).max(1).describe('0.5~1.0. 공고가 이 역량을 얼마나 무겁게 요구하는가'),
   evidence: z.string().describe('그렇게 판단한 근거가 된 공고 원문 문장 그대로'),
 })
 
@@ -113,10 +116,19 @@ function fail(res, status, message) {
 function readJson(req) {
   return new Promise((resolve, reject) => {
     let body = ''
+    /* 청크마다 String(chunk) 하면 멀티바이트 문자가 청크 경계에 걸릴 때 양쪽이 깨진다.
+       Node 는 바이트 경계로 끊으므로 한글 한 글자가 반씩 나뉠 수 있고, 본문이 클수록
+       확률이 오른다 — intake 가 역량 사전·파일명·md 첨부를 싣는 바로 그 경우다.
+       setEncoding 은 부분 시퀀스를 버퍼링해 다음 청크와 이어 붙인다. */
+    req.setEncoding('utf8')
     req.on('data', c => {
       body += c
       // PDF 를 base64 로 받으므로 넉넉히. Anthropic 요청 한도가 32MB 다.
-      if (body.length > 24_000_000) reject(new Error('요청 본문이 너무 큽니다'))
+      if (body.length > 24_000_000) {
+        // 응답은 이미 나간다. 스트림을 안 끊으면 나머지 업로드를 계속 문자열에 쌓는다.
+        req.destroy()
+        reject(new Error('요청 본문이 너무 큽니다'))
+      }
     })
     req.on('end', () => {
       try { resolve(body ? JSON.parse(body) : {}) } catch (e) { reject(e) }
@@ -273,7 +285,8 @@ ${files.length ? `# 첨부 ${files.length}건은 위에 실려 있다.\n` : ''}
         }
 
         try {
-          const { postingText, competencies } = await readJson(req)
+          // 클라이언트(api/real/ai.js)는 { text } 를 보낸다. 키가 어긋나 항상 400 이었다.
+          const { text: postingText, competencies } = await readJson(req)
           if (!postingText?.trim()) return fail(res, 400, '공고 원문이 비어 있습니다.')
           if (!Array.isArray(competencies) || !competencies.length) {
             return fail(res, 400, '역량 사전이 필요합니다.')

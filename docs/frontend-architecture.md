@@ -3,7 +3,8 @@
 **기준은 `frontend/src` 다.** 이 문서는 "지금 이렇게 생겼다" 가 아니라 "이렇게 재구성한다" 를 적는다.
 아래 계층대로 코드를 옮기고, 옮긴 뒤에는 이 문서가 곧 현재 상태다.
 
-같이 읽을 것 — [`ai-flow.md`](./ai-flow.md)(AI 파이프라인), [`slack-oauth.md`](./slack-oauth.md)(로그인 계약).
+같이 읽을 것 — [`slack-oauth.md`](./slack-oauth.md)(로그인 계약).
+AI 파이프라인은 `frontend/vite-plugins/aiDevServer.js` 의 주석이 설명한다.
 
 ---
 

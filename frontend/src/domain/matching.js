@@ -36,13 +36,21 @@ export const strLabel = v => (v >= 0.8 ? '강' : v >= 0.6 ? '중' : '약')
  */
 export function computeMatch(posting, experiences, competencies) {
   const byId = id => competencies.find(c => c.id === id)
-  const rows = posting.required.map(r => {
+  /* 사전에 없는 id 는 그 행만 버린다.
+     던지면 화면이 통째로 죽는다 — 이 함수는 derived.cards() 게터 안에서 불리고,
+     게터는 렌더 중에 도니까 ErrorNote 가 못 잡는다(그건 스토어 액션의 rejected promise 만 받는다).
+     이 PR 안에 posting 9 이 옛 번호를 들고 있던 사고가 있고, postings 가 백엔드로 넘어가면
+     tests/data.test.js 라는 게이트도 사라진다. 한 줄이 틀렸다고 홈이 하얘지면 안 된다. */
+  const rows = posting.required.flatMap(r => {
     const comp = byId(r.competencyId)
-    if (!comp) throw new Error(`공고 ${posting.id} 의 요구 역량 ${r.competencyId} 이 사전에 없다`)
+    if (!comp) {
+      console.warn(`[matching] 공고 ${posting.id} 의 요구 역량 ${r.competencyId} 이 사전에 없어 건너뜁니다`)
+      return []
+    }
     const evid = experiences.filter(e => e.competencyIds.includes(r.competencyId))
     const strength = evid.reduce((a, e) => a + (e.strength?.[r.competencyId] ?? SCORE.DEFAULT_STRENGTH), 0)
     const score = Math.min(1, strength)
-    return { ...r, comp, evid, score, isGap: evid.length === 0 || score < SCORE.GAP }
+    return [{ ...r, comp, evid, score, isGap: evid.length === 0 || score < SCORE.GAP }]
   })
   const wsum = rows.reduce((a, r) => a + r.weight, 0)
   const overall = wsum ? rows.reduce((a, r) => a + r.weight * r.score, 0) / wsum : 0
