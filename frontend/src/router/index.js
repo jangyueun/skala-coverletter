@@ -12,10 +12,12 @@ const routes = [
 ]
 
 
-export default createRouter({
+const router = createRouter({
   history: createWebHistory(),
   routes,
   scrollBehavior(to, from, saved) {
     return saved || { top: 0 }
   },
 })
+
+export default router

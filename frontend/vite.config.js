@@ -13,6 +13,13 @@ export default defineConfig({
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },
   },
 
+  /* vitest. domain·stores 는 node 로 돈다. 컴포넌트 테스트 파일만
+     첫 줄에 `// @vitest-environment jsdom` 을 단다. */
+  test: {
+    environment: 'node',
+    include: ['tests/**/*.test.js'],
+  },
+
   server: {
     port: 5173,
     // 같은 Wi-Fi 의 다른 기기에서 볼 수 있게 LAN 에 연다.

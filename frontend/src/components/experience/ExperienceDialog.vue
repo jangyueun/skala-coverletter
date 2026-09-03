@@ -1,10 +1,10 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
+import { useExperiencesStore } from '@/stores/experiences.js'
 import CompetencyPicker from './CompetencyPicker.vue'
 import IntakePanel from './IntakePanel.vue'
 
-const store = useCareerStore()
+const E = useExperiencesStore()
 const el = ref(null)
 const editId = ref(null)
 const tab = ref('manual')   // manual | intake
@@ -28,7 +28,7 @@ function open(id) {
   editId.value = id ?? null
   Object.assign(form, blank())
   if (id != null) {
-    const e = store.experienceById(id)
+    const e = E.byId(id)
     if (e) {
       Object.assign(form, {
         title: e.title, period: e.period, category: e.category,
@@ -46,25 +46,8 @@ defineExpose({ open })
 
 const starDone = computed(() => FIELDS.filter(f => form[f.k].trim()).length)
 
-/* 결과에 숫자가 있는지. 막지는 않되 말해 준다 —
-   수치 없는 성과가 감점 4위(45%)다. */
-const rHint = computed(() => {
-  const r = form.result.trim()
-  if (!r) return null
-  return /[0-9]/.test(r)
-    ? { tone: 'ok', t: '수치가 있습니다. 가능하면 비교 대상도 함께 쓰세요 — "다른 조는 평균 10%인데 우리는 45%"' }
-    : { tone: 'gap', t: '숫자가 없습니다. 성과를 잘 못 쓰는 것이 감점 4위(45%)입니다.' }
-})
-
-/* 지금 비어 있는 요구 역량 — 이 경험이 그걸 증명한다면 태그하라고 알린다 */
-const openGaps = computed(() => {
-  const s = new Set()
-  store.livePostings.forEach(p =>
-    store.matchFor(p).rows.filter(r => r.isGap).forEach(r => s.add(r.comp.name)))
-  return [...s]
-})
-
-function save() {
+/* 서버에 await 한다. 성공해야 닫는다 — 실패하면 폼이 남고 이유가 errors 에 뜬다. */
+async function save() {
   const errs = []
   if (!form.title.trim()) errs.push('제목은 필수입니다.')
   if (!form.result.trim()) errs.push('결과(R)는 필수입니다. 성과 없는 경험은 자소서에서 쓸 수 없습니다.')
@@ -81,8 +64,13 @@ function save() {
     competencyIds: Object.keys(form.comp).map(Number),
     strength: { ...form.comp },
   }
-  if (editId.value != null) store.updateExperience(editId.value, patch)
-  else store.addExperience({ ...patch, usedInAnswers: 0 })
+  try {
+    if (editId.value != null) await E.update(editId.value, patch)
+    else await E.create({ ...patch, usedInAnswers: 0 })
+  } catch (e) {
+    errors.value = [`저장에 실패했습니다 — ${e.message}`]
+    return
+  }
   el.value.close()
 }
 </script>
@@ -126,7 +114,7 @@ function save() {
 
         <div class="grp">
           <div class="grph">
-            <span class="label">STAR</span>
+            <span class="subhead">STAR</span>
             <span class="gauge" aria-hidden="true">
               <i v-for="f in FIELDS" :key="f.k" :class="{ on: form[f.k].trim() }" style="height:11px" />
             </span>
@@ -136,12 +124,11 @@ function save() {
           <label v-for="f in FIELDS" :key="f.k" class="fld">
             <span class="lb"><b class="fl">{{ f.l }}</b> {{ f.d }}</span>
             <textarea v-model="form[f.k]" class="inp" :rows="f.rows"></textarea>
-            <span v-if="f.k === 'result' && rHint" class="hint" :class="rHint.tone">{{ rHint.t }}</span>
           </label>
         </div>
 
         <div class="grp">
-          <span class="label">이 경험이 증명하는 역량 *</span>
+          <span class="subhead">이 경험이 증명하는 역량 *</span>
           <CompetencyPicker :pick="form.comp" class="pick" />
         </div>
 
@@ -151,13 +138,6 @@ function save() {
       </div>
 
       <footer v-show="tab === 'manual'" class="ft">
-        <p class="gaph">
-          <template v-if="openGaps.length">
-            지금 비어 있는 요구 역량 — <b>{{ openGaps.join(', ') }}</b>.
-            이 경험이 그걸 증명한다면 꼭 태그하세요.
-          </template>
-          <template v-else>요구 역량이 모두 덮여 있습니다.</template>
-        </p>
         <div class="acts">
           <button type="button" class="btn btn--sm" @click="el.close()">취소</button>
           <button type="button" class="btn btn--primary" @click="save()">
@@ -174,9 +154,13 @@ function save() {
 </template>
 
 <style scoped>
+/* 폭은 역량 사전이 정한다. 45개를 5개 범주로 묶어 늘어놓는 자리라
+   좁으면 태그가 두세 개씩 끊겨 범주 하나가 네 줄이 된다.
+   탭(직접 입력/포폴에서 가져오기)마다 폭을 달리하면 전환할 때 화면이 튀므로
+   넓은 쪽에 맞춰 하나로 둔다. */
 .dlg {
   padding: 0; border: none; background: transparent;
-  max-width: 720px; width: calc(100% - 32px);
+  max-width: 1000px; width: calc(100% - 32px);
 }
 .dlg::backdrop { background: rgba(10, 12, 11, 0.55); backdrop-filter: blur(2px); }
 .inner {
@@ -190,7 +174,7 @@ function save() {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
   padding: 16px 20px 14px; border-bottom: 1px solid var(--line);
 }
-.h { margin: 3px 0 0; font-size: 20px; font-weight: 800; letter-spacing: var(--track-display); }
+.h { margin: 3px 0 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: var(--track-display); }
 
 .body { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 
@@ -198,20 +182,20 @@ function save() {
   display: flex; align-items: center; gap: 7px;
   padding: 11px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
 }
-.ax { margin-left: auto; font-size: 10px; }
+.ax { margin-left: auto; font-size: var(--fs-3xs); }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .f2 { grid-column: span 2; }
 
 .fld { display: flex; flex-direction: column; gap: 5px; }
-.lb { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
 .fl { color: var(--accent); font-family: var(--mono); margin-right: 3px; }
 
 .inp {
   padding: 9px 11px;
   background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-sm);
-  color: var(--ink); font-size: 13px; line-height: 1.6;
+  color: var(--ink); font-size: var(--fs-sm); line-height: 1.6;
   resize: vertical;
   transition: border-color var(--release) linear, background var(--release) linear;
 }
@@ -224,16 +208,13 @@ function save() {
   background: var(--panel);
 }
 .grph { display: flex; align-items: center; gap: 9px; }
-.cnt { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: auto; }
+.cnt { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); margin-left: auto; }
 .pick { margin-top: 2px; }
 
-.hint { font-size: 11.5px; }
-.hint.ok { color: var(--ok); }
-.hint.gap { color: var(--gap); }
 
 .errs { display: flex; flex-direction: column; gap: 5px; }
 .err {
-  margin: 0; padding: 8px 11px; font-size: 12.5px; font-weight: 600;
+  margin: 0; padding: 8px 11px; font-size: var(--fs-xs); font-weight: 600;
   color: var(--gap); background: var(--panel); border-left: 3px solid var(--gap);
 }
 
@@ -241,8 +222,6 @@ function save() {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 13px 20px; border-top: 1px solid var(--line); background: var(--panel);
 }
-.gaph { margin: 0; font-size: 11.5px; color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
-.gaph b { color: var(--gap); }
 .acts { display: flex; gap: 8px; margin-left: auto; }
 
 @media (max-width: 560px) {

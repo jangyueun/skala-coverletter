@@ -1,12 +1,15 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { computeMatch, SCORE } from '@/lib/matching.js'
+import { useExperiencesStore } from '@/stores/experiences.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { api } from '@/api/index.js'
+import { computeMatch, SCORE } from '@/domain/matching.js'
 import IntakeField from './IntakeField.vue'
 import CompetencyPicker from './CompetencyPicker.vue'
 
 const emit = defineEmits(['done'])
-const store = useCareerStore()
+const E = useExperiencesStore()
+const P = usePostingsStore()
 
 const FIELDS = [
   { k: 'situation', l: 'S', d: '어떤 상황이었나', rows: 2 },
@@ -17,10 +20,12 @@ const FIELDS = [
 const AI_FIELDS = ['situation', 'action']   // 후보가 값을 들고 오는 칸
 const MINE_FALLBACK = ['task', 'result']
 
-const links = ref(`https://github.com/jhyun/msa-order-service
-https://github.com/jhyun/algo-study-2025
-https://jhyun.dev/portfolio
-https://drive.example/해커톤_발표자료.pdf`)
+/* 빈 칸으로 시작한다. 예시를 ref 기본값에 두면 지우지 않고 분석을 누른 사람이
+   **남의 저장소를 실제로 web_fetch 한다** — 모르는 사람 코드로 후보가 만들어지고
+   토큰과 fetch 횟수도 그리로 나간다. 예시는 placeholder 로 보여준다. */
+const links = ref('')
+const LINK_PLACEHOLDER = `https://github.com/내계정/프로젝트
+https://내도메인.dev/portfolio`
 
 const state = ref('idle')      // idle | running | done
 const step = ref(1)
@@ -30,7 +35,51 @@ const active = ref(null)
 const armed = ref(null)        // 2단 확인 무장 건수
 const linksOpen = ref(true)
 
-const cands = computed(() => store.intakeCandidates)
+/* 자료는 두 가지다 — 주소로 가리키는 것(저장소·포트폴리오)과 파일로 주는 것(발표자료·이력서).
+   한 칸에 섞어 두면 "PDF 는 어디에 넣지" 를 매번 묻게 된다.
+
+   지금은 파일을 업로드하지 않는다. 이름과 크기만 들고 있다가 분석 요청에 함께 싣는다 —
+   백엔드가 생기면 여기가 multipart 로 바뀌고 화면은 안 바뀐다. */
+const files = ref([])
+const fileEl = ref(null)
+const dragging = ref(false)
+
+/* PDF 는 모델이 네이티브로 읽고, md·txt 는 글 그대로 싣는다.
+   docx·pptx 는 아직 못 읽으므로 받지 않는다 — 받아 놓고 안 읽으면 그게 더 나쁘다. */
+const ACCEPT = '.pdf,.md,.txt'
+const okName = n => /\.(pdf|md|txt)$/i.test(n)
+const mediaOf = n => /\.pdf$/i.test(n) ? 'application/pdf' : 'text/plain'
+
+/* 업로드 스토리지가 없어 요청 본문에 base64 로 싣는다.
+   base64 는 원본의 4/3 이라 서버의 본문 상한(24MB)을 원본 기준으로 환산해야 한다 —
+   20MB 로 두면 17.2~20MB 구간이 여기를 통과하고 서버에서 죽는다.
+   "넘으면 서버가 아니라 여기서 말해 준다" 가 뒤집히는 자리였다. */
+const SERVER_BODY_LIMIT = 24_000_000
+const MAX_BYTES = Math.floor(SERVER_BODY_LIMIT * 3 / 4) - 512 * 1024   // 여유 0.5MB
+const fileBytes = computed(() => files.value.reduce((a, f) => a + f.size, 0))
+
+const readB64 = f => new Promise((ok, no) => {
+  const r = new FileReader()
+  r.onload = () => ok(String(r.result).split(',')[1])
+  r.onerror = () => no(new Error(`${f.name} 을 읽지 못했습니다`))
+  r.readAsDataURL(f)
+})
+
+function addFiles(list) {
+  const add = [...list].filter(f => okName(f.name) && !files.value.some(x => x.name === f.name))
+  if (add.length) files.value = [...files.value, ...add]
+  dragging.value = false
+}
+const dropFiles = e => addFiles(e.dataTransfer.files)
+const pickFiles = e => { addFiles(e.target.files); e.target.value = '' }
+const removeFile = name => { files.value = files.value.filter(f => f.name !== name) }
+const kb = n => (n < 1024 ? `${n}B` : n < 1024 * 1024 ? `${Math.round(n / 1024)}KB` : `${(n / 1048576).toFixed(1)}MB`)
+
+const linkCount = computed(() => links.value.split('\n').filter(s => s.trim()).length)
+
+const cands = ref([])          // 분석이 돌아야 채워진다
+const unreadable = ref([])     // 읽지 못한 자료 — 조용히 빠뜨리지 않는다
+const runError = ref(null)
 const candOf = k => cands.value.find(c => c.key === k)
 
 const aiOf = (c, f) => (c[f] || '').trim()
@@ -75,10 +124,28 @@ function missingOf(k) {
 const isReady = k => missingOf(k).length === 0
 
 async function analyze() {
-  const n = links.value.split('\n').map(s => s.trim()).filter(Boolean).length
-  if (!n) return
-  state.value = 'running'
-  await new Promise(r => setTimeout(r, 1600))
+  // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
+  if (!linkCount.value && !files.value.length) return
+  if (fileBytes.value > MAX_BYTES) {
+    runError.value = new Error(`첨부가 너무 큽니다 (${kb(fileBytes.value)}). ${kb(MAX_BYTES)} 아래로 줄여 주세요.`)
+    return
+  }
+
+  state.value = 'running'; runError.value = null
+  try {
+    const payload = await Promise.all(files.value.map(async f => ({
+      name: f.name, mediaType: mediaOf(f.name), data: await readB64(f),
+    })))
+    const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
+    const r = await api.ai.intake(urls, payload, P.competencies)
+    cands.value = r.candidates || []
+    unreadable.value = r.unreadable || []
+  } catch (e) {
+    runError.value = e
+    state.value = 'idle'
+    return
+  }
+
   state.value = 'done'
   step.value = 1
   chosen.value = new Set()
@@ -153,17 +220,17 @@ function buildExp(k) {
 /* 등록하면 매칭이 얼마나 오르는지 미리 보여준다. 전역을 건드리지 않고 계산만. */
 const matchDelta = computed(() => {
   if (!readyKeys.value.length) return null
-  const p = store.livePostings[0]
+  const p = P.live[0]
   if (!p) return null
-  const before = Math.round(computeMatch(p, store.experiences).overall * 100)
+  const before = Math.round(computeMatch(p, E.list, P.competencies).overall * 100)
   const after = Math.round(computeMatch(p, [
-    ...store.experiences,
+    ...E.list,
     ...readyKeys.value.map((k, i) => ({ ...buildExp(k), id: -1 - i })),
-  ]).overall * 100)
+  ], P.competencies).overall * 100)
   return after > before ? { co: p.company, before, after } : null
 })
 
-function commit() {
+async function commit() {
   const ready = readyKeys.value
   if (!ready.length) return
   // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
@@ -171,9 +238,32 @@ function commit() {
     armed.value = ready.length
     return
   }
-  ready.forEach(k => store.addExperience(buildExp(k)))
+  /* 한 건이라도 실패하면 등록된 것만 남고 패널은 그대로다 — 다시 누르면 된다.
+     낙관적으로 먼저 지우면 실패한 건이 화면에서만 사라진다. */
+  try { await Promise.all(ready.map(k => E.create(buildExp(k)))) }
+  catch { return }
   armed.value = null
   emit('done', ready.length)
+  reset()
+}
+
+/* 등록하고 나면 패널을 처음 상태로 되돌린다.
+
+   이 패널은 ExperienceDialog 안에서 v-show 로 감춰질 뿐 언마운트되지 않는다.
+   그래서 되돌리지 않으면 다이얼로그를 다시 열었을 때 방금 등록한 초안이
+   2/2 편집 화면 그대로 살아 있고 "1건 등록" 버튼도 눌리는 상태다 —
+   한 번 더 누르면 같은 경험이 새 id 로 또 들어간다.
+   경험 삭제 경로가 없어 그렇게 생긴 중복은 세션 안에서 지울 수도 없다. */
+function reset() {
+  state.value = 'idle'
+  step.value = 1
+  chosen.value = new Set()
+  Object.keys(drafts).forEach(k => delete drafts[k])
+  active.value = null
+  linksOpen.value = true
+  armed.value = null
+  cands.value = []
+  unreadable.value = []
 }
 
 /* 초안이 한 글자라도 바뀌면 2단 확인 무장이 풀린다 */
@@ -182,24 +272,62 @@ const onEdit = () => { armed.value = null }
 
 <template>
   <div class="wrap">
-    <!-- 링크 -->
-    <div v-if="linksOpen" class="fld">
-      <label class="lb" for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
-      <textarea id="inUrl" v-model="links" class="inp" rows="4" spellcheck="false"></textarea>
+    <!-- 자료 — 주소로 가리키는 것과 파일로 주는 것을 나눈다 -->
+    <div v-if="linksOpen" class="src">
+      <div class="fld">
+        <label class="lb" for="inUrl">링크 <span class="lbn">GitHub 저장소 · 포트폴리오 · 블로그</span></label>
+        <textarea id="inUrl" v-model="links" class="inp" rows="5" spellcheck="false"
+                  :placeholder="LINK_PLACEHOLDER"></textarea>
+      </div>
+
+      <div class="fld">
+        <label class="lb" for="inFile">첨부파일 <span class="lbn">발표자료 · 이력서 · 프로젝트 문서</span></label>
+        <div class="drop" :class="{ over: dragging }"
+             @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="dropFiles">
+          <input id="inFile" ref="fileEl" type="file" multiple :accept="ACCEPT" class="vh" @change="pickFiles">
+
+          <ul v-if="files.length" class="fl">
+            <li v-for="f in files" :key="f.name">
+              <b class="fn">{{ f.name }}</b>
+              <span class="fs num">{{ kb(f.size) }}</span>
+              <button type="button" class="rm" :aria-label="`${f.name} 빼기`" @click="removeFile(f.name)">×</button>
+            </li>
+          </ul>
+          <p v-else class="dz">여기에 끌어다 놓거나</p>
+
+          <button type="button" class="btn btn--sm" @click="fileEl.click()">파일 고르기</button>
+        </div>
+      </div>
     </div>
+
     <p v-else class="fold">
-      링크 <b class="num">{{ links.split('\n').filter(s => s.trim()).length }}</b>개를 분석했습니다
-      <button type="button" class="btn btn--sm" @click="linksOpen = true">링크 고치기</button>
+      링크 <b class="num">{{ linkCount }}</b>개<template v-if="files.length">, 첨부 <b class="num">{{ files.length }}</b>개</template>를 분석했습니다
+      <button type="button" class="btn btn--sm" @click="linksOpen = true">자료 고치기</button>
     </p>
 
     <div class="run">
-      <button type="button" class="btn btn--primary" :disabled="state === 'running'" @click="analyze">
+      <button type="button" class="btn btn--primary"
+              :disabled="state === 'running' || (!linkCount && !files.length)" @click="analyze">
         {{ state === 'done' ? '다시 분석' : '분석' }}
       </button>
       <span class="tag" :class="state === 'done' ? 'tag--ok' : state === 'running' ? 'tag--gap' : ''">
         {{ state === 'idle' ? '대기' : state === 'running' ? 'PENDING' : 'COMPLETED' }}
       </span>
-      <span class="muted note">첨부 PDF·마크다운은 텍스트를 추출해 함께 읽는다</span>
+      <span class="muted note">
+        링크는 AI 가 직접 열어 읽는다 · 첨부는 PDF · MD · TXT
+        <template v-if="fileBytes">· {{ (fileBytes / 1048576).toFixed(1) }}MB</template>
+      </span>
+    </div>
+
+    <p v-if="runError" class="rerr">
+      자료를 읽지 못했습니다 — {{ runError.body?.message || runError.message }}
+    </p>
+
+    <div v-if="unreadable.length" class="unread">
+      <p class="ut">읽지 못한 자료 {{ unreadable.length }}건</p>
+      <p v-for="u in unreadable" :key="u.source" class="ul">
+        <b>{{ u.source }}</b> — {{ u.reason }}
+      </p>
     </div>
 
     <!-- 1단계 · 후보 선택 -->
@@ -281,7 +409,7 @@ const onEdit = () => { armed.value = null }
 
           <div class="grp">
             <div class="grph">
-              <span class="label">STAR</span>
+              <span class="subhead">STAR</span>
               <span class="gauge" aria-hidden="true">
                 <i v-for="f in FIELDS" :key="f.k" :class="{ on: drafts[active][f.k].trim() }" style="height:11px" />
               </span>
@@ -308,7 +436,7 @@ const onEdit = () => { armed.value = null }
           </div>
 
           <div class="grp">
-            <span class="label">이 경험이 증명하는 역량 *</span>
+            <span class="subhead">이 경험이 증명하는 역량 *</span>
             <CompetencyPicker :pick="drafts[active].comp" />
             <p class="cnote">{{ compNote }}</p>
           </div>
@@ -343,22 +471,58 @@ const onEdit = () => { armed.value = null }
 .wrap { display: flex; flex-direction: column; gap: 14px; }
 .min0 { min-width: 0; }
 
+/* 링크와 첨부를 나란히. 좁아지면 세로로 쌓인다. */
+.src { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
 .fld { display: flex; flex-direction: column; gap: 5px; }
-.lb { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 700; color: var(--ink-2); }
+.lbn { font-weight: 500; color: var(--muted); margin-left: 5px; }
+
+/* 첨부 자리 — 끌어다 놓는 면이라 테두리를 점선으로 둔다. 입력칸과 다른 종류임을 형태가 말한다. */
+.drop {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  min-height: 96px; padding: 11px 12px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r);
+  background: var(--panel-sunken);
+  transition: border-color var(--release) linear, background var(--release) linear;
+}
+.drop.over { border-color: var(--accent); background: var(--panel-raised); }
+.dz { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
+
+.fl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.fl li { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fn { font-size: var(--fs-2xs); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs { font-size: var(--fs-3xs); color: var(--muted); flex: none; }
+.rm {
+  margin-left: auto; flex: none; border: none; background: none; cursor: pointer;
+  color: var(--muted); font-size: var(--fs-sm); line-height: 1; padding: 0 2px;
+}
+.rm:hover { color: var(--gap); }
+
+/* 파일 입력은 화면에서 뺀다 — 버튼이 대신 누른다. 지우지는 않는다(키보드·스크린리더). */
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .inp {
   padding: 9px 11px; background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-sm); color: var(--ink); font-size: 13px; line-height: 1.6; resize: vertical;
+  border-radius: var(--r-sm); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; resize: vertical;
   transition: border-color var(--release) linear, background var(--release) linear;
 }
 .inp:hover { border-color: var(--line-strong); }
 .inp:focus { outline: none; border-color: var(--accent); background: var(--panel-raised); }
 
-.fold { margin: 0; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 9px; }
+.fold { margin: 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 9px; }
 .run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.note { font-size: 11.5px; margin-left: auto; }
+.note { font-size: var(--fs-2xs); margin-left: auto; text-align: right; }
+.rerr { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-family: var(--mono); }
 
-.stephd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 12px; }
-.lead { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+/* 읽지 못한 자료는 조용히 빠뜨리지 않는다 — 사용자는 자기가 준 것이 반영됐는지 알아야 한다. */
+.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); }
+.ut { margin: 0 0 5px; font-size: var(--fs-2xs); font-weight: 700; color: var(--gap); }
+.ul { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
+.ul b { color: var(--ink-2); font-weight: 600; }
+
+@media (max-width: 640px) { .src { grid-template-columns: 1fr; } }
+
+.stephd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: var(--fs-xs); }
+.lead { margin: 0; font-size: var(--fs-xs); color: var(--muted); line-height: 1.6; }
 .lead b { color: var(--ink); }
 
 /* 후보 카드 */
@@ -373,8 +537,8 @@ const onEdit = () => { armed.value = null }
 .cand.dup { opacity: .5; cursor: not-allowed; }
 .cand input { margin-top: 3px; accent-color: var(--accent); flex: none; }
 .ch { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.ct { font-size: 13.5px; font-weight: 700; }
-.cs { margin: 5px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.ct { font-size: var(--fs-sm); font-weight: 700; }
+.cs { margin: 5px 0 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5; }
 .cs b { color: var(--accent); font-family: var(--mono); margin-right: 4px; }
 .evs { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
 
@@ -392,9 +556,9 @@ const onEdit = () => { armed.value = null }
 
 .rc { padding: 9px 11px; text-align: left; display: flex; flex-direction: column; gap: 5px; border-top-width: 2px; }
 .rc.sel { border-color: var(--accent); border-top-color: var(--accent); }
-.rt { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt { font-size: var(--fs-xs); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp { display: flex; gap: 4px; flex-wrap: wrap; }
-.rp .tag { font-size: 9.5px; padding: 1px 5px; }
+.rp .tag { font-size: var(--fs-3xs); padding: 1px 5px; }
 
 .ed { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -405,21 +569,21 @@ const onEdit = () => { armed.value = null }
   padding: 14px 15px; border: 1px solid var(--line-soft); border-radius: var(--r); background: var(--panel);
 }
 .grph { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cnt { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cnt { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
 
-.evnote { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+.evnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.55; }
 .evnote.gap { color: var(--gap); font-weight: 600; }
 .evq {
-  margin: 0; font-size: 11px; color: var(--faint); line-height: 1.5;
+  margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cnote { margin: 0; font-size: 11px; color: var(--muted); }
+.cnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
 
 .foot {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding-top: 13px; border-top: 1px solid var(--line);
 }
-.fh { margin: 0; font-size: 11.5px; color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
+.fh { margin: 0; font-size: var(--fs-2xs); color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
 .danger { color: var(--gap); font-weight: 600; }
 .up { color: var(--accent); font-weight: 700; }
 .foot .btn { margin-left: auto; }
