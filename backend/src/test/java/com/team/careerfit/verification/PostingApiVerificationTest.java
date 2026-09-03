@@ -24,8 +24,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 /**
  * docs/api-spec-v6.md 2·3절(역량 사전·공고 6개 API — 제가 만들지 않은, 팀원 작업)이 컨트롤러
- * 계층까지 실제로 동작하는지 확인한다. V3·V4 마이그레이션이 이미 만들어 둔 카카오페이 공고 시드
+ * 계층까지 실제로 동작하는지 확인한다. V6 마이그레이션이 만들어 둔 한국가스공사 공고 시드
  * (요구 역량 3개·문항 2개)를 그대로 쓴다 — 검증용이라 리포지토리에는 남기지 않는다.
+ *
+ * <p>원래는 카카오페이 공고를 썼는데, 그 공고는 CareerfitApplicationTest 가 자기 픽스처(북마크·
+ * 매칭·문항)를 넣는 데도 써서 시드 데이터와 계속 부딪혔다(V6 참고) — 아무도 안 건드리는
+ * 한국가스공사로 옮겼다.
  */
 @SpringBootTest
 @AutoConfigureMockMvc
@@ -33,7 +37,7 @@ import org.springframework.test.web.servlet.MockMvc;
 @TestMethodOrder(MethodOrderer.OrderAnnotation.class)
 class PostingApiVerificationTest {
 
-    private static final String KAKAOPAY_SOURCE_URL = "https://jasoseol.com/companies/5463/careers";
+    private static final String REQUIREMENT_POSTING_SOURCE_URL = "https://jasoseol.com/recruit/105932"; // 한국가스공사
 
     @Autowired
     private MockMvc mockMvc;
@@ -58,7 +62,7 @@ class PostingApiVerificationTest {
                 .query(Long.class).single();
 
         postingId = jdbc.sql("select id from job_postings where source_url = ?")
-                .param(KAKAOPAY_SOURCE_URL)
+                .param(REQUIREMENT_POSTING_SOURCE_URL)
                 .query(Long.class).single();
     }
 
@@ -73,7 +77,9 @@ class PostingApiVerificationTest {
     void 역량_사전_조회는_시드된_8개를_돌려준다() throws Exception {
         mockMvc.perform(get("/api/competencies").session(session()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(8))
+                // 같은 스크래치 DB를 다른 검증 테스트와 공유할 수 있어 정확한 개수 대신 하한만 본다.
+                .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThanOrEqualTo(8)))
+                .andExpect(jsonPath("$[?(@.name == 'API 설계·연동')]").exists())
                 .andExpect(jsonPath("$[0].id").exists())
                 .andExpect(jsonPath("$[0].category").exists());
     }
@@ -88,7 +94,7 @@ class PostingApiVerificationTest {
 
     @Test
     @Order(3)
-    void 공고_목록_조회가_카카오페이_공고를_포함한다() throws Exception {
+    void 공고_목록_조회가_대상_공고를_포함한다() throws Exception {
         mockMvc.perform(get("/api/postings").session(session()).param("size", "20"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items").isArray())
@@ -102,7 +108,7 @@ class PostingApiVerificationTest {
         mockMvc.perform(get("/api/postings/" + postingId).session(session()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(postingId))
-                .andExpect(jsonPath("$.company").value("카카오페이"))
+                .andExpect(jsonPath("$.company").value("한국가스공사"))
                 .andExpect(jsonPath("$.requiredCompetencies.length()").value(3))
                 .andExpect(jsonPath("$.content").exists());
     }

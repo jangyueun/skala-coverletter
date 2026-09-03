@@ -22,4 +22,7 @@ public interface AiTaskRepository extends JpaRepository<AiTask, Long> {
 
     Optional<AiTask> findFirstByTaskTypeAndJobPostingIdAndStatusInOrderByCreatedAtDesc(
             AiTaskType taskType, Long jobPostingId, Collection<AiTaskStatus> statuses);
+
+    /** 워커가 걷어갈 대상. 오래 기다린 것부터 처리한다. */
+    List<AiTask> findByStatusOrderByCreatedAt(AiTaskStatus status);
 }

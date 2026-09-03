@@ -54,18 +54,19 @@ class CompetencyControllerTest {
         insertAlias(techId, "스프링부트");
         MockHttpSession session = loginSession();
 
+        // V4 마이그레이션 등 다른 시드 데이터가 이미 역량을 채워 둘 수 있어 length()로 정확한 개수를
+        // 비교하지 않는다 — 방금 만든 두 역량이 존재하고 값이 맞는지만 본다.
         mockMvc.perform(get("/api/competencies").session(session))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[?(@.id == " + roleId + ")]").exists())
                 .andExpect(jsonPath("$[?(@.id == " + roleId + ")].category").value("ROLE"))
                 .andExpect(jsonPath("$[?(@.id == " + techId + ")].aliases.length()").value(2));
 
         mockMvc.perform(get("/api/competencies").session(session).queryParam("category", "tech"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(1))
-                .andExpect(jsonPath("$[0].id").value(techId))
-                .andExpect(jsonPath("$[0].aliases[0]").value("Spring"))
-                .andExpect(jsonPath("$[0].aliases[1]").value("스프링부트"));
+                .andExpect(jsonPath("$[?(@.id == " + techId + ")]").exists())
+                .andExpect(jsonPath("$[?(@.id == " + techId + ")].aliases[0]").value("Spring"))
+                .andExpect(jsonPath("$[?(@.id == " + techId + ")].aliases[1]").value("스프링부트"));
     }
 
     @Test
