@@ -2,20 +2,21 @@
 import { RouterView, RouterLink } from 'vue-router'
 
 const nav = [
-  { to: '/',            label: '공고',   meta: 'FIND' },
-  { to: '/experiences', label: '경험',   meta: 'LIB' },
-  { to: '/spec',        label: '개발참고', meta: 'DEV' },
+  { to: '/',            key: 'FIND', label: '공고' },
+  { to: '/experiences', key: 'LIB',  label: '경험' },
+  { to: '/spec',        key: 'DEV',  label: '개발참고' },
 ]
 </script>
 
 <template>
   <header class="top">
     <RouterLink to="/" class="brand">
-      <span class="dot" aria-hidden="true" />커리어맵
+      <span class="mark" aria-hidden="true"></span>커리어맵
     </RouterLink>
-    <nav class="nav">
-      <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="press navlink">
-        <span class="label">{{ n.meta }}</span>{{ n.label }}
+
+    <nav class="nav" aria-label="주요">
+      <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="btn btn--sm navlink">
+        <span class="label nk">{{ n.key }}</span>{{ n.label }}
       </RouterLink>
     </nav>
   </header>
@@ -28,25 +29,35 @@ const nav = [
 <style scoped>
 .top {
   display: flex; align-items: center; gap: 20px; flex-wrap: wrap;
-  padding: 18px 24px; border-bottom: 1.5px solid var(--line-strong);
+  padding: 16px 24px;
+  background: var(--panel-raised);
+  border-bottom: 3px solid var(--line-strong);
 }
 .brand {
-  display: flex; align-items: center; gap: 8px;
-  font-size: 18px; font-weight: 800; letter-spacing: var(--track-display);
+  display: flex; align-items: center; gap: 9px;
+  font-size: 17px; font-weight: 800; letter-spacing: var(--track-display);
   color: var(--ink); text-decoration: none;
 }
-.dot { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); }
-.nav { display: flex; gap: 8px; margin-left: auto; flex-wrap: wrap; }
-.navlink {
-  display: inline-flex; align-items: baseline; gap: 7px;
-  padding: 7px 13px; text-decoration: none; color: var(--ink); font-weight: 600;
+/* 로고 자리 — 계기의 전원 표시등 */
+.mark {
+  width: 10px; height: 10px; border-radius: 50%;
+  background: var(--accent); flex: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent);
 }
-/* 지금 있는 곳은 눌린 채로 둔다 — 상태를 색이 아니라 깊이로 말한다 */
+.nav { display: flex; gap: 7px; margin-left: auto; flex-wrap: wrap; }
+.navlink { text-decoration: none; }
+.nk { color: var(--faint); font-size: 9px; }
+.navlink:hover .nk { color: currentColor; opacity: .65; }
+
+/* 지금 있는 곳은 눌린 채로 둔다 — 상태를 깊이로 말한다 */
 .navlink.router-link-exact-active {
-  transform: translate(var(--lift), var(--lift));
-  box-shadow: 0 0 0 var(--line-strong);
-  background: var(--accent); color: var(--accent-ink);
+  background: var(--line-strong); border-color: var(--line-strong); color: var(--panel);
 }
-.navlink.router-link-exact-active .label { color: var(--accent-ink); opacity: .7; }
-.wrap { max-width: 1180px; margin: 0 auto; padding: 32px 24px 80px; }
+.navlink.router-link-exact-active .nk { color: var(--panel); opacity: .55; }
+
+.wrap { max-width: 1160px; margin: 0 auto; padding: 30px 24px 90px; }
+@media (max-width: 560px) {
+  .top { padding: 13px 16px; gap: 12px; }
+  .wrap { padding: 22px 16px 70px; }
+}
 </style>

@@ -1,111 +1,192 @@
-/* 리셋 + "딸깍" 프리미티브.
+/* 리셋 + 프리미티브.
  *
  * 눌림을 컴포넌트마다 따로 쓰면 수치가 갈려서 어떤 건 딸깍이고 어떤 건 물컹해진다.
- * .press 하나로 모으고, 컴포넌트는 그걸 붙이기만 한다. */
+ * 여기 한 곳에 모으고 컴포넌트는 클래스를 붙이기만 한다. */
 
 *, *::before, *::after { box-sizing: border-box; }
-
 html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--paper);
+  background: var(--panel);
   color: var(--ink);
   font-family: var(--sans);
   font-size: 14px;
-  line-height: 1.65;
+  line-height: 1.6;
   letter-spacing: var(--track-tight);
   -webkit-font-smoothing: antialiased;
-
-  /* 종이 그레인. 화면이 아니라 인쇄물처럼 보이게 하는 것의 절반이 이거다.
-     이미지가 아니라 SVG 노이즈라 요청이 없고 용량이 0에 가깝다. */
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='3'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)' opacity='0.035'/%3E%3C/svg%3E");
 }
 
 img, svg { max-width: 100%; display: block; }
 button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
 
 /* 포커스 링은 절대 지우지 않는다. 키보드로만 쓰는 사람에게는 이게 커서다. */
-:focus-visible {
-  outline: 2px solid var(--accent);
-  outline-offset: 2px;
-}
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
 /* ═══════════════════════════════════════════════════════════
-   .press — 눌리는 것 전부가 이걸 쓴다
+   .btn — 스위스. 그림자 0, 직각, 이동 없음.
    ═══════════════════════════════════════════════════════════
 
-   원리: 요소가 그림자만큼 떠 있다가, 누르면 그 거리만큼 내려가면서
-   그림자가 사라진다. 이동 거리와 그림자 거리가 **같아야** 바닥에 닿는
-   느낌이 난다. 다르면 뜬 채로 미끄러지는 느낌이 된다.
+   버튼은 움직이지 않는다. 대신 누르는 순간(0ms) 색이 뒤집힌다.
+   "딸깍"이 이동이 아니라 **접점이 닿는 순간**으로 느껴지는 쪽이다.
 
-   블러 0, 전환 70ms. 둘 중 하나만 어겨도 딸깍이 사라진다. */
+   들어갈 때 0ms / 나올 때 90ms 인 것이 핵심이다.
+   둘 다 0ms 면 깜빡임이고, 둘 다 90ms 면 물컹하다. */
 
-.press {
-  position: relative;
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--r);
-  background: var(--paper-raised);
-  box-shadow: var(--shadow);
+.btn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 10px 18px;
+  border: 2px solid var(--line-strong);
+  border-radius: 0;
+  background: transparent;
+  color: var(--ink);
+  font-weight: 700;
+  font-size: 13px;
+  letter-spacing: -0.01em;
   cursor: pointer;
-  transition:
-    transform   var(--press-out) var(--ease),
-    box-shadow  var(--press-out) var(--ease),
-    background  var(--press-out) var(--ease);
+  white-space: nowrap;
+  transition: background var(--release) linear, color var(--release) linear,
+              border-color var(--release) linear;
+}
+.btn:hover { background: var(--line-strong); color: var(--panel); }
+.btn:active {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+  transition-duration: var(--snap);   /* 0ms — 즉각 */
 }
 
-.press:hover { background: var(--paper); }
-
-.press:active,
-.press[aria-pressed='true'] {
-  /* 이동량 = 그림자 거리. 이래야 "바닥에 닿는다". */
-  transform: translate(var(--lift), var(--lift));
-  box-shadow: 0 0 0 var(--line-strong);
-  transition-duration: var(--press-in);   /* 들어갈 때가 나올 때보다 빨라야 한다 */
+/* 주요 행동. 평상시부터 빨강이라, 누르면 잉크로 뒤집힌다. */
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-ink);
+}
+.btn--primary:hover { background: var(--accent-deep); border-color: var(--accent-deep); }
+.btn--primary:active {
+  background: var(--line-strong);
+  border-color: var(--line-strong);
+  color: var(--panel);
 }
 
-.press:disabled,
-.press[aria-disabled='true'] {
+/* 부수적인 것. 테두리를 얇게 해 위계를 낮춘다. */
+.btn--quiet {
+  border-width: 1px;
+  border-color: var(--line);
+  color: var(--muted);
+  font-weight: 600;
+  padding: 7px 13px;
+}
+.btn--quiet:hover { border-color: var(--line-strong); color: var(--ink); background: transparent; }
+
+.btn--sm { padding: 6px 12px; font-size: 12px; border-width: 1px; }
+
+.btn:disabled {
   cursor: not-allowed;
-  opacity: 0.45;
-  box-shadow: none;
-  transform: none;
+  border-color: var(--line-soft);
+  color: var(--faint);
+  background: transparent;
 }
+.btn:disabled:hover { background: transparent; color: var(--faint); }
 
-/* 더 깊게 눌리는 것 — 주요 행동(등록·생성)에만 쓴다.
-   전부 깊게 만들면 위계가 사라진다. */
-.press--deep { box-shadow: var(--shadow-deep); }
-.press--deep:active { transform: translate(var(--lift-deep), var(--lift-deep)); }
-
-/* 눌리지 않는 것 — 정보를 담는 면. 떠 있지만 반응하지 않는다. */
-.sheet {
-  border: 1.5px solid var(--line-strong);
-  border-radius: var(--r);
-  background: var(--paper-raised);
+/* 선택된 상태로 머무는 버튼(정렬·필터·탭).
+   눌린 채로 두는 것이 곧 "지금 여기" 표시다. */
+.btn[aria-pressed='true'] {
+  background: var(--line-strong);
+  border-color: var(--line-strong);
+  color: var(--panel);
 }
 
 /* ═══════════════════════════════════════════════════════════
-   타이포
-   ═══════════════════════════════════════════════════════════ */
+   .panel — 계기. 카드는 눌리면 2px 앉는다.
+   ═══════════════════════════════════════════════════════════
 
-/* 화면의 주인공. 레이아웃이 아니라 이게 레이아웃이다. */
-.display {
-  font-size: clamp(2.6rem, 9vw, 5.5rem);
-  font-weight: 800;
-  line-height: 0.92;
-  letter-spacing: var(--track-display);
-  margin: 0;
+   상단 3px 굵은 테두리가 이 요소의 '높이'다.
+   누르면 그만큼 내려가면서 안쪽 하이라이트가 꺼진다 — 바닥에 앉는 느낌. */
+
+.panel {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-top: 3px solid var(--line-strong);
+  border-radius: var(--r);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+:root[data-theme='dark'] .panel,
+:root:not([data-theme='light']) .panel { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05); }
+@media (prefers-color-scheme: light) {
+  :root:not([data-theme='dark']) .panel { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55); }
 }
 
-/* 본문 위계 밖에서 메타정보를 말한다 — COLLECTION / VOL(01) 자리 */
+/* 누를 수 있는 패널 */
+.panel--press {
+  cursor: pointer;
+  transition: transform var(--seat-out) var(--ease), box-shadow var(--seat-out),
+              border-color var(--seat-out);
+}
+.panel--press:hover { border-color: var(--line-strong); }
+.panel--press:active {
+  transform: translateY(var(--detent));
+  box-shadow: inset 0 2px 4px rgba(21, 24, 27, 0.14);
+  transition-duration: var(--seat-in);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   숫자 — 계기의 판독값
+   ═══════════════════════════════════════════════════════════ */
+
+/* 자릿수가 흔들리지 않아야 카드가 나란히 놓일 때 눈이 안 피곤하다. */
+.num {
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.04em;
+}
+.num--lg { font-size: 30px; font-weight: 600; line-height: 1; }
+
+/* 눈금 — 값이 어디쯤인지 숫자 말고 형태로도 말한다 */
+.gauge { display: flex; gap: 2px; align-items: flex-end; height: 15px; }
+.gauge i { width: 3px; background: var(--line); border-radius: 0.5px; display: block; }
+.gauge i.on { background: var(--ink); }
+.gauge i.gap { background: var(--gap); }
+
+/* ═══════════════════════════════════════════════════════════
+   타이포 · 라벨 · 태그
+   ═══════════════════════════════════════════════════════════ */
+
+.display {
+  font-size: clamp(2.1rem, 6vw, 3.2rem);
+  font-weight: 800;
+  line-height: 0.98;
+  letter-spacing: var(--track-display);
+  margin: 0;
+  text-wrap: balance;
+}
+
+/* 본문 위계 밖에서 메타정보를 말한다 */
 .label {
-  font-size: 10.5px;
-  font-weight: 600;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 500;
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--muted);
 }
 
-.mono { font-family: var(--mono); font-size: 0.92em; letter-spacing: 0; }
+.tag {
+  display: inline-flex; align-items: center;
+  padding: 2px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0;
+}
+.tag--gap { border-color: var(--gap); color: var(--gap); }
+.tag--ok  { border-color: var(--ok);  color: var(--ok); }
+.tag--ink { border-color: var(--line-strong); color: var(--ink); }
+
+.mono { font-family: var(--mono); letter-spacing: 0; }
+.muted { color: var(--muted); }
 
 [hidden] { display: none !important; }
