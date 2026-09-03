@@ -26,7 +26,10 @@ const add    = id => { props.pick[id] = SCORE.PICK_STRENGTH }
 const remove = id => { delete props.pick[id] }
 
 /* 내부값은 연속이지만 사람에게는 3단계로만 보여준다.
-   어떤 값이 들어와도 약→중→강 으로 스냅된다. */
+   어떤 값이 들어와도 약→중→강 으로 스냅된다.
+
+   등급 라벨에는 색을 쓰지 않는다. 액센트로 칠하면 "약" 이 강조돼 보여서
+   값의 크기와 시각적 무게가 반대로 간다. 색은 조작과 판독값의 몫이다. */
 const cycle = id => {
   const cur = STR.findIndex(s => s.lab === strLabel(props.pick[id]))
   props.pick[id] = STR[(cur + 1) % STR.length].v
@@ -69,7 +72,7 @@ const cycle = id => {
 .cyc, .rm {
   border: none; background: transparent; cursor: pointer;
   font-family: var(--mono); font-weight: 700; font-size: 11px;
-  padding: 3px 7px; color: var(--accent);
+  padding: 3px 7px; color: var(--ink-2);
   transition: background var(--release) linear, color var(--release) linear;
 }
 .cyc { border-left: 1px solid var(--line); margin-left: 7px; }

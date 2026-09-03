@@ -15,6 +15,10 @@ export default defineConfig({
 
   server: {
     port: 5173,
+    // 같은 Wi-Fi 의 다른 기기에서 볼 수 있게 LAN 에 연다.
+    // 이게 없으면 localhost 에만 묶여 내 컴에서만 보인다.
+    // `npm run dev` 가 Network: http://192.168.x.x:5173 을 같이 찍어 준다.
+    host: true,
     // 백엔드를 같은 오리진으로 끌어온다.
     //
     // 이걸 안 걸면 5173 → 8080 이 교차 출처가 되어 CORS 설정이 필요해지고,
