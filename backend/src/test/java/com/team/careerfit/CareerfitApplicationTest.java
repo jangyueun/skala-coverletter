@@ -194,6 +194,38 @@ class CareerfitApplicationTest {
     }
 
     @Test
+    void 공고_상세와_요구_역량과_유사_공고를_조회한다() throws Exception {
+        MockHttpSession session = loginSession("U_POSTING_DETAIL");
+        Long userId = (Long) session.getAttribute(SessionKeys.USER_ID);
+        Long targetId = postingId("서버 개발자 - 데이터 플랫폼 (신입)");
+        Long similarId = postingId("Front-end Developer Experience (신입)");
+        Long competencyId = insertCompetency("상세 API 테스트 역량");
+        insertPostingCompetency(targetId, competencyId, "0.90", "상세 조회 요구 역량 근거");
+        insertPostingCompetency(similarId, competencyId, "0.70", "유사 공고 요구 역량 근거");
+        insertMatch(userId, similarId, "0.630", "CONDITIONAL", competencyId);
+
+        mockMvc.perform(get("/api/postings/{postingId}", targetId).session(session))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(targetId))
+                .andExpect(jsonPath("$.company").value("카카오페이"))
+                .andExpect(jsonPath("$.content").isNotEmpty())
+                .andExpect(jsonPath("$.requiredCompetencies[?(@.competencyId == " + competencyId + ")].name")
+                        .value("상세 API 테스트 역량"))
+                .andExpect(jsonPath("$.related.sameCompany.length()").value(0))
+                .andExpect(jsonPath("$.related.similar[0].id").value(similarId))
+                .andExpect(jsonPath("$.related.similar[0].sharedCompetencyCount").value(1))
+                .andExpect(jsonPath("$.related.similar[0].score").value(63));
+    }
+
+    @Test
+    void 존재하지_않는_공고_상세는_404를_응답한다() throws Exception {
+        mockMvc.perform(get("/api/postings/{postingId}", 999999)
+                        .session(loginSession("U_POSTING_DETAIL_NOT_FOUND")))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.code").value("POSTING_NOT_FOUND"));
+    }
+
+    @Test
     void 페이지_크기가_허용_범위를_넘으면_400을_응답한다() throws Exception {
         mockMvc.perform(get("/api/postings")
                         .session(loginSession("U_POSTING_INVALID_QUERY"))
@@ -219,5 +251,58 @@ class CareerfitApplicationTest {
         MockHttpSession session = new MockHttpSession();
         session.setAttribute(SessionKeys.USER_ID, user.getId());
         return session;
+    }
+
+    private Long postingId(String position) {
+        return jdbcClient.sql("select id from job_postings where position = :position")
+                .param("position", position)
+                .query(Long.class)
+                .single();
+    }
+
+    private Long insertCompetency(String name) {
+        return jdbcClient.sql("""
+                        insert into competencies (name, category, created_at, updated_at)
+                        values (:name, 'TECH', now(), now())
+                        returning id
+                        """)
+                .param("name", name)
+                .query(Long.class)
+                .single();
+    }
+
+    private void insertPostingCompetency(Long postingId, Long competencyId, String weight, String evidenceLine) {
+        jdbcClient.sql("""
+                        insert into posting_competencies
+                            (job_posting_id, competency_id, weight, evidence_line, created_at, updated_at)
+                        values (:postingId, :competencyId, cast(:weight as decimal), :evidenceLine, now(), now())
+                        """)
+                .param("postingId", postingId)
+                .param("competencyId", competencyId)
+                .param("weight", weight)
+                .param("evidenceLine", evidenceLine)
+                .update();
+    }
+
+    private void insertMatch(
+            Long userId,
+            Long postingId,
+            String score,
+            String verdict,
+            Long competencyId) {
+        jdbcClient.sql("""
+                        insert into job_matches
+                            (user_id, job_posting_id, match_score, verdict, covered_count, coverage,
+                             input_hash, created_at, updated_at)
+                        values (:userId, :postingId, cast(:score as decimal), :verdict, 1,
+                                cast(:coverage as jsonb), :inputHash, now(), now())
+                        """)
+                .param("userId", userId)
+                .param("postingId", postingId)
+                .param("score", score)
+                .param("verdict", verdict)
+                .param("coverage", "[{\"competencyId\":" + competencyId + ",\"isGap\":false}]")
+                .param("inputHash", "test-input-hash-" + userId + "-" + postingId)
+                .update();
     }
 }

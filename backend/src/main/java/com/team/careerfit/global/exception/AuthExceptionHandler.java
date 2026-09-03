@@ -21,6 +21,6 @@ public class AuthExceptionHandler {
 
     @ExceptionHandler(JobException.class)
     public ResponseEntity<Map<String, String>> handle(JobException e) {
-        return ResponseEntity.status(e.status()).body(Map.of("message", e.getMessage()));
+        return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
     }
 }

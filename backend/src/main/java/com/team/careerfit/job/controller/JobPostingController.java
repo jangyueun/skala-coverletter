@@ -1,6 +1,7 @@
 package com.team.careerfit.job.controller;
 
 import com.team.careerfit.global.security.CurrentUser;
+import com.team.careerfit.job.dto.PostingDetailResponse;
 import com.team.careerfit.job.dto.PostingListResponse;
 import com.team.careerfit.job.service.JobPostingService;
 import com.team.careerfit.user.entity.User;
@@ -8,6 +9,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import java.util.List;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -45,5 +47,13 @@ public class JobPostingController {
                 page,
                 size);
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/{postingId}")
+    public ResponseEntity<PostingDetailResponse> findDetail(
+            @PathVariable Long postingId,
+            HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(jobPostings.findDetail(user.getId(), postingId));
     }
 }

@@ -1,11 +1,13 @@
 package com.team.careerfit.job.service;
 
+import com.team.careerfit.job.dto.PostingDetailResponse;
 import com.team.careerfit.job.dto.PostingListResponse;
 import com.team.careerfit.job.dto.PostingListResponse.Essay;
 import com.team.careerfit.job.dto.PostingListResponse.EssayState;
 import com.team.careerfit.job.dto.PostingListResponse.Item;
 import com.team.careerfit.job.dto.PostingListResponse.Match;
 import com.team.careerfit.job.exception.JobException;
+import com.team.careerfit.job.repository.JobPostingDetailQueryRepository;
 import com.team.careerfit.job.repository.JobPostingQueryRepository;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Page;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Row;
@@ -25,9 +27,18 @@ public class JobPostingService {
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
 
     private final JobPostingQueryRepository jobPostings;
+    private final JobPostingDetailQueryRepository postingDetails;
 
-    public JobPostingService(JobPostingQueryRepository jobPostings) {
+    public JobPostingService(
+            JobPostingQueryRepository jobPostings,
+            JobPostingDetailQueryRepository postingDetails) {
         this.jobPostings = jobPostings;
+        this.postingDetails = postingDetails;
+    }
+
+    @Transactional(readOnly = true)
+    public PostingDetailResponse findDetail(Long userId, Long postingId) {
+        return postingDetails.findById(postingId, userId).orElseThrow(JobException::postingNotFound);
     }
 
     @Transactional(readOnly = true)
