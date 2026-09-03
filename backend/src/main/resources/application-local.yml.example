@@ -1,27 +1,25 @@
-# 이 파일을 application-local.yml 로 복사해서 각자 값을 채운다.
-# application-local.yml 은 .gitignore 되어 있다 — 절대 커밋하지 않는다.
+# 실제 비밀값은 `.env`에서 관리한다.
 #
-#   실행:  SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+#   실행: set -a; source ../.env; set +a; ./gradlew bootRun
 
 spring:
   datasource:
-    url: jdbc:h2:mem:careerfit;MODE=PostgreSQL
-    driver-class-name: org.h2.Driver
-    username: sa
-    password:
+    url: ${SUPABASE_DB_URL}
+    username: ${SUPABASE_DB_USERNAME}
+    password: ${SUPABASE_DB_PASSWORD}
+    driver-class-name: org.postgresql.Driver
 
 careerfit:
   auth:
-    client-id: "여기에 Slack App 의 Client ID"
-    client-secret: "여기에 Client Secret — 커밋 금지"
-    allowed-team-id: T089ENT4A2D
-    # 로컬은 http 다. Slack 은 localhost 에 한해 http 리다이렉트를 허용한다.
-    redirect-uri: http://localhost:8080/api/auth/slack/callback
+    client-id: ${SLACK_CLIENT_ID:}
+    client-secret: ${SLACK_CLIENT_SECRET:}
+    allowed-team-id: ${SLACK_ALLOWED_TEAM_ID:T089ENT4A2D}
+    redirect-uri: ${SLACK_REDIRECT_URI:http://localhost:8080/api/auth/slack/callback}
     # http 에서는 Secure 쿠키가 브라우저에 저장되지 않는다. 로컬만 false.
-    cookie-secure: false
+    cookie-secure: ${SESSION_COOKIE_SECURE:false}
 
 server:
   servlet:
     session:
       cookie:
-        secure: false
+        secure: ${SESSION_COOKIE_SECURE:false}

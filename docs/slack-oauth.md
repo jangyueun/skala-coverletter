@@ -15,7 +15,6 @@
 implementation 'org.springframework.boot:spring-boot-starter-web'
 implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
 runtimeOnly   'org.postgresql:postgresql'
-runtimeOnly   'com.h2database:h2'          // 로컬에서 DB 없이 띄울 때
 testImplementation 'org.springframework.boot:spring-boot-starter-test'
 ```
 
@@ -62,13 +61,18 @@ Initializr 가 만들어 준다. 우리는 `application.yml` 을 쓰니 둘 다 
 ## 2. 로컬 실행
 
 ```bash
-cp backend/src/main/resources/application-local.yml.example backend/src/main/resources/application-local.yml
+cp .env.example .env
 ```
 
-복사한 파일에 Client ID / Secret 을 채운다. 이 파일은 `.gitignore` 되어 있다.
+`.env`에 Supabase DB 접속 정보와 Slack Client ID / Secret을 채운다.
+이 파일은 `.gitignore`되어 있으므로 커밋하지 않는다.
 
 ```bash
-cd backend && SPRING_PROFILES_ACTIVE=local ./gradlew bootRun
+set -a
+source .env
+set +a
+cd backend
+./gradlew bootRun
 ```
 
 브라우저에서 <http://localhost:8080/api/auth/slack/start> 로 들어가면 Slack 동의 화면이 뜬다.
