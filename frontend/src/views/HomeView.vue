@@ -58,19 +58,11 @@ const list = computed(() => {
 </script>
 
 <template>
-  <!-- 히어로 — 좌 거대 영문 타이틀 / 우 카피 -->
+  <!-- 히어로 — 제목 하나와 한 줄 설명. 경험 라이브러리와 같은 어법이다.
+       영문 타이틀 + 한글 부제 + 카피 두 문단은 같은 말을 네 번 하는 것이었다. -->
   <section class="hero">
-    <div>
-      <h1 class="display">JOBS</h1>
-      <p class="sub">공고 찾기</p>
-    </div>
-    <div class="copy">
-      <p class="ch">경험을 쌓는 순서가<br>지원하는 순서가 되도록</p>
-      <p class="cb">
-        등록한 경험이 어떤 공고와 맞는지, 무엇이 비어 있는지<br>
-        한 화면에서 봅니다. 오늘 무엇부터 손대야 하는지가 여기서 끝나야 합니다.
-      </p>
-    </div>
+    <h1 class="display">공고 찾기</h1>
+    <p class="lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
   </section>
 
   <!-- 전폭 회색 검색 밴드 -->
@@ -153,14 +145,11 @@ const list = computed(() => {
 
 <style scoped>
 /* 히어로 */
-.hero {
-  display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; flex-wrap: wrap;
-  padding: 46px 0 40px;
-}
-.sub { margin: 10px 0 0; font-size: 15px; font-weight: 600; color: var(--ink-2); }
-.copy { max-width: 44ch; }
-.ch { margin: 0; font-size: clamp(1.2rem, 2.6vw, 1.75rem); font-weight: 700; line-height: 1.45; letter-spacing: var(--track-tight); }
-.cb { margin: 14px 0 0; font-size: 13px; color: var(--muted); line-height: 1.75; }
+/* 히어로는 진입 장식이지 화면의 본론이 아니다. 본론은 바로 아래 검색과 목록이라
+   위아래 여백과 글자 크기를 줄여 첫 화면에 공고가 같이 들어오게 한다. */
+.hero { padding: 30px 0 24px; }
+.hero .display { font-size: clamp(2.1rem, 5.4vw, 3.3rem); }
+.lede { margin: 10px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink-2); }
 
 /* 전폭 밴드 — wrap 의 좌우 여백을 넘어 화면 끝까지 */
 .band {
