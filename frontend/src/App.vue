@@ -12,7 +12,7 @@ const nav = [
 <template>
   <header class="top">
     <RouterLink to="/" class="brand">
-      <span class="mark" aria-hidden="true"></span>커리어맵
+      <span class="mark" aria-hidden="true"></span>Career Lab
     </RouterLink>
 
     <nav class="nav" aria-label="주요">

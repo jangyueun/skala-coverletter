@@ -20,12 +20,6 @@ const covered = computed(() =>
    역량 수가 달라(6~10개) 카드 높이가 들쭉날쭉해진다. */
 const rest = computed(() => props.card.match.rows.length - covered.value.slice(0, 3).length)
 
-const ROLE = {
-  BACKEND: '백엔드', FRONTEND: '프론트엔드', FULLSTACK: '풀스택',
-  PLATFORM: '플랫폼·인프라', AI: 'AI',
-}
-const roleLabel = computed(() => ROLE[p.value.role] || p.value.role)
-
 /* 마감이 급한 것만 주황으로 채운다. 전부 채우면 급한 게 하나도 없는 것과 같다. */
 const urgent = computed(() => props.card.d <= 7)
 </script>
@@ -51,11 +45,10 @@ const urgent = computed(() => props.card.d <= 7)
       </button>
     </header>
 
-    <div class="who">
+    <div class="idt">
       <span class="co">{{ p.company }}</span>
-      <span class="tag role">{{ roleLabel }}</span>
+      <h3 class="pos">{{ p.position }}</h3>
     </div>
-    <h3 class="pos">{{ p.position }}</h3>
 
     <div class="tags">
       <span v-for="r in covered.slice(0, 3)" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
@@ -75,7 +68,10 @@ const urgent = computed(() => props.card.d <= 7)
 </template>
 
 <style scoped>
-/* 카드는 흰 면 + 얇은 선. 누르면 살짝 가라앉고 테두리가 잉크로 선다. */
+/* 카드는 흰 면 + 얇은 선.
+   호버하면 액센트 테두리가 서고 글자가 액센트로 넘어가며,
+   **기업 이름이 커진다.** 커지는 지점이 하나뿐이라 눈이 거기로 간다 —
+   여러 군데가 동시에 움직이면 아무 데도 안 보인다. */
 .card {
   display: flex; flex-direction: column; gap: 11px;
   padding: 18px 20px 16px;
@@ -84,18 +80,23 @@ const urgent = computed(() => props.card.d <= 7)
   border-radius: var(--r);
   text-align: left; font: inherit; color: inherit; cursor: pointer;
   transition: border-color var(--seat-out) linear, background var(--seat-out) linear,
-              transform var(--seat-out) var(--ease);
+              box-shadow var(--seat-out) linear, transform var(--seat-out) var(--ease);
 }
-.card:hover { border-color: var(--ink); }
+/* 테두리를 두껍게 하는 대신 안쪽 링을 하나 더 그린다 —
+   border-width 를 바꾸면 내용이 1px 씩 밀려 글자가 흔들린다. */
+.card:hover {
+  border-color: var(--accent);
+  box-shadow: inset 0 0 0 1px var(--accent);
+}
 .card:active {
-  background: var(--panel-sunken); border-color: var(--ink);
+  background: var(--panel-sunken);
   transform: translateY(1px);
   transition-duration: var(--seat-in);
 }
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .read { display: flex; align-items: baseline; gap: 7px; }
-.pct { font-size: 17px; font-weight: 700; line-height: 1; }
+.pct { font-size: 17px; font-weight: 700; line-height: 1; transition: color var(--seat-out) linear; }
 .pc { font-size: 0.62em; color: var(--muted); margin-left: 1px; }
 .ml { font-size: 8.5px; }
 
@@ -112,14 +113,30 @@ const urgent = computed(() => props.card.d <= 7)
   transition-duration: var(--snap);
 }
 
-.who { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.co { font-size: 12.5px; font-weight: 600; color: var(--muted); }
-.role { font-size: 10.5px; padding: 2px 9px; }
+/* 커지는 지점 — 기업명과 직무명을 한 덩어리로 묶어 같이 자란다.
+   따로 scale 하면 둘이 미묘하게 어긋나 흔들려 보인다.
+   transform-origin 을 왼쪽 위에 두어야 제자리에서 자란다 — 가운데면
+   왼쪽으로도 삐져나가 카드 정렬이 흐트러진다. */
+.idt {
+  display: flex; flex-direction: column; gap: 3px;
+  transform-origin: left top;
+  transition: transform var(--seat-out) var(--ease);
+}
+.co {
+  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  transition: color var(--seat-out) linear;
+}
+/* 호버 — 액센트로 넘어가고, 이름 덩어리가 커진다 */
+.card:hover .idt { transform: scale(1.07); }
+.card:hover .co  { color: var(--accent); }
+.card:hover .pos { color: var(--accent); }
+.card:hover .date, .card:hover .pct, .card:hover .pc { color: var(--accent); }
 
 .pos {
-  margin: -3px 0 0;
+  margin: 0;
   font-size: 18px; font-weight: 700;
   letter-spacing: var(--track-tight); line-height: 1.3;
+  transition: color var(--seat-out) linear;
 }
 
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }
@@ -132,5 +149,5 @@ const urgent = computed(() => props.card.d <= 7)
 .when { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
 .dd { font-size: 17px; font-weight: 800; }
 .dd.urgent { color: var(--accent); }
-.date { font-size: 11.5px; color: var(--faint); }
+.date { font-size: 11.5px; color: var(--faint); transition: color var(--seat-out) linear; }
 </style>

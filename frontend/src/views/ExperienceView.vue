@@ -28,7 +28,7 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
 </script>
 
 <template>
-  <p class="label">CareerFit · Library</p>
+  <p class="label">Career Lab · Library</p>
   <h1 class="display">경험 라이브러리</h1>
   <p class="lede">
     지원할 때마다 새로 쓰는 게 아니라, 한 번 구조화해 두고 계속 꺼내 쓴다.
