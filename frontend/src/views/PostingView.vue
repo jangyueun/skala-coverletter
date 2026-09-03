@@ -56,6 +56,16 @@ const ROLE = {
 }
 const roleLabel = computed(() => ROLE[posting.value?.role] || posting.value?.role || '')
 
+/* 마지막 글자의 받침 유무로 조사를 고른다.
+   "도메인 이해은" 처럼 틀리면 문장 전체가 기계가 쓴 것으로 읽힌다. */
+function withJosa(word, withBatchim, without) {
+  const c = word.trim().charCodeAt(word.trim().length - 1)
+  if (c < 0xAC00 || c > 0xD7A3) return word + without   // 한글이 아니면 받침 없는 쪽
+  return word + ((c - 0xAC00) % 28 ? withBatchim : without)
+}
+const gapPhrase = computed(() =>
+  withJosa(gaps.value.map(g => g.comp.name).join(', '), '은', '는'))
+
 const questions = computed(() => {
   const app = store.applications.find(a => a.postingId === posting.value?.id)
   return app ? store.questions.filter(q => q.applicationId === app.id) : []
@@ -151,7 +161,7 @@ const questions = computed(() => {
           요구 역량 {{ match.rows.length }}개 중 <b>{{ match.rows.length - gaps.length }}개</b>를 덮어
           매칭 <b class="num">{{ pct }}%</b>입니다.
           <template v-if="gaps.length">
-            반면 <b class="gaptext">{{ gaps.map(g => g.comp.name).join(', ') }}</b>은
+            반면 <b class="gaptext">{{ gapPhrase }}</b>
             증명할 경험이 없거나 너무 약합니다 — <b>보강이 필요한 역량</b>입니다.
           </template>
         </p>

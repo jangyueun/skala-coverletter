@@ -8,14 +8,17 @@ const router = useRouter()
 
 const p = computed(() => props.card.posting)
 const pct = computed(() => Math.round(props.card.match.overall * 100))
-const gaps = computed(() => props.card.match.rows.filter(r => r.isGap))
 const covered = computed(() =>
   props.card.match.rows.filter(r => !r.isGap).sort((a, b) => b.weight - a.weight))
 
-/* 태그는 앞의 2개 + 보강 필요 1개까지만 낸다. 나머지는 개수로 접는다 —
-   다 펼치면 카드마다 높이가 달라져 그리드가 들쭉날쭉해진다. */
-const shown = computed(() => covered.value.slice(0, 2).length + gaps.value.slice(0, 1).length)
-const rest = computed(() => props.card.match.rows.length - shown.value)
+/* 목록에는 **덮은 역량만** 낸다. 보강 필요는 상세의 매칭 탭에서 본다.
+   목록은 "어디에 지원할까" 를 고르는 화면이고, "무엇이 부족한가" 는
+   공고 하나를 정한 뒤에 볼 것이다. 카드마다 부족을 띄우면 목록 전체가
+   경고판이 되어 정작 고르는 일이 방해받는다.
+
+   앞의 3개까지만 내고 나머지는 개수로 접는다 — 다 펼치면 공고마다
+   역량 수가 달라(6~10개) 카드 높이가 들쭉날쭉해진다. */
+const rest = computed(() => props.card.match.rows.length - covered.value.slice(0, 3).length)
 
 const ROLE = {
   BACKEND: '백엔드', FRONTEND: '프론트엔드', FULLSTACK: '풀스택',
@@ -55,10 +58,7 @@ const urgent = computed(() => props.card.d <= 7)
     <h3 class="pos">{{ p.position }}</h3>
 
     <div class="tags">
-      <span v-for="r in covered.slice(0, 2)" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
-      <span v-for="r in gaps.slice(0, 1)" :key="'g' + r.competencyId" class="tag tag--gap">
-        보강 필요 · {{ r.comp.name }}
-      </span>
+      <span v-for="r in covered.slice(0, 3)" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
       <span v-if="rest > 0" class="tag more">+{{ rest }}</span>
     </div>
 
