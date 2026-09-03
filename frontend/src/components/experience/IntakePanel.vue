@@ -32,6 +32,30 @@ const active = ref(null)
 const armed = ref(null)        // 2단 확인 무장 건수
 const linksOpen = ref(true)
 
+/* 자료는 두 가지다 — 주소로 가리키는 것(저장소·포트폴리오)과 파일로 주는 것(발표자료·이력서).
+   한 칸에 섞어 두면 "PDF 는 어디에 넣지" 를 매번 묻게 된다.
+
+   지금은 파일을 업로드하지 않는다. 이름과 크기만 들고 있다가 분석 요청에 함께 싣는다 —
+   백엔드가 생기면 여기가 multipart 로 바뀌고 화면은 안 바뀐다. */
+const files = ref([])
+const fileEl = ref(null)
+const dragging = ref(false)
+
+const ACCEPT = '.pdf,.md,.txt,.docx,.pptx'
+const okName = n => /\.(pdf|md|txt|docx|pptx)$/i.test(n)
+
+function addFiles(list) {
+  const add = [...list].filter(f => okName(f.name) && !files.value.some(x => x.name === f.name))
+  if (add.length) files.value = [...files.value, ...add]
+  dragging.value = false
+}
+const dropFiles = e => addFiles(e.dataTransfer.files)
+const pickFiles = e => { addFiles(e.target.files); e.target.value = '' }
+const removeFile = name => { files.value = files.value.filter(f => f.name !== name) }
+const kb = n => (n < 1024 ? `${n}B` : n < 1024 * 1024 ? `${Math.round(n / 1024)}KB` : `${(n / 1048576).toFixed(1)}MB`)
+
+const linkCount = computed(() => links.value.split('\n').filter(s => s.trim()).length)
+
 const cands = computed(() => E.candidates)
 const candOf = k => cands.value.find(c => c.key === k)
 
@@ -77,8 +101,8 @@ function missingOf(k) {
 const isReady = k => missingOf(k).length === 0
 
 async function analyze() {
-  const n = links.value.split('\n').map(s => s.trim()).filter(Boolean).length
-  if (!n) return
+  // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
+  if (!linkCount.value && !files.value.length) return
   state.value = 'running'
   await new Promise(r => setTimeout(r, 1600))
   state.value = 'done'
@@ -205,24 +229,48 @@ const onEdit = () => { armed.value = null }
 
 <template>
   <div class="wrap">
-    <!-- 링크 -->
-    <div v-if="linksOpen" class="fld">
-      <label class="lb" for="inUrl">링크를 한 줄에 하나씩 — GitHub 저장소 · 포트폴리오 · 발표자료 PDF</label>
-      <textarea id="inUrl" v-model="links" class="inp" rows="4" spellcheck="false"></textarea>
+    <!-- 자료 — 주소로 가리키는 것과 파일로 주는 것을 나눈다 -->
+    <div v-if="linksOpen" class="src">
+      <div class="fld">
+        <label class="lb" for="inUrl">링크 <span class="lbn">GitHub 저장소 · 포트폴리오 · 블로그</span></label>
+        <textarea id="inUrl" v-model="links" class="inp" rows="5" spellcheck="false"
+                  placeholder="한 줄에 하나씩"></textarea>
+      </div>
+
+      <div class="fld">
+        <label class="lb" for="inFile">첨부파일 <span class="lbn">발표자료 · 이력서 · 프로젝트 문서</span></label>
+        <div class="drop" :class="{ over: dragging }"
+             @dragover.prevent="dragging = true" @dragleave="dragging = false" @drop.prevent="dropFiles">
+          <input id="inFile" ref="fileEl" type="file" multiple :accept="ACCEPT" class="vh" @change="pickFiles">
+
+          <ul v-if="files.length" class="fl">
+            <li v-for="f in files" :key="f.name">
+              <b class="fn">{{ f.name }}</b>
+              <span class="fs num">{{ kb(f.size) }}</span>
+              <button type="button" class="rm" :aria-label="`${f.name} 빼기`" @click="removeFile(f.name)">×</button>
+            </li>
+          </ul>
+          <p v-else class="dz">여기에 끌어다 놓거나</p>
+
+          <button type="button" class="btn btn--sm" @click="fileEl.click()">파일 고르기</button>
+        </div>
+      </div>
     </div>
+
     <p v-else class="fold">
-      링크 <b class="num">{{ links.split('\n').filter(s => s.trim()).length }}</b>개를 분석했습니다
-      <button type="button" class="btn btn--sm" @click="linksOpen = true">링크 고치기</button>
+      링크 <b class="num">{{ linkCount }}</b>개<template v-if="files.length">, 첨부 <b class="num">{{ files.length }}</b>개</template>를 분석했습니다
+      <button type="button" class="btn btn--sm" @click="linksOpen = true">자료 고치기</button>
     </p>
 
     <div class="run">
-      <button type="button" class="btn btn--primary" :disabled="state === 'running'" @click="analyze">
+      <button type="button" class="btn btn--primary"
+              :disabled="state === 'running' || (!linkCount && !files.length)" @click="analyze">
         {{ state === 'done' ? '다시 분석' : '분석' }}
       </button>
       <span class="tag" :class="state === 'done' ? 'tag--ok' : state === 'running' ? 'tag--gap' : ''">
         {{ state === 'idle' ? '대기' : state === 'running' ? 'PENDING' : 'COMPLETED' }}
       </span>
-      <span class="muted note">첨부 PDF·마크다운은 텍스트를 추출해 함께 읽는다</span>
+      <span class="muted note">첨부는 텍스트를 추출해 링크와 함께 읽는다 · PDF · MD · TXT · DOCX · PPTX</span>
     </div>
 
     <!-- 1단계 · 후보 선택 -->
@@ -366,8 +414,35 @@ const onEdit = () => { armed.value = null }
 .wrap { display: flex; flex-direction: column; gap: 14px; }
 .min0 { min-width: 0; }
 
+/* 링크와 첨부를 나란히. 좁아지면 세로로 쌓인다. */
+.src { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; align-items: start; }
 .fld { display: flex; flex-direction: column; gap: 5px; }
-.lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 700; color: var(--ink-2); }
+.lbn { font-weight: 500; color: var(--muted); margin-left: 5px; }
+
+/* 첨부 자리 — 끌어다 놓는 면이라 테두리를 점선으로 둔다. 입력칸과 다른 종류임을 형태가 말한다. */
+.drop {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 8px;
+  min-height: 96px; padding: 11px 12px;
+  border: 1px dashed var(--line-strong); border-radius: var(--r);
+  background: var(--panel-sunken);
+  transition: border-color var(--release) linear, background var(--release) linear;
+}
+.drop.over { border-color: var(--accent); background: var(--panel-raised); }
+.dz { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
+
+.fl { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; width: 100%; }
+.fl li { display: flex; align-items: center; gap: 7px; min-width: 0; }
+.fn { font-size: var(--fs-2xs); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.fs { font-size: var(--fs-3xs); color: var(--muted); flex: none; }
+.rm {
+  margin-left: auto; flex: none; border: none; background: none; cursor: pointer;
+  color: var(--muted); font-size: var(--fs-sm); line-height: 1; padding: 0 2px;
+}
+.rm:hover { color: var(--gap); }
+
+/* 파일 입력은 화면에서 뺀다 — 버튼이 대신 누른다. 지우지는 않는다(키보드·스크린리더). */
+.vh { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0; }
 .inp {
   padding: 9px 11px; background: var(--panel); border: 1px solid var(--line);
   border-radius: var(--r-sm); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; resize: vertical;
@@ -379,6 +454,8 @@ const onEdit = () => { armed.value = null }
 .fold { margin: 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 9px; }
 .run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .note { font-size: var(--fs-2xs); margin-left: auto; }
+
+@media (max-width: 640px) { .src { grid-template-columns: 1fr; } }
 
 .stephd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: var(--fs-xs); }
 .lead { margin: 0; font-size: var(--fs-xs); color: var(--muted); line-height: 1.6; }
