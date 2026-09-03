@@ -61,8 +61,10 @@ async function makeDraft() {
   draftingId.value = null
 }
 
+/* 되돌리기 버튼은 두지 않는다. 편집 중 되돌리기는 textarea 의 Ctrl+Z 가
+   이미 하고, 그쪽이 한 글자 단위라 더 정확하다. 저장 옆에 파괴 버튼을
+   두면 잘못 눌러 방금 쓴 걸 통째로 버리는 쪽이 더 자주 일어난다. */
 function save() { if (q.value) store.saveDraft(q.value.id) }
-function revert() { if (q.value) store.revertDraft(q.value.id) }
 
 /* 버퍼는 스토어에 있어 화면을 옮겨도 살아 있다. 정말 사라지는 건
    페이지를 떠날 때뿐이라 경고도 그때만 한다 — 라우터 이동까지 막으면
@@ -102,8 +104,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
           </button>
         </div>
 
-        <textarea v-model="text" class="inp" rows="12"
-                  :placeholder="`요구 ${q.charLimit}자의 80% 이상 채우세요`"></textarea>
+        <textarea v-model="text" class="inp" rows="12"></textarea>
 
         <!-- 저장 — 이 화면의 유일한 주요 행동 -->
         <div class="saverow">
@@ -113,9 +114,6 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
             <template v-else>아직 저장하지 않았습니다</template>
             <span v-if="otherDirty" class="also"> · 다른 문항 {{ otherDirty }}개도 저장 대기</span>
           </p>
-
-          <!-- 되돌리기는 저장에서 떼어 놓는다. 붙여 두면 잘못 눌러 방금 쓴 걸 버린다. -->
-          <button v-if="dirty" class="btn btn--sm btn--quiet rv" @click="revert">되돌리기</button>
 
           <button class="btn btn--primary" :disabled="!dirty" @click="save">
             {{ dirty ? '저장' : '저장됨' }}
@@ -178,7 +176,6 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .sst { margin: 0; flex: 1; min-width: 0; font-size: 12px; color: var(--muted); }
 .sst.warn { color: var(--gap); font-weight: 600; }
 .also { color: var(--faint); font-weight: 400; }
-.rv { flex: none; }
 
 .side { display: flex; flex-direction: column; gap: 7px; }
 .sd { margin: 0 0 3px; font-size: 11px; color: var(--muted); line-height: 1.5; }

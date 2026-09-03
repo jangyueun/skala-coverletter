@@ -189,11 +189,6 @@ export const useCareerStore = defineStore('career', {
         `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
     },
 
-    /** 저장한 데까지 되돌린다 — 버퍼만 버리므로 커밋본은 안 다친다 */
-    revertDraft(questionId) {
-      delete this.drafts[questionId]
-    },
-
     toggleBookmark(id) {
       // Set 은 Vue 반응성에서 교체해야 갱신된다. mutate 만 하면 화면이 안 바뀐다.
       const next = new Set(this.bookmarks)

@@ -90,30 +90,34 @@ const questions = computed(() => {
             <b v-if="d >= 0" class="num">D-{{ d }}</b>{{ d >= 0 ? '\u00a0' : '' }}{{ posting.deadline }} 마감
           </span>
           <span class="tag" :class="essay?.state === 'DONE' ? 'tag--ok' : ''">{{ essay?.label }}</span>
-          <span class="tag mono">{{ posting.source }}</span>
         </div>
       </div>
 
-      <div class="panel readout">
-        <div class="num num--lg num--read">{{ pct }}<span class="pc">%</span></div>
-        <div class="gauge big" aria-hidden="true">
-          <i v-for="i in 10" :key="i"
-             :class="i <= Math.round(pct / 10) ? (gaps.length && i === Math.round(pct/10) ? 'gap' : 'on') : ''"
-             :style="{ height: 4 + i * 1.3 + 'px' }" />
+      <!-- 매칭과 즐겨찾기는 탭이 아니라 이 공고 자체에 붙는 것이라 머리에 둔다.
+           상자로 감싸지 않는다 — 이 화면에서 테두리는 탭 아래 내용의 몫이다. -->
+      <div class="hd-r">
+        <button class="btn btn--sm bm" :aria-pressed="store.bookmarks.has(posting.id)"
+                @click="store.toggleBookmark(posting.id)">
+          {{ store.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
+        </button>
+        <div class="rd">
+          <p class="label">Match</p>
+          <div class="num num--lg num--read">{{ pct }}<span class="pc">%</span></div>
+          <div class="gauge big" aria-hidden="true">
+            <i v-for="i in 10" :key="i"
+               :class="i <= Math.round(pct / 10) ? (gaps.length && i === Math.round(pct/10) ? 'gap' : 'on') : ''"
+               :style="{ height: 4 + i * 1.3 + 'px' }" />
+          </div>
+          <p class="verdict" :class="verdict.tone">{{ verdict.k }}</p>
         </div>
-        <p class="label">Match</p>
-        <p class="verdict" :class="verdict.tone">{{ verdict.k }}</p>
       </div>
     </header>
 
-    <!-- 조작부 — 스위스 버튼이 탭 역할을 한다 -->
+    <!-- 탭은 행을 다 쓴다. 작은 pill 세 개면 그 옆의 빈자리가 더 커 보여
+         "누를 것" 이 아니라 "붙어 있는 라벨" 로 읽힌다. -->
     <nav class="tabs" aria-label="공고 상세">
-      <button v-for="t in TABS" :key="t.k" class="btn btn--sm"
+      <button v-for="t in TABS" :key="t.k" class="tb"
               :aria-pressed="tab === t.k" @click="tab = t.k">{{ t.label }}</button>
-      <button class="btn btn--sm bm" :aria-pressed="store.bookmarks.has(posting.id)"
-              @click="store.toggleBookmark(posting.id)">
-        {{ store.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
-      </button>
     </nav>
 
     <!-- ── 공고 내용 ─────────────────────────────────────── -->
@@ -214,21 +218,30 @@ const questions = computed(() => {
 .pos { margin-top: 6px; font-size: clamp(1.7rem, 4.4vw, 2.6rem); }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 
-.readout {
-  flex: none; padding: 14px 18px 13px; text-align: right;
-  display: flex; flex-direction: column; align-items: flex-end; gap: 4px; min-width: 148px;
-}
+.hd-r { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
+.bm { flex: none; }
+.rd { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
 .pc { font-size: 0.55em; opacity: .6; margin-left: 1px; }
 .gauge.big { height: 18px; }
-.verdict { margin: 5px 0 0; font-size: 13px; font-weight: 700; }
+.verdict { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
 .verdict.ok { color: var(--ok); }
 .verdict.gap { color: var(--gap); }
 
+/* 탭 — 세 칸이 행을 똑같이 나눠 갖는다. 밑줄로만 지금 위치를 말한다.
+   pill 로 채우면 아래 내용보다 조작부가 무거워진다. */
 .tabs {
-  display: flex; gap: 7px; flex-wrap: wrap; margin: 24px 0 0; padding: 12px 0;
-  border-top: 1px solid var(--line); border-bottom: 1px solid var(--line);
+  display: grid; grid-template-columns: repeat(3, 1fr);
+  margin: 26px 0 0; border-bottom: 1px solid var(--line);
 }
-.bm { margin-left: auto; }
+.tb {
+  padding: 13px 0; background: none; border: none;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  font-size: 14px; font-weight: 700; color: var(--muted);
+  cursor: pointer; letter-spacing: var(--track-tight);
+  transition: color var(--release) linear, border-color var(--release) linear;
+}
+.tb:hover { color: var(--ink); }
+.tb[aria-pressed='true'] { color: var(--ink); border-bottom-color: var(--ink); }
 
 .pane { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 .body { padding: 16px 18px; }
@@ -238,11 +251,13 @@ const questions = computed(() => {
 .nc b { color: var(--gap); }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 11px; }
 
+/* 원문에 따로 스크롤을 주지 않는다. 화면 안에 또 스크롤이 있으면
+   페이지를 내리다 말고 그 안에서 멈추고, 어디까지 읽었는지도 흐려진다.
+   회색 상자와 모노도 뺐다 — 다른 화면의 본문과 같은 글로 읽히면 된다. */
 .raw {
-  margin: 9px 0 0; padding: 13px 14px;
-  background: var(--panel-sunken); border: 1px solid var(--line-soft); border-radius: var(--r);
-  font-family: var(--mono); font-size: 12px; line-height: 1.75; white-space: pre-wrap;
-  color: var(--ink-2); max-height: 320px; overflow-y: auto;
+  margin: 9px 0 0; padding: 0;
+  font: inherit; font-size: 13.5px; line-height: 1.85; white-space: pre-wrap;
+  color: var(--ink-2);
 }
 
 .relgrp { margin-top: 14px; }
