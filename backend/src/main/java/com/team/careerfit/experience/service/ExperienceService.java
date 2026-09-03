@@ -7,6 +7,7 @@ import com.team.careerfit.competency.repository.CompetencyRepository;
 import com.team.careerfit.experience.dto.ExperienceCreateRequest;
 import com.team.careerfit.experience.dto.ExperienceResponse;
 import com.team.careerfit.experience.dto.ExperienceSaveResponse;
+import com.team.careerfit.experience.dto.ExperienceUpdateRequest;
 import com.team.careerfit.experience.entity.Experience;
 import com.team.careerfit.experience.entity.ExperienceCompetency;
 import com.team.careerfit.experience.exception.ExperienceException;
@@ -16,11 +17,9 @@ import com.team.careerfit.job.service.JobPostingService;
 import com.team.careerfit.user.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -80,12 +79,42 @@ public class ExperienceService {
     @Transactional
     public ExperienceSaveResponse register(User user, ExperienceCreateRequest request) {
         validatePeriod(request.startDate(), request.endDate());
-        Map<Competency, BigDecimal> strengths = resolveCompetencies(request.competencies());
+        Map<Competency, BigDecimal> strengths = resolveCompetencies(request.competencies().stream()
+                .collect(Collectors.toMap(ExperienceCreateRequest.CompetencyStrength::competencyId,
+                        ExperienceCreateRequest.CompetencyStrength::strength, (a, b) -> b, LinkedHashMap::new)));
 
         Experience experience = Experience.register(user, request.title(), request.category(), request.startDate(),
                 request.endDate(), request.situation(), request.task(), request.action(), request.result(),
                 request.intakeTaskId());
         experience = experiences.save(experience);
+        experience.replaceCompetencies(strengths);
+
+        ExperienceResponse response = ExperienceResponse.of(experience, experience.getCompetencies(), 0L);
+        ExperienceSaveResponse.Reassess reassess = reassessActivePostings(user.getId(), experience.getId());
+
+        return new ExperienceSaveResponse(response, reassess);
+    }
+
+    /**
+     * 경험을 통째로 다시 쓰고, 이 경험 때문에 매칭 결과가 바뀔 수 있는 활성 공고마다 MATCH 작업을 다시 만든다.
+     *
+     * @throws ExperienceException 대상이 없으면 {@code EXPERIENCE_NOT_FOUND}, 남의 경험이면 {@code FORBIDDEN},
+     *         제목·결과가 비었거나 역량이 없거나 존재하지 않는 역량이거나 종료일이 시작일보다 빠르면 {@code VALIDATION_FAILED}
+     */
+    @Transactional
+    public ExperienceSaveResponse update(User user, Long experienceId, ExperienceUpdateRequest request) {
+        Experience experience = experiences.findById(experienceId).orElseThrow(ExperienceException::notFound);
+        if (!experience.isOwnedBy(user.getId())) {
+            throw ExperienceException.forbidden();
+        }
+
+        validatePeriod(request.startDate(), request.endDate());
+        Map<Competency, BigDecimal> strengths = resolveCompetencies(request.competencies().stream()
+                .collect(Collectors.toMap(ExperienceUpdateRequest.CompetencyStrength::competencyId,
+                        ExperienceUpdateRequest.CompetencyStrength::strength, (a, b) -> b, LinkedHashMap::new)));
+
+        experience.update(request.title(), request.category(), request.startDate(), request.endDate(),
+                request.situation(), request.task(), request.action(), request.result());
         experience.replaceCompetencies(strengths);
 
         ExperienceResponse response = ExperienceResponse.of(experience, experience.getCompetencies(), 0L);
@@ -117,20 +146,17 @@ public class ExperienceService {
         }
     }
 
-    private Map<Competency, BigDecimal> resolveCompetencies(List<ExperienceCreateRequest.CompetencyStrength> items) {
-        List<Long> ids = items.stream().map(ExperienceCreateRequest.CompetencyStrength::competencyId).toList();
-        Map<Long, Competency> byId = competencies.findAllById(ids).stream()
+    /** 등록·수정 요청 DTO는 서로 다른 record(ExperienceCreateRequest.CompetencyStrength 등)라 호출부에서 먼저 맵으로 편다. */
+    private Map<Competency, BigDecimal> resolveCompetencies(Map<Long, BigDecimal> strengthByCompetencyId) {
+        Map<Long, Competency> byId = competencies.findAllById(List.copyOf(strengthByCompetencyId.keySet())).stream()
                 .collect(Collectors.toMap(Competency::getId, competency -> competency));
 
-        Set<Long> distinctIds = new HashSet<>(ids);
-        if (byId.size() != distinctIds.size()) {
+        if (byId.size() != strengthByCompetencyId.size()) {
             throw ExperienceException.validationFailed("존재하지 않는 역량이 포함되어 있습니다.");
         }
 
         Map<Competency, BigDecimal> strengths = new LinkedHashMap<>();
-        for (ExperienceCreateRequest.CompetencyStrength item : items) {
-            strengths.put(byId.get(item.competencyId()), item.strength());
-        }
+        strengthByCompetencyId.forEach((competencyId, strength) -> strengths.put(byId.get(competencyId), strength));
         return strengths;
     }
 }

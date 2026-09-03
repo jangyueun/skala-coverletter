@@ -3,9 +3,12 @@ package com.team.careerfit.experience.service;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import com.team.careerfit.aitask.entity.AiTask;
@@ -16,6 +19,7 @@ import com.team.careerfit.competency.repository.CompetencyRepository;
 import com.team.careerfit.experience.dto.ExperienceCreateRequest;
 import com.team.careerfit.experience.dto.ExperienceResponse;
 import com.team.careerfit.experience.dto.ExperienceSaveResponse;
+import com.team.careerfit.experience.dto.ExperienceUpdateRequest;
 import com.team.careerfit.experience.entity.Experience;
 import com.team.careerfit.experience.entity.ExperienceCategory;
 import com.team.careerfit.experience.exception.ExperienceException;
@@ -27,7 +31,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import org.junit.jupiter.api.Test;
+import org.springframework.http.HttpStatus;
 
 class ExperienceServiceTest {
 
@@ -84,7 +90,7 @@ class ExperienceServiceTest {
         when(aiTasks.createMatchTask(eq(7L), eq(10L), anyString())).thenReturn(taskWithId(801L));
         when(aiTasks.createMatchTask(eq(7L), eq(11L), anyString())).thenReturn(taskWithId(802L));
 
-        ExperienceSaveResponse response = service.register(user, request());
+        ExperienceSaveResponse response = service.register(user, createRequest());
 
         assertThat(response.experience().id()).isEqualTo(1L);
         assertThat(response.experience().competencies()).extracting(c -> c.name()).containsExactly("API 설계·연동");
@@ -93,15 +99,15 @@ class ExperienceServiceTest {
     }
 
     @Test
-    void 존재하지_않는_역량이_섞여_있으면_거부한다() {
+    void 등록_시_존재하지_않는_역량이_섞여_있으면_거부한다() {
         when(competencies.findAllById(List.of(4L))).thenReturn(List.of());
 
-        assertThatThrownBy(() -> service.register(user, request()))
+        assertThatThrownBy(() -> service.register(user, createRequest()))
                 .isInstanceOf(ExperienceException.class);
     }
 
     @Test
-    void 종료일이_시작일보다_빠르면_거부한다() {
+    void 등록_시_종료일이_시작일보다_빠르면_거부한다() {
         ExperienceCreateRequest invalid = new ExperienceCreateRequest("제목", ExperienceCategory.TEAM_PROJECT,
                 LocalDate.of(2026, 3, 1), LocalDate.of(2026, 1, 1), null, null, null, "결과",
                 List.of(new ExperienceCreateRequest.CompetencyStrength(4L, new BigDecimal("0.8"))), null);
@@ -110,9 +116,52 @@ class ExperienceServiceTest {
                 .isInstanceOf(ExperienceException.class);
     }
 
-    private ExperienceCreateRequest request() {
+    @Test
+    void 소유자가_수정하면_역량과_매칭_작업이_갱신된다() {
+        Experience experience = experience(user, 1L);
+        when(experiences.findById(1L)).thenReturn(Optional.of(experience));
+        when(competencies.findAllById(List.of(4L))).thenReturn(List.of(competency));
+        when(jobPostings.findActivePostingIds()).thenReturn(List.of(10L));
+        when(aiTasks.createMatchTask(eq(7L), eq(10L), anyString())).thenReturn(taskWithId(801L));
+
+        ExperienceSaveResponse response = service.update(user, 1L, updateRequest());
+
+        assertThat(response.experience().title()).isEqualTo("MSA 주문 서비스 v2");
+        assertThat(response.experience().competencies()).extracting(c -> c.name()).containsExactly("API 설계·연동");
+        assertThat(response.reassess().taskIds()).containsExactly(801L);
+    }
+
+    @Test
+    void 수정_시_존재하지_않는_경험이면_거부한다() {
+        when(experiences.findById(1L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> service.update(user, 1L, updateRequest()))
+                .isInstanceOf(ExperienceException.class)
+                .extracting(e -> ((ExperienceException) e).status())
+                .isEqualTo(HttpStatus.NOT_FOUND);
+        verify(competencies, never()).findAllById(anyList());
+    }
+
+    @Test
+    void 수정_시_다른_사용자의_경험이면_거부한다() {
+        User otherOwner = user(99L);
+        Experience experience = experience(otherOwner, 1L);
+        when(experiences.findById(1L)).thenReturn(Optional.of(experience));
+
+        assertThatThrownBy(() -> service.update(user, 1L, updateRequest()))
+                .isInstanceOf(ExperienceException.class)
+                .extracting(e -> ((ExperienceException) e).status())
+                .isEqualTo(HttpStatus.FORBIDDEN);
+    }
+
+    private ExperienceCreateRequest createRequest() {
         return new ExperienceCreateRequest("MSA 주문 서비스", ExperienceCategory.TEAM_PROJECT, null, null, "s", "t", "a",
                 "r", List.of(new ExperienceCreateRequest.CompetencyStrength(4L, new BigDecimal("0.8"))), null);
+    }
+
+    private ExperienceUpdateRequest updateRequest() {
+        return new ExperienceUpdateRequest("MSA 주문 서비스 v2", ExperienceCategory.TEAM_PROJECT, null, null, "s", "t",
+                "a", "r", List.of(new ExperienceUpdateRequest.CompetencyStrength(4L, new BigDecimal("0.8"))));
     }
 
     private static ExperienceRepository.UsedCount usedCount(Long experienceId, Long count) {
@@ -127,6 +176,13 @@ class ExperienceServiceTest {
                 return count;
             }
         };
+    }
+
+    private static Experience experience(User user, Long id) {
+        Experience experience = Experience.register(user, "MSA 주문 서비스", ExperienceCategory.TEAM_PROJECT, null, null,
+                "s", "t", "a", "r", null);
+        setId(experience, id);
+        return experience;
     }
 
     private static AiTask taskWithId(Long id) {

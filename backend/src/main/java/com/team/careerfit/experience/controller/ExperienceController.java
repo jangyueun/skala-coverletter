@@ -3,6 +3,7 @@ package com.team.careerfit.experience.controller;
 import com.team.careerfit.experience.dto.ExperienceCreateRequest;
 import com.team.careerfit.experience.dto.ExperienceResponse;
 import com.team.careerfit.experience.dto.ExperienceSaveResponse;
+import com.team.careerfit.experience.dto.ExperienceUpdateRequest;
 import com.team.careerfit.experience.service.ExperienceService;
 import com.team.careerfit.global.security.CurrentUser;
 import com.team.careerfit.user.entity.User;
@@ -12,7 +13,9 @@ import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -43,5 +46,13 @@ public class ExperienceController {
         User user = currentUser.require(request);
         ExperienceSaveResponse response = experienceService.register(user, createRequest);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
+    @PutMapping("/{experienceId}")
+    public ResponseEntity<ExperienceSaveResponse> update(@PathVariable Long experienceId,
+            @Valid @RequestBody ExperienceUpdateRequest updateRequest, HttpServletRequest request) {
+        User user = currentUser.require(request);
+        ExperienceSaveResponse response = experienceService.update(user, experienceId, updateRequest);
+        return ResponseEntity.ok(response);
     }
 }
