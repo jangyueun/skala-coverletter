@@ -72,7 +72,7 @@ class ApiSpecVerificationTest {
                 insert into competencies (name, category, created_at, updated_at)
                 values (?, ?, ?, ?) returning id
                 """)
-                .param("API 설계·연동").param("ROLE").param(now).param(now)
+                .param("검증용 역량-API 설계").param("ROLE").param(now).param(now)
                 .query(Long.class).single();
 
         Long companyId = jdbc.sql("""
@@ -150,7 +150,7 @@ class ApiSpecVerificationTest {
                 .andExpect(jsonPath("$.experience.endDate").doesNotExist())
                 .andExpect(jsonPath("$.experience.aiTaskId").doesNotExist())
                 .andExpect(jsonPath("$.experience.competencies[0].competencyId").value(competencyId))
-                .andExpect(jsonPath("$.experience.competencies[0].name").value("API 설계·연동"))
+                .andExpect(jsonPath("$.experience.competencies[0].name").value("검증용 역량-API 설계"))
                 .andExpect(jsonPath("$.experience.competencies[0].strength").value(0.8))
                 .andExpect(jsonPath("$.experience.usedInQuestions").value(0))
                 // 활성 공고 개수는 다른 마이그레이션의 시드 데이터에 따라 달라진다 — 1개 이상만 확인한다.
