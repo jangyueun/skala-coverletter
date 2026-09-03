@@ -18,6 +18,12 @@ spring:
       # 공용 DB 스키마는 Flyway만 변경하고 Hibernate는 엔티티와의 일치만 검증한다.
       ddl-auto: validate
     open-in-view: false
+  servlet:
+    multipart:
+      # 실제 "10MB 초과" 판정(FILE_TOO_LARGE)은 서비스가 파일당 기준으로 한다. 여기는 그보다
+      # 넉넉하게 잡아 Spring이 먼저 잘라내지 않게만 한다(최대 5개 × 10MB + 여유분).
+      max-file-size: 15MB
+      max-request-size: 80MB
 
   # 로그인 세션 쿠키. HttpOnly 는 JS 가 못 읽게 하는 것이고,
   # SameSite=Lax 여야 Slack 콜백(외부 도메인 → 우리 서버)에 쿠키가 실린다.
@@ -32,6 +38,12 @@ server:
       timeout: 14d
 
 careerfit:
+  storage:
+    # DB 접속용 SUPABASE_DB_URL(풀러 JDBC 주소)과는 다르다 — 프로젝트 REST URL이다. 예: https://xxxx.supabase.co
+    url: ${SUPABASE_URL:}
+    # anon 키가 아니다. RLS를 우회해 서버가 대신 올려야 해서 서비스 롤 키가 필요하다.
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+    bucket: ${SUPABASE_STORAGE_BUCKET:intake}
   internal:
     # 공고 수집기 등 신뢰할 수 있는 서버만 /internal/* 호출에 사용한다.
     # 실제 토큰은 .env 또는 배포 환경변수에만 둔다.

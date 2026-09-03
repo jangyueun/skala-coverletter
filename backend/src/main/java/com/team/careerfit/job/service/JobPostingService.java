@@ -7,6 +7,8 @@ import com.team.careerfit.job.dto.PostingListResponse.EssayState;
 import com.team.careerfit.job.dto.PostingListResponse.Item;
 import com.team.careerfit.job.dto.PostingListResponse.Match;
 import com.team.careerfit.job.dto.PostingQuestionResponse;
+import com.team.careerfit.job.entity.JobPosting;
+import com.team.careerfit.job.entity.PostingStatus;
 import com.team.careerfit.job.exception.JobException;
 import com.team.careerfit.job.repository.JobPostingDetailQueryRepository;
 import com.team.careerfit.job.repository.JobPostingQueryRepository;
@@ -14,6 +16,7 @@ import com.team.careerfit.job.repository.JobPostingQueryRepository.Page;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Row;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.SearchCondition;
 import com.team.careerfit.job.repository.JobPostingQueryRepository.Sort;
+import com.team.careerfit.job.repository.JobPostingRepository;
 import com.team.careerfit.job.repository.PostingQuestionQueryRepository;
 import java.math.RoundingMode;
 import java.time.ZoneId;
@@ -31,14 +34,24 @@ public class JobPostingService {
     private final JobPostingQueryRepository jobPostings;
     private final JobPostingDetailQueryRepository postingDetails;
     private final PostingQuestionQueryRepository postingQuestions;
+    /** 목록·상세용 조회 전용 리포지토리들과 달리, 경험 저장 시 재매칭 대상만 뽑는 단순 조회용. */
+    private final JobPostingRepository postings;
 
     public JobPostingService(
             JobPostingQueryRepository jobPostings,
             JobPostingDetailQueryRepository postingDetails,
-            PostingQuestionQueryRepository postingQuestions) {
+            PostingQuestionQueryRepository postingQuestions,
+            JobPostingRepository postings) {
         this.jobPostings = jobPostings;
         this.postingDetails = postingDetails;
         this.postingQuestions = postingQuestions;
+        this.postings = postings;
+    }
+
+    /** 경험을 저장·수정할 때마다 활성 공고 전부를 다시 매칭시키기 위해 쓴다. */
+    @Transactional(readOnly = true)
+    public List<Long> findActivePostingIds() {
+        return postings.findByStatus(PostingStatus.ACTIVE).stream().map(JobPosting::getId).toList();
     }
 
     @Transactional(readOnly = true)
