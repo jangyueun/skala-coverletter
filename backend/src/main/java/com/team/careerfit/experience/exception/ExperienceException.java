@@ -20,4 +20,9 @@ public class ExperienceException extends ApiException {
     public static ExperienceException forbidden() {
         return new ExperienceException(HttpStatus.FORBIDDEN, "FORBIDDEN", "다른 사용자의 경험입니다.");
     }
+
+    public static ExperienceException fileTooLarge() {
+        return new ExperienceException(HttpStatus.CONTENT_TOO_LARGE, "FILE_TOO_LARGE",
+                "첨부파일이 너무 큽니다. 파일당 10MB까지 올릴 수 있습니다.");
+    }
 }

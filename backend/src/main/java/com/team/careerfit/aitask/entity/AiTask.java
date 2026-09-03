@@ -149,6 +149,14 @@ public class AiTask {
         return new AiTask(AiTaskType.DRAFT, userId, null, questionId, idempotencyKey, inputHash, requestPayload);
     }
 
+    /**
+     * 인테이크는 Storage 경로({@code intake/{userId}/{taskId}/})에 taskId 가 필요해서 links 만으로
+     * 먼저 PENDING 행을 만들고, 파일을 다 올린 뒤 fileUrls 를 채운 스냅샷으로 덮어쓴다.
+     */
+    public void attachRequestPayload(String requestPayload) {
+        this.requestPayload = requestPayload;
+    }
+
     /** 워커가 집어 갔다. 첫 시도든 재시도든 startedAt 은 처음 값을 유지한다 — 전체 소요 시간을 재기 위해서다. */
     public void start() {
         this.status = AiTaskStatus.RUNNING;
