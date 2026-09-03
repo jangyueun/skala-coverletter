@@ -85,26 +85,28 @@ const list = computed(() => {
   <!-- 개수 + 정렬.
        아래 .cols 와 같은 그리드를 써서 목록 열 안에 넣는다 —
        전폭으로 두면 정렬 버튼이 사이드바 위까지 나가 목록과 안 맞는다. -->
-  <section class="count">
-    <div class="count-in">
-      <p class="cn">
-        <b class="num n">{{ list.length }}</b> 개의 공고가 현재 진행중입니다.
-        <span v-if="store.dueSoonCount" class="soon">· 마감 7일 내 {{ store.dueSoonCount }}건</span>
-      </p>
-      <div class="sorts">
-        <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
-        <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
-      </div>
-    </div>
-  </section>
-
-  <!-- 좌 리스트 / 우 필터 -->
+  <!-- 좌 목록 / 우 필터. 개수·정렬 줄을 목록 열 안에 넣어야
+       필터와 목록이 같은 높이에서 시작한다. 밖으로 빼면 필터만 한 줄 밑에서
+       시작해 두 열의 머리가 어긋난다. -->
   <div class="cols">
+    <section class="listcol">
+      <div class="count-in">
+        <p class="cn">
+          <b class="num n">{{ list.length }}</b> 개의 공고가 현재 진행중입니다.
+          <span v-if="store.dueSoonCount" class="soon">· 마감 7일 내 {{ store.dueSoonCount }}건</span>
+        </p>
+        <div class="sorts">
+          <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
+          <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
+        </div>
+      </div>
+
     <section class="list" aria-label="공고 목록">
       <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="store.toggleBookmark" />
       <p v-if="!list.length" class="empty full">
         조건에 맞는 공고가 없습니다. 검색어나 필터를 지워 보세요.
       </p>
+      </section>
     </section>
 
     <aside class="side" aria-label="필터">
@@ -181,20 +183,23 @@ const list = computed(() => {
 }
 
 /* 개수 — .cols 와 같은 그리드. 둘째 열(사이드바 자리)은 비워 둔다. */
-.count {
-  display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px;
-  padding: 30px 0 12px;
-}
-.count-in {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-}
 .cn { margin: 0; font-size: 15px; font-weight: 600; }
 .cn .n { font-size: 20px; font-weight: 800; color: var(--accent); margin-right: 3px; }
 .soon { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 4px; }
 .sorts { display: flex; gap: 7px; margin-left: auto; }
 
 /* 좌 리스트 / 우 필터 */
-.cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: start; }
+/* 두 열 사이에 옅은 선. 선은 목록 열이 긋는다 — 필터는 sticky 라
+   테두리를 걸면 스크롤을 따라다니는 짧은 토막이 된다. */
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 28px; align-items: start; }
+.listcol {
+  min-width: 0; display: flex; flex-direction: column; gap: 14px;
+  padding-right: 28px; border-right: 1px solid var(--line-soft);
+}
+.count-in {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  padding-top: 6px;
+}
 .list {
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
