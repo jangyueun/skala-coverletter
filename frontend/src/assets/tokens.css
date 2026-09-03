@@ -19,15 +19,15 @@
 :root {
   /* ── 패널 ─────────────────────────────────────────────────
      흰색이 아니다. 장비 표면의 회색이라 위에 얹힌 것들이 '부품'으로 읽힌다. */
-  --panel:        #DFE0DC;   /* 바닥면 */
-  --panel-raised: #EAEBE7;   /* 카드·입력칸 */
-  --panel-sunken: #D2D4CE;   /* 눌린 자리·트랙 */
+  --panel:        #F1F1ED;   /* 바닥면 */
+  --panel-raised: #FCFCFA;   /* 카드·입력칸 — 바닥보다 확실히 밝아야 떠 보인다 */
+  --panel-sunken: #E4E5E0;   /* 눌린 자리·트랙 */
 
   /* ── 잉크 ───────────────────────────────────────────────── */
   --ink:    #15181B;
   --ink-2:  #3B4046;
   --muted:  #5C6167;
-  --faint:  #8B9098;
+  --faint:  #6E7378;
 
   /* ── 액센트 — 조작부에만 ─────────────────────────────────
      화면에서 두세 군데만 나타나야 한다. 늘어나면 아무 데도 눈이 안 간다. */
@@ -42,8 +42,8 @@
   --info: #2C5C88;
 
   /* ── 선 ─────────────────────────────────────────────────── */
-  --line:        #B9BBB4;   /* 일반 경계 */
-  --line-soft:   #CBCDC6;
+  --line:        #B8BAB3;   /* 일반 경계 */
+  --line-soft:   #DCDDD7;
   --line-strong: #15181B;   /* 카드 상단 · 버튼 테두리 */
 
   /* ── 서체 ───────────────────────────────────────────────
@@ -76,40 +76,40 @@
    ══════════════════════════════════════════════════════════════ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
-    --panel:        #1A1C1B;
-    --panel-raised: #232624;
-    --panel-sunken: #131514;
+    --panel:        #212422;
+    --panel-raised: #2C302D;
+    --panel-sunken: #191C1A;
     --ink:    #E8EAE6;
     --ink-2:  #B6BAB5;
     --muted:  #8A8F8A;
-    --faint:  #626763;
+    --faint:  #767C77;
     --accent:      #FF3B2D;
     --accent-deep: #D62213;
-    --accent-ink:  #131514;
+    --accent-ink:  #191C1A;
     --ok:   #4FB683;
     --gap:  #D99A3C;
     --info: #74A6D6;
-    --line:        #3A3E3B;
-    --line-soft:   #2C302D;
+    --line:        #474C49;
+    --line-soft:   #383D3A;
     --line-strong: #E8EAE6;
   }
 }
 :root[data-theme='dark'] {
-  --panel:        #1A1C1B;
-  --panel-raised: #232624;
-  --panel-sunken: #131514;
+  --panel:        #212422;
+  --panel-raised: #2C302D;
+  --panel-sunken: #191C1A;
   --ink:    #E8EAE6;
   --ink-2:  #B6BAB5;
   --muted:  #8A8F8A;
-  --faint:  #626763;
+  --faint:  #767C77;
   --accent:      #FF3B2D;
   --accent-deep: #D62213;
-  --accent-ink:  #131514;
+  --accent-ink:  #191C1A;
   --ok:   #4FB683;
   --gap:  #D99A3C;
   --info: #74A6D6;
-  --line:        #3A3E3B;
-  --line-soft:   #2C302D;
+  --line:        #474C49;
+  --line-soft:   #383D3A;
   --line-strong: #E8EAE6;
 }
 
