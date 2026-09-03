@@ -1,0 +1,17 @@
+spring:
+  datasource:
+    url: jdbc:h2:mem:careerfit-test;MODE=PostgreSQL;DB_CLOSE_DELAY=-1
+    username: sa
+    password:
+  flyway:
+    enabled: false
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+
+careerfit:
+  auth:
+    client-id: test-client-id
+    client-secret: test-client-secret
+    redirect-uri: http://localhost:8080/api/auth/slack/callback
+    cookie-secure: false

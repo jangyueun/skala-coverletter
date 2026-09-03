@@ -7,7 +7,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  * Slack 로그인 설정.
  *
  * <p><b>client-secret 은 저장소에 두지 않는다.</b> application.yml 에는 환경변수 참조만
- * 있고 실제 값은 각자의 application-local.yml(.gitignore 됨) 이나 환경변수로 주입한다.
+ * 있고 실제 값은 gitignore된 .env 또는 배포 환경의 환경변수로 주입한다.
  *
  * @param clientId Slack App 의 Client ID
  * @param clientSecret Slack App 의 Client Secret — 절대 커밋 금지

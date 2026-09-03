@@ -7,7 +7,7 @@ Spring Boot(Java 21) 기준입니다. 지금 `backend/` 에 있는 `auth` · `us
 
 - **읽는 사람 기준으로 씁니다.** 3일짜리 프로젝트지만 서로의 코드를 읽어야 합니다.
 - **왜 그렇게 했는지를 남깁니다.** 코드가 무엇을 하는지는 코드가 말합니다. 주석은 이유를 씁니다.
-- **비밀값은 코드에 두지 않습니다.** Client Secret, API Key, 비밀번호는 환경변수나 `application-local.yml` 로만 넣습니다.
+- **비밀값은 코드에 두지 않습니다.** Client Secret, API Key, 비밀번호는 환경변수나 gitignore된 `.env`로만 넣습니다.
 - **Lombok을 쓰지 않습니다.** 지금 코드에 없습니다. 생성자와 getter는 직접 씁니다.
 - **의문이 생기면 담당자에게 묻고 정합니다.** 혼자 다른 방식으로 만들지 않습니다.
 
@@ -264,19 +264,16 @@ throw AuthException.workspaceNotAllowed();   // 응답: 403 {"message": "허용�
 
 - 설정은 `application.yml` 에 둡니다. `application.properties` 는 만들지 않습니다 (Spring Initializr가 만들었으면 지웁니다).
 - **실제 비밀값은 저장소에 넣지 않습니다.** `application.yml` 에는 `${SLACK_CLIENT_SECRET:}` 처럼 환경변수 참조만 둡니다.
-- 개인 값은 `application-local.yml` 에 넣습니다. 이 파일은 `.gitignore` 되어 있습니다.
+- 비밀값은 루트 `.env`에 넣습니다. 이 파일은 `.gitignore`되어 있습니다.
 - 설정 묶음은 `record` + `@ConfigurationProperties` 로 받습니다 (`AuthProperties`). 메인 클래스에 `@ConfigurationPropertiesScan` 이 있어야 동작합니다.
 - 값을 `@Value` 로 여기저기 흩어 받지 않습니다.
 
-### 스키마는 엔티티가 만듭니다
+### 스키마는 Flyway가 만듭니다
 
-`ddl-auto: update` 로 두었습니다. 마이그레이션 도구 없이 엔티티에서 테이블이 만들어집니다.
-두 가지를 주의합니다.
+`ddl-auto: validate`로 두어 Hibernate가 공용 DB를 임의로 변경하지 않게 합니다.
+스키마 변경은 `src/main/resources/db/migration` 아래의 Flyway 마이그레이션으로만 적용합니다.
+이미 적용된 마이그레이션은 수정하지 말고 다음 버전 파일을 추가합니다.
 
-- **`update` 는 컬럼을 지우지 않습니다.** 필드 이름을 바꾸면 새 컬럼이 생기고 옛 컬럼이 그대로 남습니다.
-  옛 컬럼에 `nullable = false` 가 걸려 있으면 그때부터 INSERT가 전부 실패합니다.
-  이름을 바꿨으면 로컬 DB를 지우고 다시 띄우는 게 빠릅니다.
-- **운영에 올릴 거면 `validate` 로 바꾸고 Flyway를 붙입니다.** 지금 설정은 발표까지만 쓰는 것입니다.
 
 ### CORS
 
@@ -339,7 +336,7 @@ void 다른_워크스페이스_계정은_거부된다() {
 
 - [ ] 빌드와 테스트가 통과합니다 (`./gradlew build` — 프로젝트 세팅이 끝난 뒤부터)
 - [ ] 포맷을 적용했습니다 (들여쓰기 4칸 / 120자 / 와일드카드 import 없음)
-- [ ] 비밀값·API Key·`application-local.yml` 이 포함되지 않았습니다
+- [ ] 비밀값·API Key·`.env` 가 포함되지 않았습니다
 - [ ] 컨트롤러가 엔티티를 그대로 반환하지 않습니다
 - [ ] 새로 만든 연관관계에 `fetch = FetchType.LAZY` 가 붙어 있습니다
 - [ ] 요청 DTO에 검증 애너테이션과 `@Valid` 가 붙어 있습니다

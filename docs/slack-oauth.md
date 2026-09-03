@@ -65,12 +65,13 @@ cp .env.example .env
 ```
 
 `.env`에 Supabase DB 접속 정보와 Slack Client ID / Secret을 채운다.
-이 파일은 `.gitignore`되어 있으므로 커밋하지 않는다.
+이 파일은 백엔드 로컬 개발 전용이고 `.gitignore`되어 있으므로 커밋하지 않는다.
+프론트엔드 환경변수는 `frontend/.env.example`을 사용한다.
+
+Spring Boot가 `.env`를 properties 형식으로 직접 읽으므로 `source`하지 않는다.
+값에 쉘용 따옴표를 붙이지 않아야 Docker·IntelliJ와도 같은 파일을 쓸 수 있다.
 
 ```bash
-set -a
-source .env
-set +a
 cd backend
 ./gradlew bootRun
 ```
@@ -156,7 +157,8 @@ server: { proxy: { '/api': 'http://localhost:8080' } }
 실패한다. 증상은 "로그인 눌렀는데 계속 실패" 이고 원인을 찾는 데 한참 걸린다.
 
 **로컬에서 `Secure` 쿠키는 저장되지 않는다.** `http://localhost` 로 개발하면
-`cookie-secure: false` 여야 한다. `application-local.yml.example` 에 그렇게 들어 있다.
+`cookie-secure: false` 여야 한다. 로컬 전용 `.env`에서만
+`SESSION_COOKIE_SECURE=false`로 덮어쓰고, 배포 환경은 기본값 `true`를 유지한다.
 
 **`redirect_uri` 는 문자 하나까지 같아야 한다.** Slack App 설정, `application.yml`,
 토큰 교환 요청 세 곳이 전부 같아야 한다. 끝의 `/` 하나 차이로도 거부된다.
