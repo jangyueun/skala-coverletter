@@ -122,8 +122,8 @@ const list = computed(() => {
 
     <aside class="side" aria-label="필터">
       <div class="sh">
-        <span class="label">Filter<span v-if="activeCount" class="badge">{{ activeCount }}</span></span>
-        <button class="btn btn--quiet btn--sm" @click="clearAll">CLEAR</button>
+        <p class="sht">필터<span v-if="activeCount" class="badge">{{ activeCount }}</span></p>
+        <button class="btn btn--sm" :disabled="!activeCount" @click="clearAll">초기화</button>
       </div>
 
       <!-- 즐겨찾기가 맨 위 — 가장 자주 쓰는 필터다 -->
@@ -212,14 +212,21 @@ const list = computed(() => {
 .full { grid-column: 1 / -1; }
 
 /* 필터가 길어지므로 자체 스크롤을 준다 — 페이지가 필터 길이에 끌려가지 않게 */
+/* padding-top 을 두지 않는다. 카드 그리드와 위쪽 선이 맞아야
+   두 열이 같은 줄에서 시작하는 것으로 읽힌다. */
 .side {
   position: sticky; top: 18px;
-  display: flex; flex-direction: column; gap: 20px; padding-top: 14px;
+  display: flex; flex-direction: column; gap: 20px;
 }
 .sh {
-  display: flex; align-items: center; justify-content: space-between;
-  padding-bottom: 12px; border-bottom: 1px solid var(--ink);
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding-bottom: 11px; border-bottom: 2px solid var(--ink);
   position: sticky; top: 0; background: var(--panel); z-index: 1;
+}
+/* 아래 그룹 제목(직무 계열·기술·언어)과 같은 목소리. 모노 대문자는 여기 안 어울린다. */
+.sht {
+  margin: 0; display: flex; align-items: center;
+  font-size: 15px; font-weight: 800; letter-spacing: var(--track-tight);
 }
 .badge {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
