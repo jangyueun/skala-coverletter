@@ -17,7 +17,7 @@ const nav = [
 
     <nav class="nav" aria-label="주요">
       <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="navlink">{{ n.label }}</RouterLink>
-      <RouterLink to="/experiences" class="btn btn--sm my">MY</RouterLink>
+      <RouterLink to="/my" class="btn btn--sm my">MY</RouterLink>
     </nav>
   </header>
 

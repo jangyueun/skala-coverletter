@@ -54,6 +54,45 @@ export const useCareerStore = defineStore('career', {
       return topGap(this.livePostings, this.experiences)
     },
 
+    /**
+     * MY 화면의 네 목록.
+     *
+     * 마감이 지난 공고도 포함해야 하므로 livePostings 가 아니라 postings 전체를 본다.
+     * 지난 공고는 홈 목록에서는 빠지지만, 내가 자소서를 다 쓴 것이라면
+     * "내가 뭘 냈는지" 를 돌아볼 자리가 있어야 한다.
+     */
+    myLists() {
+      const all = this.postings.map(p => ({
+        posting: p,
+        match: computeMatch(p, this.experiences),
+        essay: essayProgress(p),
+        d: dday(p.deadline),
+        bookmarked: this.bookmarks.has(p.id),
+        sameCompany: this.postings.filter(x => x.company === p.company).length,
+      }))
+      const live = all.filter(c => c.d >= 0)
+      const byDeadline = (a, b) => a.d - b.d
+
+      return [
+        { k: 'bookmark', title: '즐겨찾기한 공고',
+          desc: '나중에 보려고 담아 둔 것',
+          items: live.filter(c => c.bookmarked).sort(byDeadline) },
+
+        { k: 'writing', title: '자소서 작성 중',
+          desc: '문항은 있는데 아직 다 못 채운 것',
+          items: live.filter(c => c.essay.state === 'WRITING' || c.essay.state === 'EMPTY').sort(byDeadline) },
+
+        { k: 'done', title: '작성 완료 · 마감 전',
+          desc: '다 썼고 아직 낼 수 있는 것',
+          items: live.filter(c => c.essay.state === 'DONE').sort(byDeadline) },
+
+        // 마감이 지났으므로 D-day 가 아니라 "얼마나 전이었나" 순으로 최근 것부터
+        { k: 'closed', title: '작성 완료 · 마감 지남',
+          desc: '이미 끝난 공고. 다음 지원에 다시 쓸 문장이 여기 있다',
+          items: all.filter(c => c.d < 0 && c.essay.state === 'DONE').sort((a, b) => b.d - a.d) },
+      ]
+    },
+
     dueSoonCount() {
       return this.cards.filter(c => c.d <= 7).length
     },
