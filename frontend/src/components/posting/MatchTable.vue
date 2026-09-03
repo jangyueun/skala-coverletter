@@ -55,19 +55,31 @@ function toggle(id) {
             <td class="r num wt">{{ r.weight.toFixed(1) }}</td>
           </tr>
 
+          <!-- 요구가 먼저, 답이 그다음. 공고가 이걸 왜 묻는지를 읽고
+               내 경험이 그에 답하는 순서다. -->
           <tr v-if="open.has(r.competencyId)" class="mdet">
             <td colspan="5">
-              <template v-if="r.evid.length">
-                <p v-for="e in r.evid" :key="e.id" class="dl">
-                  <b>{{ e.title }}</b>
-                  <span class="tag st">{{ strLabel(e.strength?.[r.competencyId] ?? 0.6) }}</span>
-                  <span class="res">{{ e.result }}</span>
-                </p>
-              </template>
-              <p v-else class="dl none">
-                이 역량을 태그한 경험이 하나도 없습니다. 경험을 등록하거나, 기존 경험에 이 역량을 태그하세요.
-              </p>
-              <p class="src">공고 근거 — “{{ r.evidence }}”</p>
+              <div class="d">
+                <p class="dk">공고 근거</p>
+                <p class="dv src">“{{ r.evidence }}”</p>
+              </div>
+
+              <div class="d">
+                <p class="dk">내 경험</p>
+                <div class="dv">
+                  <template v-if="r.evid.length">
+                    <p v-for="e in r.evid" :key="e.id" class="ev">
+                      <b class="et">{{ e.title }}</b>
+                      <i class="st">{{ strLabel(e.strength?.[r.competencyId] ?? 0.6) }}</i>
+                      <span class="res">{{ e.result }}</span>
+                    </p>
+                  </template>
+                  <p v-else class="none">
+                    이 역량을 태그한 경험이 하나도 없습니다.
+                    경험을 등록하거나, 기존 경험에 이 역량을 태그하세요.
+                  </p>
+                </div>
+              </div>
             </td>
           </tr>
         </template>
@@ -117,12 +129,38 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 .ev.gap { color: var(--gap); }
 .wt { font-size: 12px; color: var(--muted); }
 
-/* 펼친 근거 */
-.mdet td { background: var(--panel-sunken); padding: 4px 12px 13px; border-bottom: 1px solid var(--line-soft); }
-.dl { margin: 0 0 5px; font-size: 12.5px; display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap; }
-.dl b { font-weight: 700; }
-.st { font-size: 10px; padding: 1px 8px; background: var(--panel); }
-.res { color: var(--muted); }
-.none { color: var(--gap); font-weight: 600; }
-.src { margin: 8px 0 0; font-size: 11.5px; color: var(--faint); }
+/* ── 펼친 근거 ─────────────────────────────────────────────
+   앞의 모양이 안 좋았던 이유는 세 가지였다 —
+   경험 제목이 위 역량 이름과 같은 굵기라 무엇이 상위인지 안 보였고,
+   강/중/약이 알약으로 떠 있어 시선을 먼저 가져갔고,
+   공고 근거가 회색으로 맨 아래에 붙어 읽는 순서가 거꾸로였다.
+
+   왼쪽 홈통에 무엇인지 적고 오른쪽에 내용을 두는, 이 앱이 이미 쓰는 꼴로 맞춘다. */
+.mdet td {
+  background: var(--panel-sunken);
+  padding: 2px 12px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.d { display: grid; grid-template-columns: 62px minmax(0, 1fr); gap: 12px; align-items: baseline; }
+.d + .d { margin-top: 9px; }
+.dk {
+  margin: 0; text-align: right; white-space: nowrap;
+  font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+  letter-spacing: var(--track-label); color: var(--faint);
+}
+.dv { margin: 0; min-width: 0; }
+
+/* 공고 원문은 인용이다. 기울여서 내 문장이 아님을 표시한다. */
+.src { font-size: 12.5px; color: var(--ink-2); font-style: italic; }
+
+.ev { margin: 0; font-size: 12.5px; line-height: 1.7; }
+.ev + .ev { margin-top: 5px; }
+/* 역량 이름(13px/700)보다 한 단 낮춘다 — 무엇에 딸린 것인지가 굵기로 보여야 한다 */
+.et { font-weight: 600; }
+/* 강도는 알약이 아니라 글자 뒤에 붙는 작은 표식이다 */
+.st {
+  font-family: var(--mono); font-style: normal; font-size: 10px; font-weight: 700;
+  color: var(--faint); margin-left: 5px;
+}
+.res { color: var(--muted); margin-left: 8px; }
+.none { margin: 0; font-size: 12.5px; color: var(--gap); font-weight: 600; line-height: 1.6; }
 </style>
