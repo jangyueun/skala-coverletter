@@ -22,5 +22,3 @@ export async function update(id, patch) {
   return clone(rows[i])
 }
 
-/** 포폴 인테이크 후보. 실제로는 AI 가 링크를 읽고 만든다 — 지금은 목 데이터다. */
-export async function candidates() { await delay('experiences'); return clone(DATA.intakeCandidates) }

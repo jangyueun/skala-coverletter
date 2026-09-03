@@ -5,7 +5,6 @@ import { api } from '@/api/index.js'
 export const useExperiencesStore = defineStore('experiences', {
   state: () => ({
     list: [],
-    candidates: [],    // 포폴 인테이크 후보 — 지금은 목뿐이다
     loading: false,
     error: null,
     loaded: false,
@@ -21,10 +20,7 @@ export const useExperiencesStore = defineStore('experiences', {
     async load() {
       if (this.loading) return
       this.loading = true; this.error = null
-      try {
-        const [list, candidates] = await Promise.all([api.experiences.list(), api.experiences.candidates()])
-        this.list = list; this.candidates = candidates
-      }
+      try { this.list = await api.experiences.list() }
       catch (e) { this.error = e }
       finally { this.loading = false; this.loaded = true }
     },

@@ -48,6 +48,61 @@ const EXTRACT_SYSTEM = `너는 채용공고에서 요구 역량을 뽑는다.
   자격요건 상단 > 자격요건 하단 > 우대사항 > 인재상 순으로 무겁다.
 - 없는 것을 지어내는 것보다 적게 뽑는 것이 낫다. 이 결과가 사용자의 매칭 점수를 움직인다.`
 
+/* ── 포폴 인테이크 ─────────────────────────────────────────
+   사용자가 준 링크를 **모델이 직접 읽는다.** web_fetch 는 서버 도구라
+   우리가 크롤러를 짤 필요가 없고, 대화에 이미 있는 URL 만 가져오므로
+   모델이 엉뚱한 곳에 접속할 수 없다. */
+
+const Evidence = z.object({
+  type: z.enum(['REPO', 'PR', 'FILE', 'DOC', 'PAGE']).describe('근거의 출처 종류'),
+  ref: z.string().describe('저장소명·파일 경로·PR 번호·문서명 등 사람이 알아볼 식별자'),
+  quote: z.string().describe('근거가 된 원문 조각 그대로. 요약하지 마라'),
+})
+
+const Question = z.object({
+  field: z.enum(['title', 'period', 'situation', 'task', 'action', 'result']),
+  q: z.string().describe('본인에게 물어야 할 것. 자료에 답이 없어서 묻는 것이다'),
+  why: z.string().describe('왜 자료만으로는 못 채우는지'),
+})
+
+const Candidate = z.object({
+  key: z.string().describe('영문 소문자 짧은 식별자. 중복되지 않게'),
+  title: z.string(),
+  period: z.string().describe('YYYY.MM 또는 YYYY.MM - YYYY.MM. 자료에서 확인 안 되면 빈 문자열'),
+  category: z.enum(['팀 프로젝트', '개인 프로젝트', '실습 프로젝트', '대외활동', '인턴·근무', '수상·자격']),
+  situation: z.string().describe('어떤 상황이었나. **자료에서 확인된 것만.** 없으면 빈 문자열'),
+  action: z.string().describe('무엇을 했나. **자료에서 확인된 것만.** 없으면 빈 문자열'),
+  evidence: z.array(Evidence),
+  questions: z.array(Question),
+  suggestedCompetencyIds: z.array(z.number()).describe('반드시 주어진 사전 안의 id'),
+})
+
+const IntakeResult = z.object({
+  candidates: z.array(Candidate),
+  unreadable: z.array(z.object({
+    source: z.string(),
+    reason: z.string().describe('왜 못 읽었는지 — 비공개, 404, 내용 없음 등'),
+  })).describe('읽으려 했으나 실패한 자료. 없으면 빈 배열'),
+})
+
+const INTAKE_SYSTEM = `너는 지원자가 준 자료(저장소 · 포트폴리오 · 발표자료)를 읽고
+자소서에 쓸 **경험 후보**를 뽑는다. 링크는 web_fetch 로 직접 읽어라.
+
+지켜야 할 것:
+
+- **자료에서 확인된 것만 쓴다.** 코드에 없는 목표(task)와 수치(result)는
+  절대 지어내지 말고 questions 로 되물어라. 지어낸 성과는 면접에서 그대로 무너진다.
+  그래서 이 스키마에는 task 와 result 칸이 아예 없다 — 본인이 다음 화면에서 쓴다.
+- situation 과 action 도 확인 안 되면 **빈 문자열**로 둬라. 채우는 것보다 비우는 게 낫다.
+- evidence.quote 는 원문 조각 그대로다. 파일 경로 · 커밋 메시지 · PR 제목 · 문서 문장.
+  요약하거나 다듬지 마라. 근거를 댈 수 없으면 그 후보를 만들지 마라.
+- suggestedCompetencyIds 는 **주어진 사전 안에서만** 고른다. 지어낸 id 는 매칭 점수로 흘러든다.
+  자료로 증명되는 것만 골라라 — README 에 이름만 적힌 기술은 근거가 아니다.
+- 하나의 자료에서 서로 다른 경험이 여럿 보이면 나눠라. 반대로 여러 자료가
+  같은 프로젝트를 가리키면 하나로 합치고 evidence 를 여러 개 달아라.
+- 읽지 못한 링크는 unreadable 에 이유와 함께 넣어라. 조용히 빠뜨리지 마라 —
+  사용자는 자기가 준 자료가 반영됐는지 알아야 한다.`
+
 /** 사용자가 볼 수 있는 형태로 오류를 만든다. 원문 오류는 서버 콘솔에만 남긴다. */
 function fail(res, status, message) {
   res.statusCode = status
@@ -60,7 +115,8 @@ function readJson(req) {
     let body = ''
     req.on('data', c => {
       body += c
-      if (body.length > 1_000_000) reject(new Error('요청 본문이 너무 큽니다'))
+      // PDF 를 base64 로 받으므로 넉넉히. Anthropic 요청 한도가 32MB 다.
+      if (body.length > 24_000_000) reject(new Error('요청 본문이 너무 큽니다'))
     })
     req.on('end', () => {
       try { resolve(body ? JSON.parse(body) : {}) } catch (e) { reject(e) }
@@ -85,6 +141,112 @@ export default function aiDevServer() {
           '\n      frontend/.env 에 ANTHROPIC_API_KEY=sk-ant-... 를 넣으면 켜집니다.' +
           '\n      (VITE_ 접두사를 붙이지 마세요. 붙이면 키가 브라우저로 새어 나갑니다.)\n')
       }
+
+      /* 포폴 인테이크 — 링크는 web_fetch 로 모델이 직접 읽고, 첨부는 본문에 실어 보낸다. */
+      server.middlewares.use('/api/ai/intake', async (req, res, next) => {
+        if (req.method !== 'POST') return next()
+        if (!client) {
+          return fail(res, 503,
+            'AI 키가 설정되지 않았습니다. frontend/.env 에 ANTHROPIC_API_KEY 를 넣고 dev 서버를 다시 시작하세요.')
+        }
+
+        try {
+          const { links = [], files = [], competencies } = await readJson(req)
+          const urls = links.map(s => String(s).trim()).filter(Boolean)
+          if (!urls.length && !files.length) return fail(res, 400, '링크나 첨부파일이 필요합니다.')
+          if (!Array.isArray(competencies) || !competencies.length) {
+            return fail(res, 400, '역량 사전이 필요합니다.')
+          }
+
+          /* 사용자 메시지에 자료를 싣는다.
+             web_fetch 는 **대화에 이미 있는 URL 만** 가져온다 — 여기 적힌 것 외에는
+             모델이 어디에도 접속할 수 없다. 그게 이 도구를 쓰는 이유이기도 하다. */
+          const content = []
+
+          for (const f of files) {
+            if (f.mediaType === 'application/pdf') {
+              // PDF 는 네이티브로 읽는다. 텍스트 추출을 우리가 할 필요가 없다.
+              content.push({
+                type: 'document',
+                source: { type: 'base64', media_type: 'application/pdf', data: f.data },
+                title: f.name,
+              })
+            } else {
+              // md · txt 는 그냥 글이다. base64 를 풀어 본문에 붙인다.
+              const text = Buffer.from(f.data, 'base64').toString('utf8')
+              content.push({ type: 'text', text: `# 첨부: ${f.name}\n\n${text}` })
+            }
+          }
+
+          content.push({
+            type: 'text',
+            text: `# 역량 사전 (suggestedCompetencyIds 는 이 안에서만)
+${competencies.map(c => `${c.id}. ${c.name} [${c.category}]`).join('\n')}
+
+# 읽을 링크
+${urls.length ? urls.map(u => `- ${u}`).join('\n') : '(없음)'}
+
+${files.length ? `# 첨부 ${files.length}건은 위에 실려 있다.\n` : ''}
+위 링크를 web_fetch 로 직접 읽고, 첨부와 함께 경험 후보를 뽑아라.`,
+          })
+
+          const t0 = Date.now()
+          const messages = [{ role: 'user', content }]
+          let response
+
+          /* 서버 도구는 여러 턴이 돌 수 있다. pause_turn 이면 지금까지의 응답을
+             그대로 붙여 이어 간다 — 내용을 요약해서 넣으면 도구 결과가 깨진다. */
+          for (let turn = 0; turn < 8; turn++) {
+            response = await client.messages.create({
+              model: 'claude-opus-5',
+              max_tokens: 32000,
+              thinking: { type: 'adaptive' },
+              system: INTAKE_SYSTEM,
+              tools: [{
+                type: 'web_fetch_20260209',
+                name: 'web_fetch',
+                max_uses: Math.min(20, urls.length * 3 + 2),
+              }],
+              messages,
+              output_config: { format: zodOutputFormat(IntakeResult) },
+            })
+            if (response.stop_reason !== 'pause_turn') break
+            messages.push({ role: 'assistant', content: response.content })
+          }
+
+          const parsed = response.parsed_output
+          if (!parsed) return fail(res, 502, 'AI 응답을 해석하지 못했습니다. 다시 시도해 주세요.')
+
+          /* 모델이 사전 밖의 id 를 냈으면 여기서 버린다.
+             프롬프트로 지시했다고 검증을 생략하면 지어낸 id 가 매칭 점수로 흘러든다. */
+          const known = new Set(competencies.map(c => c.id))
+          let dropped = 0
+          const candidates = parsed.candidates.map(c => {
+            const ids = c.suggestedCompetencyIds.filter(id => known.has(id))
+            dropped += c.suggestedCompetencyIds.length - ids.length
+            return { ...c, suggestedCompetencyIds: ids, duplicateOfExperienceId: null }
+          })
+          if (dropped) server.config.logger.warn(`  [ai] 사전에 없는 competencyId ${dropped}건을 버렸습니다.`)
+
+          // web_fetch 오류는 예외가 아니라 200 안의 블록으로 온다 — 세어서 알려 준다.
+          const fetchErrors = (response.content || []).filter(
+            b => b.type === 'web_fetch_tool_result' && b.content?.type === 'web_fetch_tool_error').length
+
+          res.setHeader('Content-Type', 'application/json; charset=utf-8')
+          res.end(JSON.stringify({
+            candidates,
+            unreadable: parsed.unreadable,
+            _meta: { ms: Date.now() - t0, usage: response.usage, droppedUnknownIds: dropped, fetchErrors },
+          }))
+        } catch (e) {
+          server.config.logger.error(`  [ai] intake 실패: ${e.message}`)
+          const status = e.status === 401 ? 401 : e.status === 429 ? 429 : 502
+          fail(res, status,
+            status === 401 ? 'API 키가 올바르지 않습니다.'
+            : status === 429 ? '요청이 몰렸습니다. 잠시 후 다시 시도해 주세요.'
+            : 'AI 호출에 실패했습니다.')
+        }
+      })
 
       server.middlewares.use('/api/ai/extract', async (req, res, next) => {
         if (req.method !== 'POST') return next()

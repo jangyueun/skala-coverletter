@@ -16,3 +16,9 @@ export async function draft(questionId) {
   if (!q?.aiDraft) throw new Error('이 문항은 아직 AI 초안이 없습니다')
   return { draft: q.aiDraft }
 }
+
+/** 목 인테이크 — 링크를 읽는 척하고 고정 후보를 돌려준다. */
+export async function intake() {
+  await delay('ai')
+  return { candidates: DATA.intakeCandidates, unreadable: [] }
+}

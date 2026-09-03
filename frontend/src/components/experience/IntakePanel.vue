@@ -2,6 +2,7 @@
 import { ref, reactive, computed } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { usePostingsStore } from '@/stores/postings.js'
+import { api } from '@/api/index.js'
 import { computeMatch, SCORE } from '@/domain/matching.js'
 import IntakeField from './IntakeField.vue'
 import CompetencyPicker from './CompetencyPicker.vue'
@@ -41,8 +42,23 @@ const files = ref([])
 const fileEl = ref(null)
 const dragging = ref(false)
 
-const ACCEPT = '.pdf,.md,.txt,.docx,.pptx'
-const okName = n => /\.(pdf|md|txt|docx|pptx)$/i.test(n)
+/* PDF 는 모델이 네이티브로 읽고, md·txt 는 글 그대로 싣는다.
+   docx·pptx 는 아직 못 읽으므로 받지 않는다 — 받아 놓고 안 읽으면 그게 더 나쁘다. */
+const ACCEPT = '.pdf,.md,.txt'
+const okName = n => /\.(pdf|md|txt)$/i.test(n)
+const mediaOf = n => /\.pdf$/i.test(n) ? 'application/pdf' : 'text/plain'
+
+/* 업로드 스토리지가 없어 요청 본문에 base64 로 싣는다. Anthropic 한도가 32MB 라
+   여유를 두고 20MB 에서 막는다 — 넘으면 서버가 아니라 여기서 말해 준다. */
+const MAX_BYTES = 20 * 1024 * 1024
+const fileBytes = computed(() => files.value.reduce((a, f) => a + f.size, 0))
+
+const readB64 = f => new Promise((ok, no) => {
+  const r = new FileReader()
+  r.onload = () => ok(String(r.result).split(',')[1])
+  r.onerror = () => no(new Error(`${f.name} 을 읽지 못했습니다`))
+  r.readAsDataURL(f)
+})
 
 function addFiles(list) {
   const add = [...list].filter(f => okName(f.name) && !files.value.some(x => x.name === f.name))
@@ -56,7 +72,9 @@ const kb = n => (n < 1024 ? `${n}B` : n < 1024 * 1024 ? `${Math.round(n / 1024)}
 
 const linkCount = computed(() => links.value.split('\n').filter(s => s.trim()).length)
 
-const cands = computed(() => E.candidates)
+const cands = ref([])          // 분석이 돌아야 채워진다
+const unreadable = ref([])     // 읽지 못한 자료 — 조용히 빠뜨리지 않는다
+const runError = ref(null)
 const candOf = k => cands.value.find(c => c.key === k)
 
 const aiOf = (c, f) => (c[f] || '').trim()
@@ -103,8 +121,26 @@ const isReady = k => missingOf(k).length === 0
 async function analyze() {
   // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
   if (!linkCount.value && !files.value.length) return
-  state.value = 'running'
-  await new Promise(r => setTimeout(r, 1600))
+  if (fileBytes.value > MAX_BYTES) {
+    runError.value = new Error(`첨부가 너무 큽니다 (${(fileBytes.value / 1048576).toFixed(1)}MB). 20MB 아래로 줄여 주세요.`)
+    return
+  }
+
+  state.value = 'running'; runError.value = null
+  try {
+    const payload = await Promise.all(files.value.map(async f => ({
+      name: f.name, mediaType: mediaOf(f.name), data: await readB64(f),
+    })))
+    const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
+    const r = await api.ai.intake(urls, payload, P.competencies)
+    cands.value = r.candidates || []
+    unreadable.value = r.unreadable || []
+  } catch (e) {
+    runError.value = e
+    state.value = 'idle'
+    return
+  }
+
   state.value = 'done'
   step.value = 1
   chosen.value = new Set()
@@ -221,6 +257,8 @@ function reset() {
   active.value = null
   linksOpen.value = true
   armed.value = null
+  cands.value = []
+  unreadable.value = []
 }
 
 /* 초안이 한 글자라도 바뀌면 2단 확인 무장이 풀린다 */
@@ -270,7 +308,21 @@ const onEdit = () => { armed.value = null }
       <span class="tag" :class="state === 'done' ? 'tag--ok' : state === 'running' ? 'tag--gap' : ''">
         {{ state === 'idle' ? '대기' : state === 'running' ? 'PENDING' : 'COMPLETED' }}
       </span>
-      <span class="muted note">첨부는 텍스트를 추출해 링크와 함께 읽는다 · PDF · MD · TXT · DOCX · PPTX</span>
+      <span class="muted note">
+        링크는 AI 가 직접 열어 읽는다 · 첨부는 PDF · MD · TXT
+        <template v-if="fileBytes">· {{ (fileBytes / 1048576).toFixed(1) }}MB</template>
+      </span>
+    </div>
+
+    <p v-if="runError" class="rerr">
+      자료를 읽지 못했습니다 — {{ runError.body?.message || runError.message }}
+    </p>
+
+    <div v-if="unreadable.length" class="unread">
+      <p class="ut">읽지 못한 자료 {{ unreadable.length }}건</p>
+      <p v-for="u in unreadable" :key="u.source" class="ul">
+        <b>{{ u.source }}</b> — {{ u.reason }}
+      </p>
     </div>
 
     <!-- 1단계 · 후보 선택 -->
@@ -453,7 +505,14 @@ const onEdit = () => { armed.value = null }
 
 .fold { margin: 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 9px; }
 .run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.note { font-size: var(--fs-2xs); margin-left: auto; }
+.note { font-size: var(--fs-2xs); margin-left: auto; text-align: right; }
+.rerr { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-family: var(--mono); }
+
+/* 읽지 못한 자료는 조용히 빠뜨리지 않는다 — 사용자는 자기가 준 것이 반영됐는지 알아야 한다. */
+.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); }
+.ut { margin: 0 0 5px; font-size: var(--fs-2xs); font-weight: 700; color: var(--gap); }
+.ul { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
+.ul b { color: var(--ink-2); font-weight: 600; }
 
 @media (max-width: 640px) { .src { grid-template-columns: 1fr; } }
 

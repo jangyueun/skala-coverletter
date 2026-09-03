@@ -13,3 +13,13 @@ export const extract = text => client.post('/ai/extract', { text })
  */
 export const draft = (questionId, usedExperienceIds) =>
   client.post('/ai/draft', { questionId, usedExperienceIds })
+
+/**
+ * 포폴 인테이크 — 링크는 모델이 web_fetch 로 직접 읽는다.
+ *
+ * files 는 base64 로 싣는다. PDF 는 모델이 네이티브로 읽고, md·txt 는 서버가
+ * 풀어서 본문에 붙인다. 업로드 스토리지가 없으므로 요청 본문에 그대로 담는다 —
+ * Anthropic 요청 한도가 32MB 라 발표자료 몇 건은 문제없다.
+ */
+export const intake = (links, files, competencies) =>
+  client.post('/ai/intake', { links, files, competencies })
