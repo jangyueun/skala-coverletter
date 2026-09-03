@@ -119,6 +119,17 @@ DTO로 바꾸는 위치에 주의합니다. `application.yml` 에 `open-in-view:
 - 연관 엔티티를 쓰는 응답은 **트랜잭션이 살아 있는 서비스 안에서** DTO까지 만들어 반환합니다.
 - 연관 없이 자기 필드만 쓰는 응답은 컨트롤러에서 변환해도 됩니다 (`MeController` 가 그렇습니다).
 
+**성공 응답은 DTO를 그대로 내보냅니다.** `{"data": ...}` 같은 껍데기를 씌우지 않습니다.
+목록은 배열 그대로, 단건은 객체 그대로입니다. 성공과 실패는 상태 코드로 구분하고,
+실패일 때만 `{"message": "..."}` 형식을 씁니다 (7절).
+
+```java
+return ResponseEntity.ok(CoverLetterResponse.from(saved));   // 좋음
+return ResponseEntity.ok(Map.of("data", saved));             // 나쁨
+```
+
+> 프론트와 맞물리는 부분입니다. 다르게 갈 거면 **프론트 담당자와 먼저 합의**하고 이 문서를 고칩니다.
+
 ### Service
 
 - `@Service` 를 붙입니다. 실제 로직은 여기에 있습니다.
@@ -257,6 +268,25 @@ throw AuthException.workspaceNotAllowed();   // 응답: 403 {"message": "허용�
 - 설정 묶음은 `record` + `@ConfigurationProperties` 로 받습니다 (`AuthProperties`). 메인 클래스에 `@ConfigurationPropertiesScan` 이 있어야 동작합니다.
 - 값을 `@Value` 로 여기저기 흩어 받지 않습니다.
 
+### 스키마는 엔티티가 만듭니다
+
+`ddl-auto: update` 로 두었습니다. 마이그레이션 도구 없이 엔티티에서 테이블이 만들어집니다.
+두 가지를 주의합니다.
+
+- **`update` 는 컬럼을 지우지 않습니다.** 필드 이름을 바꾸면 새 컬럼이 생기고 옛 컬럼이 그대로 남습니다.
+  옛 컬럼에 `nullable = false` 가 걸려 있으면 그때부터 INSERT가 전부 실패합니다.
+  이름을 바꿨으면 로컬 DB를 지우고 다시 띄우는 게 빠릅니다.
+- **운영에 올릴 거면 `validate` 로 바꾸고 Flyway를 붙입니다.** 지금 설정은 발표까지만 쓰는 것입니다.
+
+### CORS
+
+프론트가 다른 포트에서 뜨면 필요합니다. 설정 클래스는 `global/config` 에 하나만 둡니다.
+
+- **`allowedOrigins("*")` 를 쓸 수 없습니다.** 로그인 상태를 세션 쿠키로 유지하기 때문에
+  `allowCredentials(true)` 가 필요한데, 브라우저는 `*` 와 이 조합을 거부합니다.
+  허용할 주소를 명시적으로 적습니다.
+- 허용 주소는 코드에 박지 말고 `application.yml` 로 뺍니다. 로컬과 배포 주소가 다릅니다.
+
 ## 9. 로깅
 
 - SLF4J를 씁니다. `System.out.println` 을 쓰지 않습니다.
@@ -300,6 +330,9 @@ void 다른_워크스페이스_계정은_거부된다() {
 ```
 
 - 단언은 `assertThat(...)` / `assertThatThrownBy(...)` 를 씁니다.
+- **`@SpringBootTest` 를 기본으로 쓰지 않습니다.** 스프링 컨텍스트를 띄우면 테스트 하나에 몇 초씩 걸립니다.
+  의존성을 `mock(...)` 으로 만들어 생성자로 넣고 검증하는 게 기본입니다 (`SlackLoginServiceTest` 참고).
+  컨텍스트가 꼭 필요할 때만 `@SpringBootTest`, 웹 계층만 필요하면 `@WebMvcTest`, JPA만 필요하면 `@DataJpaTest` 를 씁니다.
 - 시간이 없으면 전부 짤 필요는 없습니다. **깨지면 서비스가 뚫리거나 데이터가 망가지는 것부터** 짭니다.
 
 ## 12. PR 올리기 전 확인
