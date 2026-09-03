@@ -76,6 +76,30 @@ public class AiTaskService {
         task.attachRequestPayload(requestPayload);
     }
 
+    /**
+     * 초안은 같은 (사용자, 문항)에 진행 중(PENDING·RUNNING) 작업이 있으면 새로 만들지 않는다.
+     * 입력이 같으면(inputHash — 문항 + 근거 경험 선택) 그 작업을 재사용(200)하고, 다르면 409 로 막는다.
+     */
+    @Transactional
+    public Reservation reserveDraftTask(Long userId, Long questionId, String requestPayload) {
+        String inputHash = sha256(requestPayload);
+
+        Optional<AiTask> inFlight = aiTasks.findFirstByTaskTypeAndUserIdAndQuestionIdAndStatusIn(
+                AiTaskType.DRAFT, userId, questionId, List.of(AiTaskStatus.PENDING, AiTaskStatus.RUNNING));
+
+        if (inFlight.isPresent()) {
+            AiTask task = inFlight.get();
+            if (!task.getInputHash().equals(inputHash)) {
+                throw AiTaskException.draftAlreadyRunning();
+            }
+            return new Reservation(task.getId(), false);
+        }
+
+        String idempotencyKey = sha256("DRAFT|" + userId + "|" + questionId + "|" + inputHash);
+        AiTask task = aiTasks.save(AiTask.draft(userId, questionId, idempotencyKey, inputHash, requestPayload));
+        return new Reservation(task.getId(), true);
+    }
+
     public record Reservation(Long taskId, boolean created) {
     }
 
