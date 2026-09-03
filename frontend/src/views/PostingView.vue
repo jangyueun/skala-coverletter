@@ -33,8 +33,12 @@ const verdict = computed(() => {
   return { k: '보강 필요', tone: 'gap' }
 })
 
-/* 같은 기업 다른 직무 / 다른 기업 같은 직무.
-   공고가 직무 단위라는 걸 화면에서 보이게 하는 자리다. */
+/* 같은 기업 다른 직무 / 다른 기업 비슷한 직무.
+   공고가 직무 단위라는 걸 화면에서 보이게 하는 자리다.
+
+   "같은 직무" 가 아니라 "비슷한" 이다. role 은 계열이라 "서버 개발" 과
+   "백엔드 엔지니어" 를 한 묶음으로 본다 — 기업마다 직무명이 제각각이라
+   문자열로는 못 묶기 때문이다. 같다고 말하면 과장이 된다. */
 const related = computed(() => {
   if (!posting.value) return { sameCo: [], sameRole: [] }
   const me = posting.value
@@ -45,6 +49,12 @@ const related = computed(() => {
   }
 })
 const pctOf = p => Math.round(store.matchFor(p).overall * 100)
+
+const ROLE = {
+  BACKEND: '백엔드', FRONTEND: '프론트엔드', FULLSTACK: '풀스택',
+  PLATFORM: '플랫폼·인프라', AI: 'AI',
+}
+const roleLabel = computed(() => ROLE[posting.value?.role] || posting.value?.role || '')
 
 const questions = computed(() => {
   const app = store.applications.find(a => a.postingId === posting.value?.id)
@@ -59,7 +69,7 @@ const questions = computed(() => {
     <!-- 머리 — 판독값과 판정을 먼저 -->
     <header class="hd">
       <div class="hd-l">
-        <p class="label">{{ posting.company }} · {{ posting.role }}</p>
+        <p class="label">{{ posting.company }} · {{ roleLabel }}</p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
           <span class="tag tag--ink"><b class="num">D-{{ d }}</b>&nbsp;{{ posting.deadline }} 마감</span>
@@ -123,7 +133,7 @@ const questions = computed(() => {
         </div>
 
         <div v-if="related.sameRole.length" class="relgrp">
-          <p class="rl">다른 기업 · 같은 직무 ({{ posting.role }})</p>
+          <p class="rl">다른 기업 · 비슷한 직무 <span class="rlk">{{ roleLabel }}</span></p>
           <button v-for="p in related.sameRole" :key="p.id" class="rel panel panel--press"
                   @click="router.push(`/postings/${p.id}`)">
             <span class="rn">{{ p.company }} · {{ p.position }}</span>
@@ -230,6 +240,7 @@ const questions = computed(() => {
 
 .relgrp { margin-top: 14px; }
 .rl { margin: 0 0 7px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.rlk { color: var(--ink); }
 .rel {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;
   padding: 9px 12px; margin-bottom: 6px; text-align: left; font: inherit; color: inherit;
