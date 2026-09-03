@@ -1,7 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
-import PostingRow from '@/components/posting/PostingRow.vue'
+import PostingCard from '@/components/posting/PostingCard.vue'
 
 const store = useCareerStore()
 const q = ref('')
@@ -97,8 +97,8 @@ const suggest = computed(() => {
   <!-- 좌 리스트 / 우 필터 -->
   <div class="cols">
     <section class="list" aria-label="공고 목록">
-      <PostingRow v-for="c in list" :key="c.posting.id" :card="c" @bookmark="store.toggleBookmark" />
-      <p v-if="!list.length" class="empty">
+      <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="store.toggleBookmark" />
+      <p v-if="!list.length" class="empty full">
         조건에 맞는 공고가 없습니다. 검색어나 필터를 지워 보세요.
       </p>
     </section>
@@ -184,8 +184,13 @@ const suggest = computed(() => {
 
 /* 좌 리스트 / 우 필터 */
 .cols { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 40px; align-items: start; }
-.list { border-top: 2px solid var(--ink); }
+.list {
+  display: grid; gap: 12px;
+  grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
+  align-items: stretch;
+}
 .empty { padding: 50px 0; text-align: center; color: var(--muted); }
+.full { grid-column: 1 / -1; }
 
 .side { position: sticky; top: 18px; display: flex; flex-direction: column; gap: 22px; padding-top: 14px; }
 .sh { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
