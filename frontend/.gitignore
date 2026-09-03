@@ -13,8 +13,8 @@ dist-ssr
 *.local
 
 # Editor directories and files
+# extensions.json 도 무시한다. 확장 추천은 각자 로컬 환경에 맡긴다.
 .vscode/*
-!.vscode/extensions.json
 .idea
 .DS_Store
 *.suo
