@@ -1,0 +1,107 @@
+package com.team.careerfit.experience.service;
+
+import com.team.careerfit.aitask.entity.AiTask;
+import com.team.careerfit.aitask.service.AiTaskService;
+import com.team.careerfit.competency.entity.Competency;
+import com.team.careerfit.competency.repository.CompetencyRepository;
+import com.team.careerfit.experience.dto.ExperienceResponse;
+import com.team.careerfit.experience.dto.ExperienceSaveResponse;
+import com.team.careerfit.experience.dto.ExperienceUpdateRequest;
+import com.team.careerfit.experience.entity.Experience;
+import com.team.careerfit.experience.exception.ExperienceException;
+import com.team.careerfit.experience.repository.ExperienceRepository;
+import com.team.careerfit.job.service.JobPostingService;
+import com.team.careerfit.user.entity.User;
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+@Service
+public class ExperienceService {
+
+    private final ExperienceRepository experiences;
+    private final CompetencyRepository competencies;
+    private final JobPostingService jobPostings;
+    private final AiTaskService aiTasks;
+
+    public ExperienceService(ExperienceRepository experiences, CompetencyRepository competencies,
+            JobPostingService jobPostings, AiTaskService aiTasks) {
+        this.experiences = experiences;
+        this.competencies = competencies;
+        this.jobPostings = jobPostings;
+        this.aiTasks = aiTasks;
+    }
+
+    /**
+     * 경험을 통째로 다시 쓰고, 이 경험 때문에 매칭 결과가 바뀔 수 있는 활성 공고마다 MATCH 작업을 다시 만든다.
+     *
+     * @throws ExperienceException 대상이 없으면 {@code EXPERIENCE_NOT_FOUND}, 남의 경험이면 {@code FORBIDDEN},
+     *         제목·결과가 비었거나 역량이 없거나 존재하지 않는 역량이거나 종료일이 시작일보다 빠르면 {@code VALIDATION_FAILED}
+     */
+    @Transactional
+    public ExperienceSaveResponse update(User user, Long experienceId, ExperienceUpdateRequest request) {
+        Experience experience = experiences.findById(experienceId).orElseThrow(ExperienceException::notFound);
+        if (!experience.isOwnedBy(user.getId())) {
+            throw ExperienceException.forbidden();
+        }
+
+        validatePeriod(request.startDate(), request.endDate());
+        Map<Competency, BigDecimal> strengths = resolveCompetencies(request.competencies());
+
+        experience.update(request.title(), request.category(), request.startDate(), request.endDate(),
+                request.situation(), request.task(), request.action(), request.result());
+        experience.replaceCompetencies(strengths);
+
+        ExperienceResponse response = ExperienceResponse.of(experience, experience.getCompetencies(), 0L);
+        ExperienceSaveResponse.Reassess reassess = reassessActivePostings(user.getId(), experience.getId());
+
+        return new ExperienceSaveResponse(response, reassess);
+    }
+
+    private ExperienceSaveResponse.Reassess reassessActivePostings(Long userId, Long experienceId) {
+        List<Long> activePostingIds = jobPostings.findActivePostingIds();
+        List<Long> taskIds = activePostingIds.stream()
+                .map(postingId -> aiTasks.createMatchTask(userId, postingId, matchTaskPayload(experienceId, postingId)))
+                .map(AiTask::getId)
+                .toList();
+        return new ExperienceSaveResponse.Reassess(taskIds.size(), taskIds);
+    }
+
+    /**
+     * 지금은 최소 스냅샷만 담는다. {@code POST /ai/match} 계약 그대로의 페이로드(공고 요구 역량,
+     * 사용자 전체 경험)는 MockAiClient·워커를 붙일 때 채운다 — 이번 범위는 작업 생성까지다.
+     */
+    private String matchTaskPayload(Long experienceId, Long jobPostingId) {
+        return "{\"jobPostingId\":" + jobPostingId + ",\"triggeredByExperienceId\":" + experienceId + "}";
+    }
+
+    private void validatePeriod(LocalDate startDate, LocalDate endDate) {
+        if (startDate != null && endDate != null && endDate.isBefore(startDate)) {
+            throw ExperienceException.validationFailed("종료일은 시작일보다 빠를 수 없습니다.");
+        }
+    }
+
+    private Map<Competency, BigDecimal> resolveCompetencies(List<ExperienceUpdateRequest.CompetencyStrength> items) {
+        List<Long> ids = items.stream().map(ExperienceUpdateRequest.CompetencyStrength::competencyId).toList();
+        Map<Long, Competency> byId = competencies.findAllById(ids).stream()
+                .collect(Collectors.toMap(Competency::getId, competency -> competency));
+
+        Set<Long> distinctIds = new HashSet<>(ids);
+        if (byId.size() != distinctIds.size()) {
+            throw ExperienceException.validationFailed("존재하지 않는 역량이 포함되어 있습니다.");
+        }
+
+        Map<Competency, BigDecimal> strengths = new LinkedHashMap<>();
+        for (ExperienceUpdateRequest.CompetencyStrength item : items) {
+            strengths.put(byId.get(item.competencyId()), item.strength());
+        }
+        return strengths;
+    }
+}
