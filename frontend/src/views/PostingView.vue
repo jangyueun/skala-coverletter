@@ -80,7 +80,9 @@ const questions = computed(() => {
     <!-- 머리 — 판독값과 판정을 먼저 -->
     <header class="hd">
       <div class="hd-l">
-        <p class="label">{{ posting.company }} · {{ roleLabel }}</p>
+        <!-- 회사는 눈썹 문구가 아니라 읽는 줄이다. 카드에서 회사가 직무의
+             70% 크기로 또렷하게 읽히는 것과 같은 비중으로 올린다. -->
+        <p class="co"><b>{{ posting.company }}</b><span class="rolek"> · {{ roleLabel }}</span></p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
           <!-- 끝난 공고라는 사실이 제일 먼저 읽혀야 한다. 이걸 놓치면
@@ -100,14 +102,14 @@ const questions = computed(() => {
                 @click="store.toggleBookmark(posting.id)">
           {{ store.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
         </button>
+        <!-- 막대 게이지는 뺐다. .gauge 정의가 어디에도 없어 10개 <i> 가
+             보이지 않는 채로 18px 만 먹고 있었고, 그게 판정을 퍼센트에서
+             떼어 놓고 있었다. 숫자가 이미 같은 값을 말한다. -->
         <div class="rd">
-          <p class="label">Match</p>
-          <div class="num num--lg num--read">{{ pct }}<span class="pc">%</span></div>
-          <div class="gauge big" aria-hidden="true">
-            <i v-for="i in 10" :key="i"
-               :class="i <= Math.round(pct / 10) ? (gaps.length && i === Math.round(pct/10) ? 'gap' : 'on') : ''"
-               :style="{ height: 4 + i * 1.3 + 'px' }" />
-          </div>
+          <p class="pctline">
+            <span class="num num--read pctn">{{ pct }}</span><span class="pc">%</span>
+            <span class="rl">매칭률</span>
+          </p>
           <p class="verdict" :class="verdict.tone">{{ verdict.k }}</p>
         </div>
       </div>
@@ -215,15 +217,24 @@ const questions = computed(() => {
 
 .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 22px; flex-wrap: wrap; }
 .hd-l { min-width: 0; flex: 1 1 340px; }
-.pos { margin-top: 6px; font-size: clamp(1.7rem, 4.4vw, 2.6rem); }
+/* 카드의 회사:직무 비율(12.5 : 18 = 0.69)을 상세에도 그대로 준다.
+   41.6 × 0.69 ≈ 26px. 직무 계열은 회사를 한정하는 말이라 같이 키우지 않는다 —
+   둘 다 26px 이면 회사 이름이 어디서 끝나는지가 안 보인다. */
+.co { margin: 0; display: flex; align-items: baseline; gap: 0; letter-spacing: var(--track-tight); }
+.co b { font-size: 26px; font-weight: 700; color: var(--ink-2); line-height: 1.25; }
+.rolek { font-size: 15px; font-weight: 500; color: var(--muted); }
+.pos { margin-top: 4px; font-size: clamp(1.7rem, 4.4vw, 2.6rem); }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 
 .hd-r { flex: none; display: flex; flex-direction: column; align-items: flex-end; gap: 14px; }
 .bm { flex: none; }
-.rd { display: flex; flex-direction: column; align-items: flex-end; gap: 3px; }
-.pc { font-size: 0.55em; opacity: .6; margin-left: 1px; }
-.gauge.big { height: 18px; }
-.verdict { margin: 4px 0 0; font-size: 13px; font-weight: 700; }
+.rd { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
+/* 숫자·% ·라벨이 한 줄이다. 라벨을 위에 얹으면 그만큼 판정이 아래로 밀린다. */
+.pctline { margin: 0; display: flex; align-items: baseline; gap: 1px; }
+.pctn { font-size: 26px; font-weight: 800; line-height: 1.1; }
+.pc { font-size: 15px; font-weight: 700; color: var(--muted); }
+.rl { margin-left: 7px; font-size: 12px; font-weight: 600; color: var(--muted); }
+.verdict { margin: 0; font-size: 13px; font-weight: 700; }
 .verdict.ok { color: var(--ok); }
 .verdict.gap { color: var(--gap); }
 
