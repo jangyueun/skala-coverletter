@@ -57,10 +57,6 @@ async function makeDraft() {
     <div class="two">
       <div class="main">
         <p class="prompt">{{ q.prompt }}</p>
-        <p v-if="q.intent" class="intent">평가 의도 — {{ q.intent }}</p>
-        <div v-if="q.asks?.length" class="asks">
-          <span v-for="(a, i) in q.asks" :key="i" class="tag">{{ a }}</span>
-        </div>
 
         <!-- 분량 — 막대와 숫자가 같은 판정을 쓴다 -->
         <div class="meterrow">
@@ -105,8 +101,6 @@ async function makeDraft() {
 .main { display: flex; flex-direction: column; gap: 11px; min-width: 0; }
 
 .prompt { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.55; }
-.intent { margin: 0; font-size: 12px; color: var(--muted); line-height: 1.6; }
-.asks { display: flex; gap: 5px; flex-wrap: wrap; }
 
 .meterrow { display: flex; align-items: center; gap: 10px; }
 .meter { flex: 1; height: 5px; background: var(--panel-sunken); border-radius: var(--pill); overflow: hidden; }
@@ -139,7 +133,9 @@ async function makeDraft() {
 .em { display: block; font-size: 10.5px; color: var(--faint); margin-top: 2px; }
 
 @media (max-width: 820px) {
+  /* 좁은 폭에서도 문항과 본문이 먼저다. 근거 경험은 아래로 —
+     order:-1 로 올리면 뭘 쓰라는 건지 보기 전에 체크박스부터 만난다. */
   .two { grid-template-columns: 1fr; }
-  .side { order: -1; }
+  .side { margin-top: 6px; }
 }
 </style>
