@@ -22,10 +22,10 @@ function toggle(id) {
       <thead>
         <tr>
           <th>요구 역량</th>
+          <th class="c">가중치</th>
           <th class="c">구분</th>
           <th class="cov">커버리지</th>
           <th class="c">근거</th>
-          <th class="r">가중치</th>
         </tr>
       </thead>
       <tbody>
@@ -39,6 +39,9 @@ function toggle(id) {
             <td>
               <b class="nm" :class="{ gap: r.isGap }">{{ r.comp.name }}</b>
             </td>
+            <!-- 가중치는 역량 바로 옆이다. 이 공고가 그 역량을 얼마나 무겁게 요구하는지가
+                 역량 이름에 딸린 값이라, 표 끝에 두면 이름과 눈으로 이어 붙여야 했다. -->
+            <td class="c num wt">{{ r.weight.toFixed(1) }}</td>
             <td class="c cat">{{ catShort(r.comp.category) }}</td>
             <td>
               <div class="mt">
@@ -53,7 +56,6 @@ function toggle(id) {
                 {{ r.evid.length ? r.evid.length + '건' : '없음' }}
               </span>
             </td>
-            <td class="r num wt">{{ r.weight.toFixed(1) }}</td>
           </tr>
 
           <!-- 요구가 먼저, 답이 그다음. 공고가 이걸 왜 묻는지를 읽고
@@ -130,7 +132,7 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
    문단까지 600 으로 굵어지고 있었다. */
 .evc { font-size: var(--fs-xs); font-weight: 600; }
 .evc.gap { color: var(--gap); }
-.wt { font-size: var(--fs-xs); color: var(--muted); }
+.wt { font-size: var(--fs-xs); color: var(--muted); white-space: nowrap; }
 
 /* ── 펼친 근거 ─────────────────────────────────────────────
    앞의 모양이 안 좋았던 이유는 세 가지였다 —
