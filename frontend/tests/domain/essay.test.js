@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { essayProgress, usedIn, lengthState } from '@/domain/essay.js'
+import { essayProgress, essayFromSummary, usedIn, lengthState } from '@/domain/essay.js'
 
 /* 문항 모양은 v6 — 답변은 answer 안에 있고, 없으면 null 이다. */
 const q = (id, postingId, content, usedExperienceIds = []) =>
@@ -18,6 +18,18 @@ describe('essayProgress', () => {
   })
   it('문항이 없으면 NO_QUESTIONS', () => {
     expect(essayProgress([]).state).toBe('NO_QUESTIONS')
+  })
+})
+
+describe('essayFromSummary', () => {
+  it('목록 DTO 의 essay 요약을 essayProgress 와 같은 모양으로 — answered 가 done 이 되고 라벨이 붙는다', () => {
+    expect(essayFromSummary({ state: 'WRITING', answered: 1, total: 4 }))
+      .toEqual({ state: 'WRITING', done: 1, total: 4, label: '작성 중', tone: 'warn' })
+    expect(essayFromSummary({ state: 'DONE', answered: 2, total: 2 }).label).toBe(essayProgress([q(1, 9, 'a'), q(2, 9, 'b')]).label)
+  })
+  it('모르는 state 나 null 은 NO_QUESTIONS 로 본다 — 카드가 빈 라벨을 그리지 않게', () => {
+    expect(essayFromSummary(null).state).toBe('NO_QUESTIONS')
+    expect(essayFromSummary({ state: 'WHAT', answered: 0, total: 0 }).state).toBe('NO_QUESTIONS')
   })
 })
 

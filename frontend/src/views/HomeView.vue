@@ -7,6 +7,7 @@ import { useDerivedStore } from '@/stores/derived.js'
 import { groupByCategory } from '@/domain/competency.js'
 import Skeleton from '@/components/state/Skeleton.vue'
 import ErrorNote from '@/components/state/ErrorNote.vue'
+import SignInGate from '@/components/SignInGate.vue'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const auth = useAuthStore()
@@ -95,9 +96,13 @@ const list = computed(() => {
 
     <section class="list" aria-label="공고 목록">
       <Skeleton v-if="!D.ready || !auth.loaded" :rows="8" class="full" />
+      <!-- 실제 서버는 /api/** 전부에 세션을 요구한다(v6 전제). 로그아웃 상태의 401 은 고장이 아니라
+           "로그인하라" 는 뜻이라 ErrorNote 대신 로그인 안내를 둔다. -->
+      <SignInGate v-else-if="P.error?.status === 401 && !auth.signedIn" class="full"
+                  desc="공고 목록은 로그인한 뒤 볼 수 있습니다. 로그인하면 내 경험과 맞춰 본 매칭률까지 같이 나옵니다." />
       <ErrorNote v-else-if="P.error" :error="P.error" what="공고 불러오기" class="full" @retry="P.load()" />
       <template v-else>
-        <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="ui.toggleBookmark" />
+        <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="P.toggleBookmark" />
         <p v-if="!list.length" class="empty full">
           조건에 맞는 공고가 없습니다. 검색어나 필터를 지워 보세요.
         </p>

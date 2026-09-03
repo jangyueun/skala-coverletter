@@ -4,6 +4,7 @@ import { setActivePinia, createPinia } from 'pinia'
 /* api 를 통째로 목으로 바꾼다. 스토어는 api/index.js 만 보므로 이 한 줄이면 서버가 없다.
    모양은 v6 — 문항의 answer 가 커밋본이고, save 는 PUT /api/questions/{id}/answer 응답을 돌려준다. */
 const save = vi.fn()
+const questions = vi.fn()
 vi.mock('@/api/index.js', () => ({
   api: {
     answers: {
@@ -12,6 +13,7 @@ vi.mock('@/api/index.js', () => ({
           answer: { content: '커밋본', charCount: 3, usedExperienceIds: [7], updatedAt: '2026-09-02T21:14:00+09:00' } },
         { id: 2, postingId: 9, sequence: 1, promptText: '', lengthLimit: 700, answer: null },
       ],
+      questions: (...a) => questions(...a),
       save: (...a) => save(...a),
     },
   },
@@ -23,7 +25,7 @@ describe('answers store', () => {
   let A
   beforeEach(async () => {
     setActivePinia(createPinia())
-    save.mockReset()
+    save.mockReset(); questions.mockReset()
     A = useAnswersStore()
     await A.load()
   })
@@ -31,6 +33,33 @@ describe('answers store', () => {
   it('load() 가 문항을 받고 loaded 를 켠다', () => {
     expect(A.loaded).toBe(true)
     expect(A.questions).toHaveLength(2)
+  })
+
+  /* 실제 서버는 문항을 공고 단위로만 준다(응답에 postingId 없음). 스토어가 붙이고, 그 공고 행만 갈아 끼운다. */
+  it('loadFor 는 그 공고 문항을 postingId 를 붙여 갈아 끼우고, 다른 공고 문항과 버퍼는 남긴다', async () => {
+    A.editDraft(1, { content: '쓰던 글' })
+    questions.mockResolvedValue([
+      { id: 2, sequence: 1, promptText: '', lengthLimit: 700, answer: { content: '서버가 준 답', charCount: 6, usedExperienceIds: [], updatedAt: null } },
+      { id: 1, sequence: 2, promptText: '', lengthLimit: 700, answer: null },
+      { id: 3, sequence: 3, promptText: '새 문항', lengthLimit: 500, answer: null },
+    ])
+    await A.loadFor('9')
+    expect(questions).toHaveBeenCalledWith(9)
+    expect(A.loadedFor[9]).toBe(true)
+    expect(A.questionsFor(9).map(q => q.id)).toEqual([2, 1, 3])
+    expect(A.questionById(3).postingId).toBe(9)
+    expect(A.answerOf(2).content).toBe('서버가 준 답')
+    expect(A.drafts[1].content).toBe('쓰던 글')                 // 버퍼는 건드리지 않는다
+    expect(A.isDirty(1)).toBe(true)                             // 커밋본이 null 로 바뀌었어도 버퍼는 다르다
+  })
+
+  it('loadFor 실패 — error 에 담기고 loadedFor 는 꺼진 채다(화면이 다시 시도를 그린다)', async () => {
+    questions.mockRejectedValue(new Error('401'))
+    await A.loadFor(10)
+    expect(A.error).toBeTruthy()
+    expect(A.loadedFor[10]).toBeUndefined()
+    expect(A.loadingFor[10]).toBeUndefined()
+    expect(A.questions).toHaveLength(2)                         // 기존 문항은 그대로
   })
 
   it('questionsFor 는 공고의 문항을 순번대로 준다', () => {

@@ -90,9 +90,11 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   </header>
 
   <Skeleton v-if="!auth.loaded || !E.loaded || !P.loaded" :rows="6" />
-  <ErrorNote v-else-if="E.error" :error="E.error" what="경험 불러오기" @retry="E.load()" />
+  <!-- 로그인 안내가 오류보다 먼저다. 실제 서버는 로그아웃 상태에 401 을 주는데,
+       그걸 "경험 불러오기에 실패했습니다" 로 그리면 고장으로 읽힌다. -->
   <SignInGate v-else-if="!auth.signedIn"
               desc="등록한 경험은 계정에 저장됩니다. 로그인하면 쌓아 둔 경험을 이어서 쓸 수 있습니다." />
+  <ErrorNote v-else-if="E.error" :error="E.error" what="경험 불러오기" @retry="E.load()" />
 
   <template v-else>
 
