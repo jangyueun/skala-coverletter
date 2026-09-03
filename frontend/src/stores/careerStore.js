@@ -24,6 +24,14 @@ export const useCareerStore = defineStore('career', {
     bookmarkOnly: false,
     bookmarks: new Set(),
 
+    /* 자소서 편집 버퍼 — 아직 저장하지 않은 것.
+       questionId 를 키로 하는 맵이어야 한다. 단일 버퍼로 두면 문항 탭을
+       옮기는 순간(activeId 만 바뀌고 아무 훅도 안 탄다) 조용히 덮인다.
+       컴포넌트가 아니라 스토어에 두는 이유도 같다 — 문항 없는 공고로 이동하면
+       EssayEditor 가 v-if 로 통째 언마운트되는데, 그때 로컬 ref 는 사라진다. */
+    drafts: {},        // { [questionId]: { draft, usedExperienceIds } }
+    savedAt: {},       // { [questionId]: 'HH:MM' }
+
     // 경험이 바뀌면 서버가 재평가한다 — 그 진행을 화면에 보여주기 위한 로그
     assessLog: [],
   }),
@@ -39,7 +47,7 @@ export const useCareerStore = defineStore('career', {
         .map(p => ({
           posting: p,
           match: computeMatch(p, this.experiences),
-          essay: essayProgress(p),
+          essay: essayProgress(p, this.questions),
           d: dday(p.deadline),
           bookmarked: this.bookmarks.has(p.id),
           // 같은 기업의 다른 직무가 몇 건인지 — 공고가 직무 단위임을 카드에서 드러낸다
@@ -65,7 +73,7 @@ export const useCareerStore = defineStore('career', {
       const all = this.postings.map(p => ({
         posting: p,
         match: computeMatch(p, this.experiences),
-        essay: essayProgress(p),
+        essay: essayProgress(p, this.questions),
         d: dday(p.deadline),
         bookmarked: this.bookmarks.has(p.id),
         sameCompany: this.postings.filter(x => x.company === p.company).length,
@@ -96,6 +104,11 @@ export const useCareerStore = defineStore('career', {
       ]
     },
 
+    /** 저장 안 된 문항 id — 이탈 경고와 "다른 문항 N개" 표시가 이걸 본다 */
+    dirtyIds() {
+      return Object.keys(this.drafts).map(Number).filter(id => this.isDirty(id))
+    },
+
     dueSoonCount() {
       return this.cards.filter(c => c.d <= 7).length
     },
@@ -117,7 +130,68 @@ export const useCareerStore = defineStore('career', {
       return computeMatch(posting, this.experiences)
     },
     usedIn(experienceId) {
-      return usedIn(experienceId)
+      return usedIn(experienceId, this.questions)
+    },
+
+    /* ── 자소서 저장 ──────────────────────────────────────────
+       버퍼는 lazy 다. 화면에 문항을 띄우는 것만으로는 안 만들고,
+       실제로 고칠 때 커밋본을 복사해서 만든다. 그래야 "열어만 봤는데
+       저장 안 됨" 이 뜨지 않는다. */
+
+    questionById(id) {
+      return this.questions.find(q => q.id === Number(id))
+    },
+
+    /** 화면이 읽어야 할 값 — 버퍼가 있으면 버퍼, 없으면 커밋본 */
+    draftOf(questionId) {
+      const b = this.drafts[questionId]
+      if (b) return b
+      const q = this.questionById(questionId)
+      return { draft: q?.draft ?? '', usedExperienceIds: q?.usedExperienceIds ?? [] }
+    },
+
+    editDraft(questionId, patch) {
+      const cur = this.draftOf(questionId)
+      this.drafts[questionId] = {
+        draft: patch.draft ?? cur.draft,
+        usedExperienceIds: patch.usedExperienceIds ?? cur.usedExperienceIds,
+      }
+    },
+
+    /* 플래그가 아니라 diff 로 판정한다. dirty 플래그를 들면 되돌려 놓아도
+       dirty 로 남아, 화면이 사실과 다른 말을 하게 된다. */
+    isDirty(questionId) {
+      const b = this.drafts[questionId]
+      if (!b) return false
+      const q = this.questionById(questionId)
+      if (!q) return false
+      if (b.draft !== (q.draft ?? '')) return true
+      const a = [...(b.usedExperienceIds || [])].sort()
+      const c = [...(q.usedExperienceIds || [])].sort()
+      return a.length !== c.length || a.some((v, i) => v !== c[i])
+    },
+
+    /* 본문과 근거 경험을 한 번에 커밋한다. 따로 저장하면 usedIn() 이
+       "근거로 찍혔고 AND 본문이 있음" 을 보기 때문에, 경험 카드의
+       "N개 공고에 사용" 배지가 반쪽 상태에서 켜졌다 꺼진다. */
+    saveDraft(questionId) {
+      const b = this.drafts[questionId]
+      const i = this.questions.findIndex(q => q.id === Number(questionId))
+      if (!b || i < 0) return
+      this.questions[i] = {
+        ...this.questions[i],
+        draft: b.draft,
+        usedExperienceIds: [...b.usedExperienceIds],
+      }
+      delete this.drafts[questionId]
+      const d = new Date()
+      this.savedAt[questionId] =
+        `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+    },
+
+    /** 저장한 데까지 되돌린다 — 버퍼만 버리므로 커밋본은 안 다친다 */
+    revertDraft(questionId) {
+      delete this.drafts[questionId]
     },
 
     toggleBookmark(id) {

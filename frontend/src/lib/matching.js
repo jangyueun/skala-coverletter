@@ -89,11 +89,11 @@ export const ESSAY_STATE = {
  * 제출 여부는 모델에 없다 — ATS 연동이 없어 알 수 없기 때문이다.
  * 대신 draft 가 채워진 문항 수에서 파생한다. 아는 것만 말한다.
  */
-export function essayProgress(posting) {
+export function essayProgress(posting, questions = DATA.questions) {
   const app = DATA.applications.find(a => a.postingId === posting.id)
   if (!app) return { state: 'NO_APP', done: 0, total: 0, ...ESSAY_STATE.NO_APP }
 
-  const qs = DATA.questions.filter(q => q.applicationId === app.id)
+  const qs = questions.filter(q => q.applicationId === app.id)
   if (!qs.length) return { state: 'NO_Q', done: 0, total: 0, ...ESSAY_STATE.NO_Q }
 
   const done = qs.filter(q => (q.draft || '').trim()).length
@@ -107,8 +107,8 @@ export function essayProgress(posting) {
  * 관측 가능한 것만 센다 — 본문이 작성된 답변에 근거로 걸린 것만.
  * 단위는 기업이 아니라 **공고**다. 공고가 직무 단위라 같은 기업의 다른 직무는 따로 센다.
  */
-export function usedIn(experienceId) {
-  const qs = DATA.questions.filter(q =>
+export function usedIn(experienceId, questions = DATA.questions) {
+  const qs = questions.filter(q =>
     (q.usedExperienceIds || []).includes(experienceId) && (q.draft || '').trim())
   const postingIds = new Set(qs.map(q => {
     const a = DATA.applications.find(x => x.id === q.applicationId)
