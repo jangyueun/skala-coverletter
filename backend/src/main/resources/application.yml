@@ -66,10 +66,11 @@ careerfit:
     session-ttl: 14d
 
 ---
-# test 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
+# test · docker 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
 # 파일이 없으면 Spring이 즉시 경로와 원인을 표시하고 종료한다.
+# docker 프로필(backend/Dockerfile 이 켠다)은 파일이 아니라 compose 의 env_file 로 같은 값을 환경변수로 받는다.
 spring:
   config:
     activate:
-      on-profile: "!test"
+      on-profile: "!test & !docker"
     import: file:../.env[.properties]
