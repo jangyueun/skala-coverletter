@@ -45,7 +45,7 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
       <p class="label">태그된 역량</p>
     </div>
     <div class="panel cell cell--wide">
-      <p class="label">경험이 못 덮는 역량 {{ uncovered.length }}개</p>
+      <p class="label">아직 경험이 없는 역량 {{ uncovered.length }}개</p>
       <div class="tags">
         <span v-for="c in uncovered" :key="c.id" class="tag tag--gap">{{ c.name }}</span>
       </div>

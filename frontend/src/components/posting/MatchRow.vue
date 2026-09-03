@@ -28,7 +28,7 @@ const pct = computed(() => Math.round(props.row.score * 100))
         <b class="str">{{ strLabel(e.strength?.[row.competencyId] ?? 0.6) }}</b>
       </span>
     </div>
-    <p v-else class="none">이를 증명할 경험이 없습니다.</p>
+    <p v-else class="none">보강 필요 — 이 역량을 증명할 경험이 아직 없습니다.</p>
 
     <p class="evd">{{ row.evidence }}</p>
   </div>

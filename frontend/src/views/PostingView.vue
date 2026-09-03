@@ -142,7 +142,7 @@ const questions = computed(() => {
           매칭 <b class="num">{{ pct }}%</b>입니다.
           <template v-if="gaps.length">
             반면 <b class="gaptext">{{ gaps.map(g => g.comp.name).join(', ') }}</b>은
-            이를 증명할 경험이 없습니다.
+            증명할 경험이 없거나 너무 약합니다 — <b>보강이 필요한 역량</b>입니다.
           </template>
         </p>
         <p class="hint">
