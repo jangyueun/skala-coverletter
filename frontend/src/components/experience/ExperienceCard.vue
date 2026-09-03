@@ -45,9 +45,9 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
         <div class="meta">
           <span class="tag">{{ exp.category }}</span>
           <span v-if="origin" class="tag" :class="origin.tone" :title="origin.title">{{ origin.label }}</span>
-          <span v-if="used.postings" class="tag tag--ok"
-                title="본문이 작성된 답변에 근거로 걸린 공고 수. 공고는 직무 단위라 같은 기업의 다른 직무는 따로 셉니다.">
-            자소서 {{ used.postings }}개 공고에 사용
+          <span v-if="used.questions" class="tag tag--ok"
+                title="본문이 작성된 답변에 근거로 걸린 문항 수. 한 공고에서 여러 문항에 쓰였으면 그만큼 셉니다.">
+            자소서 {{ used.questions }}개 문항에 사용
           </span>
         </div>
       </div>
