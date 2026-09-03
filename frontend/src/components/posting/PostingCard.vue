@@ -11,7 +11,7 @@ const pct = computed(() => Math.round(props.card.match.overall * 100))
 const covered = computed(() =>
   props.card.match.rows.filter(r => !r.isGap).sort((a, b) => b.weight - a.weight))
 
-/* 목록에는 **덮은 역량만** 낸다. 보강 필요는 상세의 매칭 탭에서 본다.
+/* 목록에는 **덮은 역량만** 낸다. 보강 필요는 상세의 매칭 상세 분석 탭에서 본다.
    목록은 "어디에 지원할까" 를 고르는 화면이고, "무엇이 부족한가" 는
    공고 하나를 정한 뒤에 볼 것이다. 카드마다 부족을 띄우면 목록 전체가
    경고판이 되어 정작 고르는 일이 방해받는다.

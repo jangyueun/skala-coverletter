@@ -15,7 +15,7 @@ const router = useRouter()
 const tab = ref('content')
 const TABS = [
   { k: 'content', label: '공고 내용' },
-  { k: 'match',   label: '매칭' },
+  { k: 'match',   label: '매칭 상세 분석' },
   { k: 'essay',   label: '자소서' },
 ]
 
@@ -118,7 +118,7 @@ const questions = computed(() => {
     <!-- 탭은 행을 다 쓴다. 작은 pill 세 개면 그 옆의 빈자리가 더 커 보여
          "누를 것" 이 아니라 "붙어 있는 라벨" 로 읽힌다. -->
     <nav class="tabs" aria-label="공고 상세">
-      <button v-for="t in TABS" :key="t.k" class="tb"
+      <button v-for="t in TABS" :key="t.k" class="tab"
               :aria-pressed="tab === t.k" @click="tab = t.k">{{ t.label }}</button>
     </nav>
 
@@ -131,7 +131,7 @@ const questions = computed(() => {
 
       <div class="panel body">
         <p class="label">추출된 요구 역량 {{ posting.required.length }}개</p>
-        <p class="hint">가중치와 커버리지는 <b>매칭</b> 탭에서 봅니다. 여기서는 무엇을 요구하는지만.</p>
+        <p class="hint">가중치와 커버리지는 <b>매칭 상세 분석</b> 탭에서 봅니다. 여기서는 무엇을 요구하는지만.</p>
         <div class="tags">
           <span v-for="r in match.rows" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
         </div>
@@ -244,15 +244,15 @@ const questions = computed(() => {
   display: grid; grid-template-columns: repeat(3, 1fr);
   margin: 26px 0 0; border-bottom: 1px solid var(--line);
 }
-.tb {
+.tab {
   padding: 13px 0; background: none; border: none;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
   font-size: 14px; font-weight: 700; color: var(--muted);
   cursor: pointer; letter-spacing: var(--track-tight);
   transition: color var(--release) linear, border-color var(--release) linear;
 }
-.tb:hover { color: var(--ink); }
-.tb[aria-pressed='true'] { color: var(--ink); border-bottom-color: var(--ink); }
+.tab:hover { color: var(--ink); }
+.tab[aria-pressed='true'] { color: var(--ink); border-bottom-color: var(--ink); }
 
 .pane { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 .body { padding: 16px 18px; }
