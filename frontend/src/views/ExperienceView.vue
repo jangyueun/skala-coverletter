@@ -130,7 +130,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
    제목보다 무거워지고, 이 줄에서 채워진 것은 등록 버튼 하나여야 한다. */
 .stat { display: flex; flex-direction: column; gap: 2px; padding-left: 22px; border-left: 1px solid var(--line); }
 .stat:first-child { padding-left: 0; border-left: none; }
-.sl { margin: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
+.sl { margin: 0; font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; }
 
 
 /* 물음표 — 글 안에 박히는 버튼이라 원형으로 작게. */
@@ -138,7 +138,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 .q {
   width: 15px; height: 15px; margin-left: 2px; padding: 0;
   border: 1px solid var(--line-strong); border-radius: 50%; background: var(--panel);
-  color: var(--ink-2); font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+  color: var(--ink-2); font-family: var(--mono); font-size: var(--fs-3xs); font-weight: 700;
   line-height: 1; cursor: pointer; vertical-align: 2px;
   transition: background var(--release) linear, color var(--release) linear;
 }
@@ -156,11 +156,11 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   margin: 0; display: flex; flex-direction: column; gap: 3px;
 }
 .star > div { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: baseline; }
-.star dt { color: var(--accent); font-family: var(--mono); font-weight: 700; font-size: 12px; }
-.star dd { margin: 0; font-size: 12.5px; color: var(--muted); }
+.star dt { color: var(--accent); font-family: var(--mono); font-weight: 700; font-size: var(--fs-xs); }
+.star dd { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
 .star dd b { color: var(--ink-2); font-weight: 600; margin-right: 5px; }
 
-.ct { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: var(--track-tight); }
+.ct { font-size: var(--fs-sm); font-weight: 700; color: var(--ink); letter-spacing: var(--track-tight); }
 
 /* 접기 머리 — 홈의 필터 아코디언(.acch)과 같은 어법이다.
    이름은 왼쪽, 개수와 펼침 표시는 오른쪽. */
@@ -169,19 +169,19 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   padding: 0; background: transparent; border: none;
   cursor: pointer; text-align: left; font: inherit; color: inherit;
 }
-.fn { margin-left: auto; font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 500; }
+.fn { margin-right: auto; font-family: var(--mono); font-size: var(--fs-3xs); color: var(--faint); font-weight: 500; }
 /* 접혀 있어도 고른 게 있다는 건 보여야 한다 */
 .fp {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: var(--pill); background: var(--accent); color: var(--accent-ink);
-  font-size: 9.5px; font-weight: 700;
+  font-size: var(--fs-3xs); font-weight: 700;
 }
-.chev { font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
+.chev { font-family: var(--mono); font-size: var(--fs-md); color: var(--muted); line-height: 1; }
 .fh[aria-expanded='true'] .chev { color: var(--ink); }
 .of { font-size: 0.5em; color: var(--muted); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; min-height: 22px; }
-.count { margin-left: auto; font-size: 12.5px; }
+.count { margin-left: auto; font-size: var(--fs-xs); }
 
 @media (max-width: 760px) {
   /* 좁아지면 오른쪽 덩어리가 제목 아래로 내려가 왼쪽 끝에 맞춰 선다 */
@@ -209,7 +209,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 }
 
 /* 필터 칩 — 눌린 채로 두는 것이 "지금 이걸로 좁혔다" 표시다 */
-.chip { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
+.chip { cursor: pointer; font: inherit; font-size: var(--fs-2xs); font-weight: 600; }
 .chip:hover { border-color: var(--line-strong); color: var(--ink); }
 .chip[aria-pressed='true'] {
   background: var(--accent); border-color: var(--accent); color: var(--accent-ink);

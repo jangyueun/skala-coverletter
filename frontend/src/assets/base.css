@@ -129,12 +129,25 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   margin: 10px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink-2);
 }
 
+/* .label 은 **눈썹 문구** 다 — 화면 맨 위의 CAREER LAB · LIBRARY 처럼
+   내용이 아니라 자리를 알려 주는 짧은 표시. */
 .label {
   font-family: var(--mono);
-  font-size: 10px; font-weight: 500;
+  font-size: var(--fs-3xs); font-weight: 500;
   letter-spacing: var(--track-label);
   text-transform: uppercase;
   color: var(--muted);
+}
+
+/* .subhead — 구역 제목.
+   "직무 내용 · 원문", "연관 태그", "근거로 쓸 경험" 같은 것들이 .label 을
+   쓰고 있었다. 모노 10px 자간 넓힘은 눈썹 문구의 꼴이라, 제목 자리에 쓰면
+   무엇이 제목이고 무엇이 내용인지가 안 보인다. 제목은 제목처럼 둔다. */
+.subhead {
+  margin: 0;
+  font-size: var(--fs-md); font-weight: 700;
+  letter-spacing: var(--track-tight);
+  color: var(--ink);
 }
 
 /* 태그도 pill 이다. 이 스타일에서 각진 작은 조각은 안 어울린다. */

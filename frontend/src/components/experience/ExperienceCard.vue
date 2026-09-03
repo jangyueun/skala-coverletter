@@ -76,10 +76,10 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
 .card { padding: 15px 17px 14px; display: flex; flex-direction: column; gap: 12px; }
 .min0 { min-width: 0; }
 .hd { display: flex; justify-content: space-between; align-items: flex-start; gap: 14px; }
-.ttl { margin: 0; font-size: 15.5px; font-weight: 700; letter-spacing: var(--track-tight); line-height: 1.3; }
+.ttl { margin: 0; font-size: var(--fs-md); font-weight: 700; letter-spacing: var(--track-tight); line-height: 1.3; }
 .meta { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 7px; }
 .right { display: flex; align-items: center; gap: 9px; flex: none; }
-.period { font-size: 11.5px; color: var(--muted); }
+.period { font-size: var(--fs-2xs); color: var(--muted); }
 
 /* STAR 를 표로 둔다. 어느 칸이 비었는지가 한눈에 보여야 한다. */
 .star {
@@ -87,10 +87,10 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
   padding: 11px 0; border-top: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft);
 }
 .star dt {
-  font-family: var(--mono); font-size: 11px; font-weight: 600;
+  font-family: var(--mono); font-size: var(--fs-2xs); font-weight: 600;
   color: var(--accent); line-height: 1.55;
 }
-.star dd { margin: 0; font-size: 12.5px; line-height: 1.55; color: var(--ink-2); }
+.star dd { margin: 0; font-size: var(--fs-xs); line-height: 1.55; color: var(--ink-2); }
 .star dt.empty { color: var(--gap); }
 .star dd.empty { color: var(--gap); font-style: italic; }
 

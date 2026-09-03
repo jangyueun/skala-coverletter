@@ -116,7 +116,7 @@ function save() {
 
         <div class="grp">
           <div class="grph">
-            <span class="label">STAR</span>
+            <span class="subhead">STAR</span>
             <span class="gauge" aria-hidden="true">
               <i v-for="f in FIELDS" :key="f.k" :class="{ on: form[f.k].trim() }" style="height:11px" />
             </span>
@@ -130,7 +130,7 @@ function save() {
         </div>
 
         <div class="grp">
-          <span class="label">이 경험이 증명하는 역량 *</span>
+          <span class="subhead">이 경험이 증명하는 역량 *</span>
           <CompetencyPicker :pick="form.comp" class="pick" />
         </div>
 
@@ -183,7 +183,7 @@ function save() {
   display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
   padding: 16px 20px 14px; border-bottom: 1px solid var(--line);
 }
-.h { margin: 3px 0 0; font-size: 20px; font-weight: 800; letter-spacing: var(--track-display); }
+.h { margin: 3px 0 0; font-size: var(--fs-xl); font-weight: 800; letter-spacing: var(--track-display); }
 
 .body { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
 
@@ -191,20 +191,20 @@ function save() {
   display: flex; align-items: center; gap: 7px;
   padding: 11px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
 }
-.ax { margin-left: auto; font-size: 10px; }
+.ax { margin-left: auto; font-size: var(--fs-3xs); }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .f2 { grid-column: span 2; }
 
 .fld { display: flex; flex-direction: column; gap: 5px; }
-.lb { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
 .fl { color: var(--accent); font-family: var(--mono); margin-right: 3px; }
 
 .inp {
   padding: 9px 11px;
   background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-sm);
-  color: var(--ink); font-size: 13px; line-height: 1.6;
+  color: var(--ink); font-size: var(--fs-sm); line-height: 1.6;
   resize: vertical;
   transition: border-color var(--release) linear, background var(--release) linear;
 }
@@ -217,13 +217,13 @@ function save() {
   background: var(--panel);
 }
 .grph { display: flex; align-items: center; gap: 9px; }
-.cnt { font-size: 12px; font-weight: 600; color: var(--muted); margin-left: auto; }
+.cnt { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); margin-left: auto; }
 .pick { margin-top: 2px; }
 
 
 .errs { display: flex; flex-direction: column; gap: 5px; }
 .err {
-  margin: 0; padding: 8px 11px; font-size: 12.5px; font-weight: 600;
+  margin: 0; padding: 8px 11px; font-size: var(--fs-xs); font-weight: 600;
   color: var(--gap); background: var(--panel); border-left: 3px solid var(--gap);
 }
 
@@ -231,7 +231,7 @@ function save() {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding: 13px 20px; border-top: 1px solid var(--line); background: var(--panel);
 }
-.gaph { margin: 0; font-size: 11.5px; color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
+.gaph { margin: 0; font-size: var(--fs-2xs); color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
 .gaph b { color: var(--gap); }
 .acts { display: flex; gap: 8px; margin-left: auto; }
 

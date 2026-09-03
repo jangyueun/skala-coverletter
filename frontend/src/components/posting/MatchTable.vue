@@ -96,7 +96,7 @@ function toggle(id) {
 th {
   padding: 0 10px 9px; text-align: left;
   border-bottom: 2px solid var(--ink);
-  font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+  font-family: var(--mono); font-size: var(--fs-3xs); font-weight: 500;
   letter-spacing: var(--track-label); text-transform: uppercase; color: var(--muted);
   white-space: nowrap;
 }
@@ -113,21 +113,21 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 .mrow.on { background: var(--panel-sunken); }
 .mrow.on td { border-bottom-color: transparent; }
 
-.nm { font-size: 13px; font-weight: 700; letter-spacing: var(--track-tight); }
+.nm { font-size: var(--fs-sm); font-weight: 700; letter-spacing: var(--track-tight); }
 .nm.gap { color: var(--gap); }
-.cat { font-size: 11px; color: var(--faint); white-space: nowrap; }
+.cat { font-size: var(--fs-2xs); color: var(--faint); white-space: nowrap; }
 
 .mt { display: flex; align-items: center; gap: 9px; }
 .meter { flex: 1; min-width: 60px; height: 5px; background: var(--panel-sunken); border-radius: var(--pill); overflow: hidden; }
 .mrow:hover .meter, .mrow.on .meter { background: var(--line); }
 .meter i { display: block; height: 100%; background: var(--ink); }
 .meter.gap i { background: var(--gap); }
-.pct { font-size: 12px; font-weight: 700; flex: none; min-width: 34px; text-align: right; }
+.pct { font-size: var(--fs-xs); font-weight: 700; flex: none; min-width: 34px; text-align: right; }
 .pct.gap { color: var(--gap); }
 
-.ev { font-size: 12px; font-weight: 600; }
+.ev { font-size: var(--fs-xs); font-weight: 600; }
 .ev.gap { color: var(--gap); }
-.wt { font-size: 12px; color: var(--muted); }
+.wt { font-size: var(--fs-xs); color: var(--muted); }
 
 /* ── 펼친 근거 ─────────────────────────────────────────────
    앞의 모양이 안 좋았던 이유는 세 가지였다 —
@@ -144,23 +144,23 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 .d + .d { margin-top: 9px; }
 .dk {
   margin: 0; text-align: right; white-space: nowrap;
-  font-family: var(--mono); font-size: 9.5px; font-weight: 500;
+  font-family: var(--mono); font-size: var(--fs-3xs); font-weight: 500;
   letter-spacing: var(--track-label); color: var(--faint);
 }
 .dv { margin: 0; min-width: 0; }
 
 /* 공고 원문은 인용이다. 기울여서 내 문장이 아님을 표시한다. */
-.src { font-size: 12.5px; color: var(--ink-2); font-style: italic; }
+.src { font-size: var(--fs-xs); color: var(--ink-2); font-style: italic; }
 
-.ev { margin: 0; font-size: 12.5px; line-height: 1.7; }
+.ev { margin: 0; font-size: var(--fs-xs); line-height: 1.7; }
 .ev + .ev { margin-top: 5px; }
 /* 역량 이름(13px/700)보다 한 단 낮춘다 — 무엇에 딸린 것인지가 굵기로 보여야 한다 */
 .et { font-weight: 600; }
 /* 강도는 알약이 아니라 글자 뒤에 붙는 작은 표식이다 */
 .st {
-  font-family: var(--mono); font-style: normal; font-size: 10px; font-weight: 700;
+  font-family: var(--mono); font-style: normal; font-size: var(--fs-3xs); font-weight: 700;
   color: var(--faint); margin-left: 5px;
 }
 .res { color: var(--muted); margin-left: 8px; }
-.none { margin: 0; font-size: 12.5px; color: var(--gap); font-weight: 600; line-height: 1.6; }
+.none { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-weight: 600; line-height: 1.6; }
 </style>

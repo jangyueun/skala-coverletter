@@ -47,7 +47,7 @@ const nav = [
 }
 .brand {
   display: flex; align-items: center; gap: 9px;
-  font-size: 17px; font-weight: 800; letter-spacing: var(--track-display);
+  font-size: var(--fs-lg); font-weight: 800; letter-spacing: var(--track-display);
   color: var(--ink); text-decoration: none;
 }
 .mark { width: 9px; height: 9px; border-radius: 50%; background: var(--accent); flex: none; }
@@ -56,7 +56,7 @@ const nav = [
 /* 링크는 밑줄도 배경도 없다. 지금 있는 곳만 빨강 — 채용 사이트의 관례다. */
 .navlink {
   text-decoration: none; color: var(--ink-2);
-  font-size: 14px; font-weight: 600;
+  font-size: var(--fs-md); font-weight: 600;
   transition: color var(--release) linear;
 }
 .navlink:hover { color: var(--ink); }

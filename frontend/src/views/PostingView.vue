@@ -125,13 +125,12 @@ const questions = computed(() => {
     <!-- ── 공고 내용 ─────────────────────────────────────── -->
     <section v-show="tab === 'content'" class="pane">
       <div class="panel body">
-        <p class="label">직무 내용 · 원문</p>
+        <p class="subhead">직무 내용 · 원문</p>
         <pre class="raw">{{ posting.rawText }}</pre>
       </div>
 
       <div class="panel body">
-        <p class="label">추출된 요구 역량 {{ posting.required.length }}개</p>
-        <p class="hint">가중치와 커버리지는 <b>매칭 상세 분석</b> 탭에서 봅니다. 여기서는 무엇을 요구하는지만.</p>
+        <p class="subhead">연관 태그</p>
         <div class="tags">
           <span v-for="r in match.rows" :key="r.competencyId" class="tag">{{ r.comp.name }}</span>
         </div>
@@ -142,8 +141,7 @@ const questions = computed(() => {
       </div>
 
       <div class="panel body">
-        <p class="label">관련 공고</p>
-        <p class="hint">공고는 기업이 아니라 <b>직무 단위</b>입니다. 같은 회사라도 직무가 다르면 매칭이 다릅니다.</p>
+        <p class="subhead">관련 공고</p>
 
         <div v-if="related.sameCo.length" class="relgrp">
           <p class="rl">같은 기업 · 다른 직무</p>
@@ -168,7 +166,7 @@ const questions = computed(() => {
     <!-- ── 매칭 ──────────────────────────────────────────── -->
     <section v-show="tab === 'match'" class="pane">
       <div class="panel body">
-        <p class="label">평가</p>
+        <p class="subhead">평가</p>
         <p class="assess">
           요구 역량 {{ match.rows.length }}개 중 <b>{{ match.rows.length - gaps.length }}개</b>를 덮어
           매칭 <b class="num">{{ pct }}%</b>입니다.
@@ -185,7 +183,7 @@ const questions = computed(() => {
 
       <div class="panel body">
         <div class="chead">
-          <p class="label">요구 역량별 커버리지 · 가중치순</p>
+          <p class="subhead">요구 역량별 커버리지 · 가중치순</p>
           <p class="chint">역량을 누르면 근거 경험이 펼쳐집니다</p>
         </div>
         <MatchTable :rows="[...match.rows].sort((a,b) => b.weight - a.weight)" />
@@ -195,7 +193,7 @@ const questions = computed(() => {
     <!-- ── 자소서 ────────────────────────────────────────── -->
     <section v-show="tab === 'essay'" class="pane">
       <div v-if="!questions.length" class="panel body empty">
-        <p class="label">문항 없음</p>
+        <p class="subhead">문항 없음</p>
         <p class="hint">
           이 공고는 서버가 자소서 문항을 주지 않았습니다.
           문항을 직접 등록하면 여기서 바로 작성할 수 있습니다.
@@ -221,8 +219,8 @@ const questions = computed(() => {
    41.6 × 0.69 ≈ 26px. 직무 계열은 회사를 한정하는 말이라 같이 키우지 않는다 —
    둘 다 26px 이면 회사 이름이 어디서 끝나는지가 안 보인다. */
 .co { margin: 0; display: flex; align-items: baseline; gap: 0; letter-spacing: var(--track-tight); }
-.co b { font-size: 26px; font-weight: 700; color: var(--ink-2); line-height: 1.25; }
-.rolek { font-size: 15px; font-weight: 500; color: var(--muted); }
+.co b { font-size: var(--fs-2xl); font-weight: 700; color: var(--ink-2); line-height: 1.25; }
+.rolek { font-size: var(--fs-md); font-weight: 500; color: var(--muted); }
 .pos { margin-top: 4px; font-size: clamp(1.7rem, 4.4vw, 2.6rem); }
 .meta { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 12px; }
 
@@ -231,10 +229,10 @@ const questions = computed(() => {
 .rd { display: flex; flex-direction: column; align-items: flex-end; gap: 1px; }
 /* 숫자·% ·라벨이 한 줄이다. 라벨을 위에 얹으면 그만큼 판정이 아래로 밀린다. */
 .pctline { margin: 0; display: flex; align-items: baseline; gap: 1px; }
-.pctn { font-size: 26px; font-weight: 800; line-height: 1.1; }
-.pc { font-size: 15px; font-weight: 700; color: var(--muted); }
-.rl { margin-right: 7px; font-size: 12px; font-weight: 600; color: var(--muted); }
-.verdict { margin: 0; font-size: 13px; font-weight: 700; }
+.pctn { font-size: var(--fs-2xl); font-weight: 800; line-height: 1.1; }
+.pc { font-size: var(--fs-md); font-weight: 700; color: var(--muted); }
+.rl { margin-right: 7px; font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
+.verdict { margin: 0; font-size: var(--fs-sm); font-weight: 700; }
 .verdict.ok { color: var(--ok); }
 .verdict.gap { color: var(--gap); }
 
@@ -247,7 +245,7 @@ const questions = computed(() => {
 .tab {
   padding: 13px 0; background: none; border: none;
   border-bottom: 2px solid transparent; margin-bottom: -1px;
-  font-size: 14px; font-weight: 700; color: var(--muted);
+  font-size: var(--fs-md); font-weight: 700; color: var(--muted);
   cursor: pointer; letter-spacing: var(--track-tight);
   transition: color var(--release) linear, border-color var(--release) linear;
 }
@@ -256,7 +254,7 @@ const questions = computed(() => {
 
 .pane { display: flex; flex-direction: column; gap: 12px; margin-top: 18px; }
 .body { padding: 16px 18px; }
-.hint { color: var(--muted); font-size: 12.5px; margin: 6px 0 0; }
+.hint { color: var(--muted); font-size: var(--fs-xs); margin: 6px 0 0; }
 .hint b { color: var(--ink); }
 .nc { color: var(--gap); }
 .nc b { color: var(--gap); }
@@ -267,38 +265,38 @@ const questions = computed(() => {
    회색 상자와 모노도 뺐다 — 다른 화면의 본문과 같은 글로 읽히면 된다. */
 .raw {
   margin: 9px 0 0; padding: 0;
-  font: inherit; font-size: 13.5px; line-height: 1.85; white-space: pre-wrap;
+  font: inherit; font-size: var(--fs-sm); line-height: 1.85; white-space: pre-wrap;
   color: var(--ink-2);
 }
 
 .relgrp { margin-top: 14px; }
-.rl { margin: 0 0 7px; font-size: 11.5px; font-weight: 700; color: var(--muted); }
+.rl { margin: 0 0 7px; font-size: var(--fs-2xs); font-weight: 700; color: var(--muted); }
 .rlk { color: var(--ink); }
 .rel {
   display: flex; justify-content: space-between; align-items: center; gap: 12px; width: 100%;
   padding: 9px 12px; margin-bottom: 6px; text-align: left; font: inherit; color: inherit;
   border-top-width: 2px;
 }
-.rn { font-weight: 600; font-size: 13px; min-width: 0; }
-.rp { font-size: 15px; font-weight: 600; flex: none; }
+.rn { font-weight: 600; font-size: var(--fs-sm); min-width: 0; }
+.rp { font-size: var(--fs-md); font-weight: 600; flex: none; }
 
 /* 표 머리 — 라벨 왼쪽, 사용법 힌트 오른쪽. 목업의 cardhead 와 같은 역할이다. */
 .chead {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 12px; flex-wrap: wrap; margin-bottom: 13px;
 }
-.chint { margin: 0; font-size: 11.5px; color: var(--faint); }
+.chint { margin: 0; font-size: var(--fs-2xs); color: var(--faint); }
 
-.assess { margin: 8px 0 0; font-size: 14.5px; line-height: 1.7; }
+.assess { margin: 8px 0 0; font-size: var(--fs-md); line-height: 1.7; }
 .assess b { font-weight: 700; }
 .gaptext { color: var(--gap); }
 
 .qh { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
-.qt { margin: 8px 0 0; font-size: 14.5px; font-weight: 600; line-height: 1.55; }
+.qt { margin: 8px 0 0; font-size: var(--fs-md); font-weight: 600; line-height: 1.55; }
 .draft {
   margin: 11px 0 0; padding: 12px 13px;
   background: var(--panel-sunken); border-left: 3px solid var(--line-strong);
-  font-size: 13px; line-height: 1.8; color: var(--ink-2);
+  font-size: var(--fs-sm); line-height: 1.8; color: var(--ink-2);
 }
 .empty { text-align: center; }
 .empty .btn { margin-top: 12px; }

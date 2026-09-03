@@ -93,24 +93,24 @@ const revert = () => { value.value = props.aiText }
 .f--edited { border-left-color: var(--accent); }
 
 .hd { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.lb { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
 .fl { color: var(--accent); font-family: var(--mono); margin-right: 3px; }
-.bd { font-size: 10px; }
+.bd { font-size: var(--fs-3xs); }
 .b--edit { border-color: var(--accent); color: var(--accent); }
-.rv { margin-left: auto; padding: 3px 8px; font-size: 10.5px; }
+.rv { margin-left: auto; padding: 3px 8px; font-size: var(--fs-3xs); }
 
 .q { display: flex; flex-direction: column; gap: 3px; }
-.qt { margin: 0; font-size: 12.5px; font-weight: 600; line-height: 1.5; }
-.qw { margin: 0; font-size: 11px; color: var(--faint); line-height: 1.5; }
+.qt { margin: 0; font-size: var(--fs-xs); font-weight: 600; line-height: 1.5; }
+.qw { margin: 0; font-size: var(--fs-2xs); color: var(--faint); line-height: 1.5; }
 
 .inp {
   padding: 9px 11px; background: var(--panel);
   border: 1px solid var(--line); border-radius: var(--r-sm);
-  color: var(--ink); font-size: 13px; line-height: 1.6; resize: vertical;
+  color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; resize: vertical;
   transition: border-color var(--release) linear, background var(--release) linear;
 }
 .inp:hover { border-color: var(--line-strong); }
 .inp:focus { outline: none; border-color: var(--accent); background: var(--panel-raised); }
 
-.warn { margin: 0; font-size: 11px; color: var(--gap); }
+.warn { margin: 0; font-size: var(--fs-2xs); color: var(--gap); }
 </style>

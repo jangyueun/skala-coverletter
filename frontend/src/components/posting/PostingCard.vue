@@ -98,17 +98,17 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .read { display: flex; align-items: baseline; gap: 7px; }
-.pct { font-size: 17px; font-weight: 700; line-height: 1; transition: color var(--seat-out) linear; }
+.pct { font-size: var(--fs-lg); font-weight: 700; line-height: 1; transition: color var(--seat-out) linear; }
 .pc { font-size: 0.62em; color: var(--muted); margin-left: 1px; }
 /* 무엇을 세는 숫자인지 먼저 말하고 값이 따라온다 — 영문 라벨은 읽는 사람이
    한 번 더 번역해야 한다. */
-.ml { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.ml { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
 
 .bm {
   padding: 5px 12px;
   border: 1px solid var(--line); border-radius: var(--pill);
   background: var(--panel); color: var(--muted);
-  font-size: 11.5px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  font-size: var(--fs-2xs); font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: background var(--release) linear, color var(--release) linear, border-color var(--release) linear;
 }
 .bm:hover { border-color: var(--ink); color: var(--ink); }
@@ -127,7 +127,7 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
   transition: transform var(--seat-out) var(--ease);
 }
 .co {
-  font-size: 12.5px; font-weight: 600; color: var(--muted);
+  font-size: var(--fs-xs); font-weight: 600; color: var(--muted);
   transition: color var(--seat-out) linear;
 }
 /* 호버 — 액센트로 넘어가고, 이름 덩어리가 커진다 */
@@ -138,7 +138,7 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
 
 .pos {
   margin: 0;
-  font-size: 18px; font-weight: 700;
+  font-size: var(--fs-lg); font-weight: 700;
   letter-spacing: var(--track-tight); line-height: 1.3;
   transition: color var(--seat-out) linear;
 }
@@ -151,7 +151,7 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
   margin-top: auto; padding-top: 13px; border-top: 1px solid var(--line-soft);
 }
 .when { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
-.dd { font-size: 17px; font-weight: 800; }
+.dd { font-size: var(--fs-lg); font-weight: 800; }
 .dd.urgent { color: var(--accent); }
-.date { font-size: 11.5px; color: var(--faint); transition: color var(--seat-out) linear; }
+.date { font-size: var(--fs-2xs); color: var(--faint); transition: color var(--seat-out) linear; }
 </style>

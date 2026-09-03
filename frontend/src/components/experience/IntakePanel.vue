@@ -281,7 +281,7 @@ const onEdit = () => { armed.value = null }
 
           <div class="grp">
             <div class="grph">
-              <span class="label">STAR</span>
+              <span class="subhead">STAR</span>
               <span class="gauge" aria-hidden="true">
                 <i v-for="f in FIELDS" :key="f.k" :class="{ on: drafts[active][f.k].trim() }" style="height:11px" />
               </span>
@@ -308,7 +308,7 @@ const onEdit = () => { armed.value = null }
           </div>
 
           <div class="grp">
-            <span class="label">이 경험이 증명하는 역량 *</span>
+            <span class="subhead">이 경험이 증명하는 역량 *</span>
             <CompetencyPicker :pick="drafts[active].comp" />
             <p class="cnote">{{ compNote }}</p>
           </div>
@@ -344,21 +344,21 @@ const onEdit = () => { armed.value = null }
 .min0 { min-width: 0; }
 
 .fld { display: flex; flex-direction: column; gap: 5px; }
-.lb { font-size: 11.5px; font-weight: 600; color: var(--muted); }
+.lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
 .inp {
   padding: 9px 11px; background: var(--panel); border: 1px solid var(--line);
-  border-radius: var(--r-sm); color: var(--ink); font-size: 13px; line-height: 1.6; resize: vertical;
+  border-radius: var(--r-sm); color: var(--ink); font-size: var(--fs-sm); line-height: 1.6; resize: vertical;
   transition: border-color var(--release) linear, background var(--release) linear;
 }
 .inp:hover { border-color: var(--line-strong); }
 .inp:focus { outline: none; border-color: var(--accent); background: var(--panel-raised); }
 
-.fold { margin: 0; font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 9px; }
+.fold { margin: 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 9px; }
 .run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.note { font-size: 11.5px; margin-left: auto; }
+.note { font-size: var(--fs-2xs); margin-left: auto; }
 
-.stephd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: 12px; }
-.lead { margin: 0; font-size: 12.5px; color: var(--muted); line-height: 1.6; }
+.stephd { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; font-size: var(--fs-xs); }
+.lead { margin: 0; font-size: var(--fs-xs); color: var(--muted); line-height: 1.6; }
 .lead b { color: var(--ink); }
 
 /* 후보 카드 */
@@ -373,8 +373,8 @@ const onEdit = () => { armed.value = null }
 .cand.dup { opacity: .5; cursor: not-allowed; }
 .cand input { margin-top: 3px; accent-color: var(--accent); flex: none; }
 .ch { display: flex; align-items: center; gap: 7px; flex-wrap: wrap; }
-.ct { font-size: 13.5px; font-weight: 700; }
-.cs { margin: 5px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
+.ct { font-size: var(--fs-sm); font-weight: 700; }
+.cs { margin: 5px 0 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5; }
 .cs b { color: var(--accent); font-family: var(--mono); margin-right: 4px; }
 .evs { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 8px; }
 
@@ -392,9 +392,9 @@ const onEdit = () => { armed.value = null }
 
 .rc { padding: 9px 11px; text-align: left; display: flex; flex-direction: column; gap: 5px; border-top-width: 2px; }
 .rc.sel { border-color: var(--accent); border-top-color: var(--accent); }
-.rt { font-size: 12px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rt { font-size: var(--fs-xs); font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rp { display: flex; gap: 4px; flex-wrap: wrap; }
-.rp .tag { font-size: 9.5px; padding: 1px 5px; }
+.rp .tag { font-size: var(--fs-3xs); padding: 1px 5px; }
 
 .ed { display: flex; flex-direction: column; gap: 13px; min-width: 0; }
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
@@ -405,21 +405,21 @@ const onEdit = () => { armed.value = null }
   padding: 14px 15px; border: 1px solid var(--line-soft); border-radius: var(--r); background: var(--panel);
 }
 .grph { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
-.cnt { font-size: 12px; font-weight: 600; color: var(--muted); }
+.cnt { font-size: var(--fs-xs); font-weight: 600; color: var(--muted); }
 
-.evnote { margin: 0; font-size: 11.5px; color: var(--muted); line-height: 1.55; }
+.evnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.55; }
 .evnote.gap { color: var(--gap); font-weight: 600; }
 .evq {
-  margin: 0; font-size: 11px; color: var(--faint); line-height: 1.5;
+  margin: 0; font-size: var(--fs-2xs); color: var(--faint); line-height: 1.5;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-.cnote { margin: 0; font-size: 11px; color: var(--muted); }
+.cnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
 
 .foot {
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
   padding-top: 13px; border-top: 1px solid var(--line);
 }
-.fh { margin: 0; font-size: 11.5px; color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
+.fh { margin: 0; font-size: var(--fs-2xs); color: var(--muted); flex: 1 1 240px; line-height: 1.5; }
 .danger { color: var(--gap); font-weight: 600; }
 .up { color: var(--accent); font-weight: 700; }
 .foot .btn { margin-left: auto; }

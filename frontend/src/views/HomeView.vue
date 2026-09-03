@@ -154,13 +154,13 @@ const list = computed(() => {
 .mag { color: var(--ink); display: grid; place-items: center; flex: none; }
 .q {
   flex: 1; min-width: 0; border: none; background: transparent; outline: none;
-  font-size: 14.5px; font-weight: 500; color: var(--ink);
+  font-size: var(--fs-md); font-weight: 500; color: var(--ink);
 }
 .q::placeholder { color: var(--faint); font-weight: 400; }
 .clr {
   flex: none; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
   background: var(--line); color: var(--ink-2); cursor: pointer;
-  font-size: 13px; line-height: 1;
+  font-size: var(--fs-sm); line-height: 1;
   transition: background var(--release) linear, color var(--release) linear;
 }
 .clr:hover { background: var(--ink); color: var(--panel); }
@@ -208,18 +208,21 @@ const list = computed(() => {
 /* 아래 그룹 제목(직무 계열·기술·언어)과 같은 목소리. 모노 대문자는 여기 안 어울린다. */
 .sht {
   margin: 0; display: flex; align-items: center;
-  font-size: 15px; font-weight: 800; letter-spacing: var(--track-tight);
+  font-size: var(--fs-md); font-weight: 800; letter-spacing: var(--track-tight);
 }
 .badge {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
   margin-left: 6px; border-radius: var(--pill);
-  background: var(--accent); color: var(--accent-ink); font-size: 9.5px; font-weight: 700;
+  background: var(--accent); color: var(--accent-ink); font-size: var(--fs-3xs); font-weight: 700;
 }
 .fg { display: flex; flex-direction: column; gap: 9px; }
-.fgt { margin: 0; font-size: 13px; font-weight: 700; }
-.fgn { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 500; }
-/* 이름은 왼쪽, 숫자와 펼침 표시는 오른쪽 — 접힌 줄이 다섯이라 오른쪽 끝이 맞아야 훑힌다 */
-.acch .fgn { margin-left: auto; }
+.fgt { margin: 0; font-size: var(--fs-sm); font-weight: 700; }
+.fgn { font-family: var(--mono); font-size: var(--fs-3xs); color: var(--faint); font-weight: 500; }
+/* 전체 개수는 제목에 딸린 수라 이름 바로 옆에 붙인다.
+   오른쪽 끝에는 "내가 고른 수"(주황)와 펼침 표시만 남는다 —
+   접힌 줄이 다섯이라 그 둘의 오른쪽 끝이 맞아야 훑힌다.
+   margin-right:auto 를 여기 두면 배지가 없는 줄에서도 펼침 표시가 오른쪽에 선다. */
+.acch .fgn { margin-right: auto; }
 .fgb { display: flex; gap: 6px; flex-wrap: wrap; }
 .w { width: 100%; }
 
@@ -234,14 +237,14 @@ const list = computed(() => {
 }
 .acch:hover { border-bottom-color: var(--ink); }
 .acch[aria-expanded='true'] { border-bottom-color: var(--ink); }
-.accn { font-size: 13px; font-weight: 700; }
+.accn { font-size: var(--fs-sm); font-weight: 700; }
 /* 접혀 있어도 몇 개 골랐는지는 보인다 */
 .accp {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
   border-radius: var(--pill); background: var(--accent); color: var(--accent-ink);
-  font-size: 9.5px; font-weight: 700;
+  font-size: var(--fs-3xs); font-weight: 700;
 }
-.chev { font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
+.chev { font-family: var(--mono); font-size: var(--fs-md); color: var(--muted); line-height: 1; }
 .acch[aria-expanded='true'] .chev { color: var(--ink); }
 
 @media (max-width: 900px) {

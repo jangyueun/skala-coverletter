@@ -123,7 +123,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 
       <!-- 근거로 쓸 경험 -->
       <aside class="side">
-        <p class="label">근거로 쓸 경험</p>
+        <p class="subhead">근거로 쓸 경험</p>
         <p class="sd">체크한 경험이 AI 초안의 근거가 되고, 저장 시 함께 기록됩니다.</p>
         <label v-for="e in store.experiences" :key="e.id" class="ex" :class="{ on: used.includes(e.id) }">
           <input type="checkbox" :checked="used.includes(e.id)" @change="toggleExp(e.id)">
@@ -142,7 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .min0 { min-width: 0; }
 
 .qtabs { display: flex; gap: 7px; flex-wrap: wrap; }
-.st { font-size: 9px; color: var(--faint); }
+.st { font-size: var(--fs-3xs); color: var(--faint); }
 .st.on { color: var(--ok); }
 .st.dirty { color: var(--gap); }
 /* 선택된 탭에서는 배지가 흰색으로 덮인다. 그래도 되는 이유는 —
@@ -153,32 +153,32 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .two { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 20px; align-items: start; }
 .main { display: flex; flex-direction: column; gap: 11px; min-width: 0; }
 
-.prompt { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.55; }
+.prompt { margin: 0; font-size: var(--fs-md); font-weight: 700; line-height: 1.55; }
 
 .meterrow { display: flex; align-items: center; gap: 10px; }
 .meter { flex: 1; height: 5px; background: var(--panel-sunken); border-radius: var(--pill); overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--ink); transition: width 120ms linear; }
 .meter.bad i { background: var(--accent); }
-.cnt { font-size: 12px; font-weight: 600; flex: none; }
+.cnt { font-size: var(--fs-xs); font-weight: 600; flex: none; }
 .cnt.bad { color: var(--accent); }
 .cnt.idle { color: var(--faint); }
 
 .inp {
   padding: 13px 14px; background: var(--panel); color: var(--ink);
   border: 1px solid var(--line); border-radius: var(--r);
-  font-size: 13.5px; line-height: 1.85; resize: vertical;
+  font-size: var(--fs-sm); line-height: 1.85; resize: vertical;
   transition: border-color var(--release) linear;
 }
 .inp:hover { border-color: var(--ink); }
 .inp:focus { outline: none; border-color: var(--accent); }
 
 .saverow { display: flex; align-items: center; gap: 10px; }
-.sst { margin: 0; flex: 1; min-width: 0; font-size: 12px; color: var(--muted); }
+.sst { margin: 0; flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--muted); }
 .sst.warn { color: var(--gap); font-weight: 600; }
 .also { color: var(--faint); font-weight: 400; }
 
 .side { display: flex; flex-direction: column; gap: 7px; }
-.sd { margin: 0 0 3px; font-size: 11px; color: var(--muted); line-height: 1.5; }
+.sd { margin: 0 0 3px; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5; }
 .ex {
   display: flex; gap: 8px; align-items: flex-start;
   padding: 9px 11px; border: 1px solid var(--line); border-radius: var(--r);
@@ -187,8 +187,8 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .ex:hover { border-color: var(--ink); }
 .ex.on { border-color: var(--accent); }
 .ex input { margin-top: 2px; accent-color: var(--accent); flex: none; }
-.et { display: block; font-size: 12px; font-weight: 600; line-height: 1.4; }
-.em { display: block; font-size: 10.5px; color: var(--faint); margin-top: 2px; }
+.et { display: block; font-size: var(--fs-xs); font-weight: 600; line-height: 1.4; }
+.em { display: block; font-size: var(--fs-3xs); color: var(--faint); margin-top: 2px; }
 
 @media (max-width: 820px) {
   /* 좁은 폭에서도 문항과 본문이 먼저다. 근거 경험은 아래로 —

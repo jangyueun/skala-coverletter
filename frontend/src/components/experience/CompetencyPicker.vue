@@ -73,19 +73,19 @@ const setStr = (id, v) => { props.pick[id] = v }
 
 <style scoped>
 .picked { display: flex; gap: 6px; flex-wrap: wrap; min-height: 26px; }
-.none { font-size: 12px; color: var(--muted); }
+.none { font-size: var(--fs-xs); color: var(--muted); }
 
 .chip {
   display: inline-flex; align-items: stretch;
   border: 1px solid var(--line-strong); border-radius: var(--r-sm);
-  background: var(--panel-raised); font-size: 11.5px; font-weight: 600;
+  background: var(--panel-raised); font-size: var(--fs-2xs); font-weight: 600;
   overflow: hidden;
 }
 .chip { padding-left: 8px; align-items: center; }
 
 .sv, .rm {
   border: none; background: transparent; cursor: pointer;
-  font-family: var(--mono); font-weight: 700; font-size: 11px;
+  font-family: var(--mono); font-weight: 700; font-size: var(--fs-2xs);
   padding: 3px 6px; color: var(--faint);
   transition: background var(--release) linear, color var(--release) linear;
 }
@@ -95,7 +95,7 @@ const setStr = (id, v) => { props.pick[id] = v }
 .sv[aria-pressed='true'] { background: var(--ink); color: var(--panel-raised); }
 .sv:active { background: var(--accent); color: var(--accent-ink); transition-duration: var(--snap); }
 
-.rm { color: var(--muted); font-size: 13px; padding: 3px 8px 4px; }
+.rm { color: var(--muted); font-size: var(--fs-sm); padding: 3px 8px 4px; }
 .rm:hover { color: var(--gap); }
 .rm:active { background: var(--gap); color: var(--panel-raised); transition-duration: var(--snap); }
 
@@ -117,7 +117,7 @@ const setStr = (id, v) => { props.pick[id] = v }
   .grp { grid-template-columns: 1fr; gap: 4px; }
   .gl { text-align: left; }
 }
-.add { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
+.add { cursor: pointer; font: inherit; font-size: var(--fs-2xs); font-weight: 600; }
 .add:hover { border-color: var(--line-strong); color: var(--ink); }
 .add:active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); transition-duration: var(--snap); }
 </style>
