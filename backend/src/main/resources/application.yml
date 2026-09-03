@@ -38,6 +38,11 @@ server:
       timeout: 14d
 
 careerfit:
+  ai:
+    # 로컬은 ai/ 폴더의 FastAPI 서버(uvicorn app.main:app --port 8000). 배포 주소는 환경변수로.
+    base-url: ${AI_SERVER_BASE_URL:http://localhost:8000}
+    # Python 쪽 AI_INTERNAL_TOKEN과 같은 값. 비어 있으면 로컬 개발용 — Authorization 헤더를 안 붙인다.
+    internal-token: ${AI_INTERNAL_TOKEN:}
   storage:
     # DB 접속용 SUPABASE_DB_URL(풀러 JDBC 주소)과는 다르다 — 프로젝트 REST URL이다. 예: https://xxxx.supabase.co
     url: ${SUPABASE_URL:}
