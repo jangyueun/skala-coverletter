@@ -32,10 +32,15 @@ const filterName = computed(() =>
     <div class="hl">
       <p class="label">Career Lab · Library</p>
       <h1 class="display">경험 라이브러리</h1>
-      <p class="lede">
-        지원할 때마다 새로 쓰는 게 아니라, 한 번 구조화해 두고 계속 꺼내 쓴다.
-        <b>AI가 하나도 없어도 이 화면은 그 자체로 도구다.</b>
-      </p>
+      <p class="lede">STAR 기법을 사용해 본인의 경험을 적어 두세요.</p>
+      <!-- 글자와 설명은 등록 폼의 FIELDS 와 같은 문구다.
+           두 화면이 다른 말을 하면 어느 쪽을 믿어야 할지 모른다. -->
+      <dl class="star">
+        <div><dt>S</dt><dd><b>Situation</b> 어떤 상황이었나</dd></div>
+        <div><dt>T</dt><dd><b>Task</b> 무엇을 목표로 삼았나</dd></div>
+        <div><dt>A</dt><dd><b>Action</b> 내가 한 행동과 적용한 방식</dd></div>
+        <div><dt>R</dt><dd><b>Result</b> 결과 — 숫자로</dd></div>
+      </dl>
     </div>
     <!-- 이 화면에 하나뿐인 주요 행동. 제목 옆 빈자리가 그 자리다. -->
     <button class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
@@ -91,8 +96,15 @@ const filterName = computed(() =>
 .hl { min-width: 0; }
 .hb { flex: none; }
 
-.lede { max-width: 58ch; color: var(--muted); margin: 14px 0 0; }
-.lede b { color: var(--ink); font-weight: 600; }
+.lede { max-width: 58ch; color: var(--ink); margin: 14px 0 0; font-weight: 600; }
+
+/* STAR 안내 — 읽고 지나가는 글이 아니라 옆에 두고 보는 표에 가깝다.
+   글자 열을 고정 폭으로 잡아 네 줄의 설명 시작점이 맞는다. */
+.star { margin: 9px 0 0; display: flex; flex-direction: column; gap: 3px; }
+.star > div { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: baseline; }
+.star dt { color: var(--accent); font-family: var(--mono); font-weight: 700; font-size: 12px; }
+.star dd { margin: 0; font-size: 12.5px; color: var(--muted); }
+.star dd b { color: var(--ink-2); font-weight: 600; margin-right: 5px; }
 
 .readout { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0 0; }
 /* 숫자는 가로로 나란히 두지 않고 쌓는다 — 둘 다 "얼마나 모았나" 라
