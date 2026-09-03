@@ -6,6 +6,7 @@ import PostingCard from '@/components/posting/PostingCard.vue'
 const store = useCareerStore()
 const q = ref('')
 const role = ref('ALL')
+const picked = ref(new Set())      // 선택된 competencyId
 
 const ROLES = [
   { k: 'ALL',       l: '전체' },
@@ -15,33 +16,43 @@ const ROLES = [
   { k: 'PLATFORM',  l: '플랫폼·인프라' },
 ]
 
+const CAT_LABEL = {
+  ROLE: '직무 역량', TECH: '기술·언어', SOFT: '일하는 방식',
+  DOMAIN: '산업', VALUE: '인재상',
+}
+
+/* 사전 전체를 범주별로 묶어 낸다. 접어 두면 있는 줄도 모른다. */
+const groups = computed(() =>
+  ['ROLE', 'TECH', 'SOFT', 'DOMAIN', 'VALUE'].map(k => ({
+    k, label: CAT_LABEL[k],
+    items: store.competencies.filter(c => c.category === k),
+  })))
+
+function toggle(id) {
+  const next = new Set(picked.value)
+  next.has(id) ? next.delete(id) : next.add(id)
+  picked.value = next
+}
+function clearAll() {
+  q.value = ''; role.value = 'ALL'; picked.value = new Set(); store.bookmarkOnly = false
+}
+const activeCount = computed(() =>
+  picked.value.size + (role.value !== 'ALL' ? 1 : 0)
+  + (store.bookmarkOnly ? 1 : 0) + (q.value.trim() ? 1 : 0))
+
 /* 검색은 기업·직무·역량 이름을 함께 본다.
-   사용자가 "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도
-   요구 역량에 있으면 나와야 한다. */
+   "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도 요구 역량에 있으면 나와야 한다. */
 const list = computed(() => {
   const kw = q.value.trim().toLowerCase()
   return store.cards.filter(c => {
     if (role.value !== 'ALL' && c.posting.role !== role.value) return false
+    // 고른 역량을 **하나라도** 요구하는 공고. AND 로 걸면 대부분 0건이 된다.
+    if (picked.value.size && !c.match.rows.some(r => picked.value.has(r.competencyId))) return false
     if (!kw) return true
-    const hay = [
-      c.posting.company, c.posting.position,
-      ...c.match.rows.map(r => r.comp.name),
-    ].join(' ').toLowerCase()
+    const hay = [c.posting.company, c.posting.position, ...c.match.rows.map(r => r.comp.name)]
+      .join(' ').toLowerCase()
     return hay.includes(kw)
   })
-})
-
-const gap = computed(() => store.topGap)
-
-/* 추천 키워드 — 지금 내가 못 덮는 역량. 검색어로 바로 꽂아 준다. */
-const suggest = computed(() => {
-  const tagged = store.taggedCompetencyIds
-  const need = new Set()
-  store.livePostings.forEach(p =>
-    store.matchFor(p).rows.filter(r => r.isGap).forEach(r => need.add(r.comp.name)))
-  return [...need].slice(0, 5)
-    .concat(store.competencies.filter(c => tagged.has(c.id)).slice(0, 2).map(c => c.name))
-    .slice(0, 6)
 })
 </script>
 
@@ -75,22 +86,19 @@ const suggest = computed(() => {
     </div>
   </section>
 
-  <!-- 추천 키워드 -->
-  <section class="sug">
-    <span class="sl">이런 역량도 확인해보세요.</span>
-    <button v-for="s in suggest" :key="s" class="btn btn--sm"
-            :aria-pressed="q === s" @click="q = q === s ? '' : s">{{ s }}</button>
-  </section>
-
-  <!-- 개수 + 정렬 -->
+  <!-- 개수 + 정렬.
+       아래 .cols 와 같은 그리드를 써서 목록 열 안에 넣는다 —
+       전폭으로 두면 정렬 버튼이 사이드바 위까지 나가 목록과 안 맞는다. -->
   <section class="count">
-    <p class="cn">
-      <b class="num n">{{ list.length }}</b> 개의 공고가 현재 진행중입니다.
-      <span v-if="store.dueSoonCount" class="soon">· 마감 7일 내 {{ store.dueSoonCount }}건</span>
-    </p>
-    <div class="sorts">
-      <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
-      <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
+    <div class="count-in">
+      <p class="cn">
+        <b class="num n">{{ list.length }}</b> 개의 공고가 현재 진행중입니다.
+        <span v-if="store.dueSoonCount" class="soon">· 마감 7일 내 {{ store.dueSoonCount }}건</span>
+      </p>
+      <div class="sorts">
+        <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
+        <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
+      </div>
     </div>
   </section>
 
@@ -105,9 +113,16 @@ const suggest = computed(() => {
 
     <aside class="side" aria-label="필터">
       <div class="sh">
-        <span class="label">Filter</span>
-        <button class="btn btn--quiet btn--sm"
-                @click="q = ''; role = 'ALL'; store.bookmarkOnly = false">CLEAR</button>
+        <span class="label">Filter<span v-if="activeCount" class="badge">{{ activeCount }}</span></span>
+        <button class="btn btn--quiet btn--sm" @click="clearAll">CLEAR</button>
+      </div>
+
+      <!-- 즐겨찾기가 맨 위 — 가장 자주 쓰는 필터다 -->
+      <div class="fg">
+        <button class="btn btn--sm w" :aria-pressed="store.bookmarkOnly"
+                @click="store.bookmarkOnly = !store.bookmarkOnly">
+          {{ store.bookmarkOnly ? '★ 즐겨찾기만 보는 중' : '☆ 즐겨찾기만' }}
+        </button>
       </div>
 
       <div class="fg">
@@ -118,22 +133,13 @@ const suggest = computed(() => {
         </div>
       </div>
 
-      <div class="fg">
-        <p class="fgt">보기</p>
+      <!-- 역량 사전 전체. 범주로 묶어야 목록이 아니라 구조로 읽힌다. -->
+      <div v-for="g in groups" :key="g.k" class="fg">
+        <p class="fgt">{{ g.label }} <span class="fgn">{{ g.items.length }}</span></p>
         <div class="fgb">
-          <button class="btn btn--sm" :aria-pressed="store.bookmarkOnly"
-                  @click="store.bookmarkOnly = !store.bookmarkOnly">즐겨찾기만</button>
+          <button v-for="c in g.items" :key="c.id" class="btn btn--sm"
+                  :aria-pressed="picked.has(c.id)" @click="toggle(c.id)">{{ c.name }}</button>
         </div>
-      </div>
-
-      <!-- 이 서비스만의 것 — 다음에 뭘 채우면 가장 많이 움직이나 -->
-      <div v-if="gap" class="nx">
-        <p class="fgt">다음에 채울 것</p>
-        <p class="nxn">{{ gap.competency.name }}</p>
-        <p class="nxd">
-          공고 {{ gap.postingCount }}건이 이걸 요구하는데, 증명할 경험이 아직 없습니다.
-        </p>
-        <RouterLink to="/experiences" class="btn btn--sm nxb">경험 등록하러 가기</RouterLink>
       </div>
     </aside>
   </div>
@@ -168,22 +174,21 @@ const suggest = computed(() => {
 .q::placeholder { color: var(--faint); font-weight: 400; }
 .clr { flex: none; }
 
-/* 추천 키워드 */
-.sug { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 22px 0 0; }
-.sl { font-size: 12.5px; color: var(--muted); margin-right: 4px; }
-
-/* 개수 */
+/* 개수 — .cols 와 같은 그리드. 둘째 열(사이드바 자리)은 비워 둔다. */
 .count {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
+  display: grid; grid-template-columns: minmax(0, 1fr) 244px; gap: 40px;
   padding: 30px 0 12px;
+}
+.count-in {
+  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
 }
 .cn { margin: 0; font-size: 15px; font-weight: 600; }
 .cn .n { font-size: 20px; font-weight: 800; color: var(--accent); margin-right: 3px; }
 .soon { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 4px; }
-.sorts { display: flex; gap: 7px; }
+.sorts { display: flex; gap: 7px; margin-left: auto; }
 
 /* 좌 리스트 / 우 필터 */
-.cols { display: grid; grid-template-columns: minmax(0, 1fr) 232px; gap: 40px; align-items: start; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 244px; gap: 40px; align-items: start; }
 .list {
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
@@ -192,19 +197,30 @@ const suggest = computed(() => {
 .empty { padding: 50px 0; text-align: center; color: var(--muted); }
 .full { grid-column: 1 / -1; }
 
-.side { position: sticky; top: 18px; display: flex; flex-direction: column; gap: 22px; padding-top: 14px; }
-.sh { display: flex; align-items: center; justify-content: space-between; padding-bottom: 12px; border-bottom: 1px solid var(--ink); }
+/* 필터가 길어지므로 자체 스크롤을 준다 — 페이지가 필터 길이에 끌려가지 않게 */
+.side {
+  position: sticky; top: 18px;
+  display: flex; flex-direction: column; gap: 20px; padding-top: 14px;
+  max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: thin;
+}
+.sh {
+  display: flex; align-items: center; justify-content: space-between;
+  padding-bottom: 12px; border-bottom: 1px solid var(--ink);
+  position: sticky; top: 0; background: var(--panel); z-index: 1;
+}
+.badge {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  margin-left: 6px; border-radius: var(--pill);
+  background: var(--accent); color: var(--accent-ink); font-size: 9.5px; font-weight: 700;
+}
 .fg { display: flex; flex-direction: column; gap: 9px; }
 .fgt { margin: 0; font-size: 13px; font-weight: 700; }
+.fgn { font-family: var(--mono); font-size: 10px; color: var(--faint); margin-left: 4px; font-weight: 500; }
 .fgb { display: flex; gap: 6px; flex-wrap: wrap; }
-
-.nx { padding: 15px 16px; background: var(--panel-sunken); border-radius: var(--r); }
-.nxn { margin: 7px 0 0; font-size: 17px; font-weight: 800; letter-spacing: var(--track-tight); color: var(--gap); }
-.nxd { margin: 5px 0 0; font-size: 11.5px; color: var(--muted); line-height: 1.5; }
-.nxb { margin-top: 11px; width: 100%; text-decoration: none; }
+.w { width: 100%; }
 
 @media (max-width: 900px) {
-  .cols { grid-template-columns: 1fr; gap: 28px; }
-  .side { position: static; order: -1; padding-top: 0; }
+  .cols, .count { grid-template-columns: 1fr; gap: 28px; }
+  .side { position: static; order: -1; padding-top: 0; max-height: none; overflow: visible; }
 }
 </style>

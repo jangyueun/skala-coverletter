@@ -373,6 +373,8 @@ export const DATA = {
       newCompetencies: ['카오스 엔지니어링'],
     },
 
+  
+    { id: 110, postingId: 16, company:'넥스트레이어', position:'백엔드 엔지니어 (신입)' },
   ],
 
   /* --- 자소서 문항 4개 ------------------------------------
@@ -468,6 +470,36 @@ export const DATA = {
       draft:'',
       aiDraft:'',
     },
+  
+    {
+      id: 16, role:'BACKEND', questionsFromServer: true, source:'CRAWLED',
+      company:'넥스트레이어', position:'백엔드 엔지니어 (신입)', deadline:'2026-08-25',
+      rawText:`[넥스트레이어] 2026 상반기 백엔드 엔지니어 채용
+
+■ 담당 업무
+· 이커머스 주문·결제 API 개발과 운영
+· 트래픽 증가에 대응하는 서버 구조 개선
+
+■ 자격 요건
+· Java · Spring Boot 로 서비스를 만들어 본 경험
+· 관계형 데이터베이스 설계와 SQL 작성 능력
+· 문제가 생겼을 때 원인을 끝까지 추적해 본 경험
+
+■ 우대 사항
+· 이커머스 도메인 경험
+· 대규모 트래픽 처리 경험`,
+      required: [
+        { competencyId: 1,  weight:0.9, evidence:'Java · Spring Boot 로 서비스를 만들어 본 경험' },
+        { competencyId: 13, weight:0.9, evidence:'Java 로 서비스를 만들어 본 경험' },
+        { competencyId: 14, weight:0.9, evidence:'Spring Boot 로 서비스를 만들어 본 경험' },
+        { competencyId: 3,  weight:0.8, evidence:'주문·결제 API 개발과 운영' },
+        { competencyId: 20, weight:0.8, evidence:'관계형 데이터베이스 설계와 SQL 작성 능력' },
+        { competencyId: 28, weight:0.8, evidence:'문제가 생겼을 때 원인을 끝까지 추적해 본 경험' },
+        { competencyId: 31, weight:0.7, evidence:'이커머스 도메인 경험' },
+        { competencyId: 11, weight:0.6, evidence:'트래픽 증가에 대응하는 서버 구조 개선' },
+      ],
+      newCompetencies: [],
+    },
   ],
 
   /* --- 지원 현황 ------------------------------------------- */
@@ -481,6 +513,21 @@ export const DATA = {
     { id:104, postingId:12, company:'코어링크',   position:'백엔드 · 신입' },
     { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어' },
     { id:109, postingId:15, company:'한빛시스템', position:'SRE' },
+  
+    {
+      id: 71, applicationId: 110, charLimit: 800,
+      prompt:'지원 직무와 관련해 가장 깊이 파고들었던 경험을 하나 골라, 무엇을 목표로 삼았고 어떻게 해결했는지 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[1, 2],
+      draft:'모놀리식 주문 서비스를 마이크로서비스로 분리하는 과제를 5인 팀으로 맡았습니다. 서비스가 나뉘면서 결제 상태가 주문 쪽과 어긋나는 문제가 생겼고, 테스트 100건 중 12건에서 불일치가 났습니다. 원인은 결제 이벤트가 이중 발행되는 것이었습니다. Transactional Outbox 패턴을 도입해 이벤트 발행을 DB 트랜잭션에 묶었고, 불일치를 0건으로 줄였습니다. 이 과정에서 Spring Boot 와 Kafka 를 다뤘고, 분산 환경에서 정합성을 지키는 방법을 몸으로 배웠습니다.',
+      aiDraft:'',
+    },
+    {
+      id: 72, applicationId: 110, charLimit: 600,
+      prompt:'당사에 지원한 이유와 입사 후 하고 싶은 일을 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[2],
+      draft:'넥스트레이어의 이커머스 주문·결제 도메인은 제가 다뤄 본 문제와 가장 가깝습니다. 주식 거래 REST API 를 만들면서 엔드포인트 18개의 에러 응답 형식을 1종으로 통일했고, 프론트 연동 문의를 9건에서 1건으로 줄인 경험이 있습니다. 주문·결제처럼 실패가 곧 돈이 되는 도메인에서는 이 정합성이 더 중요하다고 생각합니다. 입사 후에는 결제 API 의 실패 처리와 재시도 구조를 맡아 보고 싶습니다.',
+      aiDraft:'',
+    },
   ],
 
 
