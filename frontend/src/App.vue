@@ -1,15 +1,15 @@
 <script setup>
 import { RouterView, RouterLink, useRouter } from 'vue-router'
-import { useAuthStore } from '@/stores/authStore.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 const auth = useAuthStore()
 const router = useRouter()
 
-/* 로그인은 아직 화면뿐이다. 백엔드 Slack OAuth 가 붙으면
-   여기가 인가 URL 로 보내는 자리가 된다. */
-function signIn() {
-  auth.signIn()
-  router.push('/my')
+/* real 은 Slack 으로 페이지를 옮기므로 이 뒤가 실행되지 않는다.
+   mock 은 즉시 돌아오므로 MY 로 보낸다. 둘 다 이 한 줄이면 된다. */
+async function signIn() {
+  await auth.signIn()
+  if (auth.signedIn) router.push('/my')
 }
 
 const nav = [

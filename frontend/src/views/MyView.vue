@@ -1,17 +1,20 @@
 <script setup>
 import { computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { useAuthStore } from '@/stores/authStore.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { useUiStore } from '@/stores/ui.js'
+import { useDerivedStore } from '@/stores/derived.js'
+import Skeleton from '@/components/state/Skeleton.vue'
 import SignInGate from '@/components/SignInGate.vue'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
-const store = useCareerStore()
 const auth = useAuthStore()
+const ui = useUiStore()
+const D = useDerivedStore()
 
 /* 로그아웃해도 이 화면에 머문다. 목록이 사라지고 그 자리에 로그인 안내가
    뜨므로 남의 현황이 남지 않고, 다시 로그인하면 보던 곳으로 바로 돌아온다. */
 function signOut() { auth.signOut() }
-const lists = computed(() => store.myLists)
+const lists = computed(() => D.ready ? D.myLists : [])
 const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0))
 </script>
 
@@ -23,7 +26,8 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
     </div>
   </section>
 
-  <SignInGate v-if="!auth.signedIn"
+  <Skeleton v-if="!auth.loaded || !D.ready" :rows="6" />
+  <SignInGate v-else-if="!auth.signedIn"
               desc="담아 둔 공고와 쓰던 자소서를 한 자리에서 봅니다. 내 것을 보는 화면이라 로그인이 필요합니다." />
 
   <template v-else>
@@ -36,7 +40,7 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
     </header>
 
     <div v-if="l.items.length" class="grid">
-      <PostingCard v-for="c in l.items" :key="c.posting.id" :card="c" @bookmark="store.toggleBookmark" />
+      <PostingCard v-for="c in l.items" :key="c.posting.id" :card="c" @bookmark="ui.toggleBookmark" />
     </div>
 
     <!-- 비어 있으면 그 이유와 다음 행동을 말한다. 빈 상자만 두면 고장으로 읽힌다. -->

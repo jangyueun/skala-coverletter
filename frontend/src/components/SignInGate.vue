@@ -1,5 +1,5 @@
 <script setup>
-import { useAuthStore } from '@/stores/authStore.js'
+import { useAuthStore } from '@/stores/auth.js'
 
 /* 로그인해야 볼 수 있는 자리에 대신 놓는 화면.
    공고 내용은 누구에게나 열려 있고, "나에 관한 것"(내 경험 · 나와의 매칭 ·

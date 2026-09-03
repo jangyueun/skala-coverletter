@@ -1,10 +1,14 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
+import { useExperiencesStore } from '@/stores/experiences.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { useDerivedStore } from '@/stores/derived.js'
 import CompetencyPicker from './CompetencyPicker.vue'
 import IntakePanel from './IntakePanel.vue'
 
-const store = useCareerStore()
+const E = useExperiencesStore()
+const P = usePostingsStore()
+const D = useDerivedStore()
 const el = ref(null)
 const editId = ref(null)
 const tab = ref('manual')   // manual | intake
@@ -28,7 +32,7 @@ function open(id) {
   editId.value = id ?? null
   Object.assign(form, blank())
   if (id != null) {
-    const e = store.experienceById(id)
+    const e = E.byId(id)
     if (e) {
       Object.assign(form, {
         title: e.title, period: e.period, category: e.category,
@@ -49,12 +53,13 @@ const starDone = computed(() => FIELDS.filter(f => form[f.k].trim()).length)
 /* 지금 비어 있는 요구 역량 — 이 경험이 그걸 증명한다면 태그하라고 알린다 */
 const openGaps = computed(() => {
   const s = new Set()
-  store.livePostings.forEach(p =>
-    store.matchFor(p).rows.filter(r => r.isGap).forEach(r => s.add(r.comp.name)))
+  P.live.forEach(p =>
+    D.matchFor(p).rows.filter(r => r.isGap).forEach(r => s.add(r.comp.name)))
   return [...s]
 })
 
-function save() {
+/* 서버에 await 한다. 성공해야 닫는다 — 실패하면 폼이 남고 이유가 errors 에 뜬다. */
+async function save() {
   const errs = []
   if (!form.title.trim()) errs.push('제목은 필수입니다.')
   if (!form.result.trim()) errs.push('결과(R)는 필수입니다. 성과 없는 경험은 자소서에서 쓸 수 없습니다.')
@@ -71,8 +76,13 @@ function save() {
     competencyIds: Object.keys(form.comp).map(Number),
     strength: { ...form.comp },
   }
-  if (editId.value != null) store.updateExperience(editId.value, patch)
-  else store.addExperience({ ...patch, usedInAnswers: 0 })
+  try {
+    if (editId.value != null) await E.update(editId.value, patch)
+    else await E.create({ ...patch, usedInAnswers: 0 })
+  } catch (e) {
+    errors.value = [`저장에 실패했습니다 — ${e.message}`]
+    return
+  }
   el.value.close()
 }
 </script>

@@ -1,12 +1,14 @@
 <script setup>
 import { ref, reactive, computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { computeMatch, SCORE } from '@/lib/matching.js'
+import { useExperiencesStore } from '@/stores/experiences.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { computeMatch, SCORE } from '@/domain/matching.js'
 import IntakeField from './IntakeField.vue'
 import CompetencyPicker from './CompetencyPicker.vue'
 
 const emit = defineEmits(['done'])
-const store = useCareerStore()
+const E = useExperiencesStore()
+const P = usePostingsStore()
 
 const FIELDS = [
   { k: 'situation', l: 'S', d: '어떤 상황이었나', rows: 2 },
@@ -30,7 +32,7 @@ const active = ref(null)
 const armed = ref(null)        // 2단 확인 무장 건수
 const linksOpen = ref(true)
 
-const cands = computed(() => store.intakeCandidates)
+const cands = computed(() => E.candidates)
 const candOf = k => cands.value.find(c => c.key === k)
 
 const aiOf = (c, f) => (c[f] || '').trim()
@@ -153,17 +155,17 @@ function buildExp(k) {
 /* 등록하면 매칭이 얼마나 오르는지 미리 보여준다. 전역을 건드리지 않고 계산만. */
 const matchDelta = computed(() => {
   if (!readyKeys.value.length) return null
-  const p = store.livePostings[0]
+  const p = P.live[0]
   if (!p) return null
-  const before = Math.round(computeMatch(p, store.experiences).overall * 100)
+  const before = Math.round(computeMatch(p, E.list, P.competencies).overall * 100)
   const after = Math.round(computeMatch(p, [
-    ...store.experiences,
+    ...E.list,
     ...readyKeys.value.map((k, i) => ({ ...buildExp(k), id: -1 - i })),
-  ]).overall * 100)
+  ], P.competencies).overall * 100)
   return after > before ? { co: p.company, before, after } : null
 })
 
-function commit() {
+async function commit() {
   const ready = readyKeys.value
   if (!ready.length) return
   // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
@@ -171,7 +173,10 @@ function commit() {
     armed.value = ready.length
     return
   }
-  ready.forEach(k => store.addExperience(buildExp(k)))
+  /* 한 건이라도 실패하면 등록된 것만 남고 패널은 그대로다 — 다시 누르면 된다.
+     낙관적으로 먼저 지우면 실패한 건이 화면에서만 사라진다. */
+  try { await Promise.all(ready.map(k => E.create(buildExp(k)))) }
+  catch { return }
   armed.value = null
   emit('done', ready.length)
   reset()

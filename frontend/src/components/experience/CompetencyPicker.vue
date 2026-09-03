@@ -1,7 +1,8 @@
 <script setup>
 import { computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { STR, strLabel, SCORE, groupByCategory } from '@/lib/matching.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { STR, strLabel, SCORE } from '@/domain/matching.js'
+import { groupByCategory } from '@/domain/competency.js'
 
 /* 수동 폼과 인테이크 에디터가 같이 쓴다.
    두 곳에 복사해 두면 한쪽만 고쳐진다.
@@ -13,18 +14,18 @@ import { STR, strLabel, SCORE, groupByCategory } from '@/lib/matching.js'
 const props = defineProps({
   pick: { type: Object, required: true },   // { competencyId: strength } — 반응형, 제자리 수정
 })
-const store = useCareerStore()
+const P = usePostingsStore()
 
 const picked = computed(() =>
   Object.entries(props.pick)
-    .map(([id, s]) => ({ c: store.competencies.find(x => x.id === +id), s, id: +id }))
+    .map(([id, s]) => ({ c: P.competencies.find(x => x.id === +id), s, id: +id }))
     .filter(x => x.c))
 
 /* 사전이 45개다. 평평하게 늘어놓으면 "이게 기술인지 인재상인지" 를
    이름만 보고 판단해야 한다. 범주로 묶으면 고를 자리를 먼저 찾고 그 안에서 고른다.
    이미 고른 것은 빠지므로, 한 범주를 다 고르면 그 줄 자체가 사라진다. */
 const pool = computed(() =>
-  groupByCategory(store.competencies.filter(c => !(c.id in props.pick))))
+  groupByCategory(P.competencies.filter(c => !(c.id in props.pick))))
 
 const add    = id => { props.pick[id] = SCORE.PICK_STRENGTH }
 const remove = id => { delete props.pick[id] }

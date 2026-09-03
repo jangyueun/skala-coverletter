@@ -1,32 +1,36 @@
 <script setup>
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { groupByCategory } from '@/lib/matching.js'
+import { useExperiencesStore } from '@/stores/experiences.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { groupByCategory } from '@/domain/competency.js'
+import Skeleton from '@/components/state/Skeleton.vue'
+import ErrorNote from '@/components/state/ErrorNote.vue'
 import ExperienceCard from '@/components/experience/ExperienceCard.vue'
 import ExperienceDialog from '@/components/experience/ExperienceDialog.vue'
 import SignInGate from '@/components/SignInGate.vue'
-import { useAuthStore } from '@/stores/authStore.js'
+import { useAuthStore } from '@/stores/auth.js'
 
-const store = useCareerStore()
+const E = useExperiencesStore()
+const P = usePostingsStore()
 const auth = useAuthStore()
 const filter = ref(null)          // 선택된 competencyId
 const dlg = ref(null)
 
-const tagged = computed(() => store.taggedCompetencyIds)
+const tagged = computed(() => E.taggedCompetencyIds)
 
 /* 경험이 덮고 있는 역량만 칩으로 낸다. 안 덮은 20개를 다 늘어놓으면
    "고를 수 있는 것"과 "내가 가진 것"이 섞여 필터가 필터로 안 읽힌다. */
 const chips = computed(() =>
   groupByCategory(
-    store.competencies
+    P.competencies
       .filter(c => tagged.value.has(c.id))
-      .map(c => ({ ...c, n: store.experiences.filter(e => e.competencyIds.includes(c.id)).length }))))
+      .map(c => ({ ...c, n: E.list.filter(e => e.competencyIds.includes(c.id)).length }))))
 
 const shown = computed(() =>
-  filter.value ? store.experiences.filter(e => e.competencyIds.includes(filter.value)) : store.experiences)
+  filter.value ? E.list.filter(e => e.competencyIds.includes(filter.value)) : E.list)
 
 const filterName = computed(() =>
-  filter.value ? store.competencies.find(c => c.id === filter.value)?.name : null)
+  filter.value ? P.competencies.find(c => c.id === filter.value)?.name : null)
 
 /* 필터는 접을 수 있다. 태그가 21개라 늘 펴 두면 목록이 한 화면 아래로 밀린다.
    고른 게 있으면 접혀 있어도 개수가 머리에 남아, 접어 둔 걸 잊고
@@ -74,18 +78,20 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
          이 줄에서 채워진 것은 등록 버튼 하나여야 한다. -->
     <div class="hr">
       <div v-if="auth.signedIn" class="stat">
-        <div class="num num--lg num--read">{{ store.experiences.length }}</div>
+        <div class="num num--lg num--read">{{ E.list.length }}</div>
         <p class="sl">등록한 경험</p>
       </div>
       <div v-if="auth.signedIn" class="stat">
-        <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
+        <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ P.competencies.length }}</span></div>
         <p class="sl">태그된 역량</p>
       </div>
       <button v-if="auth.signedIn" class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
     </div>
   </header>
 
-  <SignInGate v-if="!auth.signedIn"
+  <Skeleton v-if="!auth.loaded || !E.loaded || !P.loaded" :rows="6" />
+  <ErrorNote v-else-if="E.error" :error="E.error" what="경험 불러오기" @retry="E.load()" />
+  <SignInGate v-else-if="!auth.signedIn"
               desc="등록한 경험은 계정에 저장됩니다. 로그인하면 쌓아 둔 경험을 이어서 쓸 수 있습니다." />
 
   <template v-else>

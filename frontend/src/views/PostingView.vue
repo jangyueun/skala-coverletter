@@ -1,15 +1,23 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { SCORE, dday, isClosed, essayProgress } from '@/lib/matching.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { useAnswersStore } from '@/stores/answers.js'
+import { useUiStore } from '@/stores/ui.js'
+import { useDerivedStore } from '@/stores/derived.js'
+import { SCORE } from '@/domain/matching.js'
+import { dday, isClosed } from '@/domain/deadline.js'
+import Skeleton from '@/components/state/Skeleton.vue'
 import MatchTable from '@/components/posting/MatchTable.vue'
 import SignInGate from '@/components/SignInGate.vue'
-import { useAuthStore } from '@/stores/authStore.js'
+import { useAuthStore } from '@/stores/auth.js'
 import EssayEditor from '@/components/posting/EssayEditor.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
-const store = useCareerStore()
+const P = usePostingsStore()
+const A = useAnswersStore()
+const ui = useUiStore()
+const D = useDerivedStore()
 const auth = useAuthStore()
 const router = useRouter()
 
@@ -22,12 +30,12 @@ const TABS = [
   { k: 'essay',   label: '자소서' },
 ]
 
-const posting = computed(() => store.postingById(props.id))
-const match   = computed(() => posting.value ? store.matchFor(posting.value) : null)
+const posting = computed(() => P.byId(props.id))
+const match   = computed(() => posting.value && D.ready ? D.matchFor(posting.value) : null)
 /* cards 는 마감 안 지난 공고만 담는다. 거기서 찾으면 마감 지난 공고는
    undefined 가 되어 머리글에 글자 없는 빈 알약이 하나 그려졌다.
    상세 화면은 마감 공고도 다루므로 공고에서 바로 계산한다. */
-const essay   = computed(() => posting.value ? essayProgress(posting.value, store.questions) : null)
+const essay   = computed(() => posting.value && A.loaded ? D.essayFor(posting.value) : null)
 const pct     = computed(() => Math.round((match.value?.overall ?? 0) * 100))
 const gaps    = computed(() => match.value?.rows.filter(r => r.isGap) ?? [])
 const d       = computed(() => posting.value ? dday(posting.value.deadline) : 0)
@@ -50,13 +58,13 @@ const verdict = computed(() => {
 const related = computed(() => {
   if (!posting.value) return { sameCo: [], sameRole: [] }
   const me = posting.value
-  const live = store.livePostings.filter(p => p.id !== me.id)
+  const live = P.live.filter(p => p.id !== me.id)
   return {
     sameCo:   live.filter(p => p.company === me.company),
     sameRole: live.filter(p => p.company !== me.company && p.role === me.role),
   }
 })
-const pctOf = p => Math.round(store.matchFor(p).overall * 100)
+const pctOf = p => Math.round(D.matchFor(p).overall * 100)
 
 const ROLE = {
   BACKEND: '백엔드', FRONTEND: '프론트엔드', FULLSTACK: '풀스택',
@@ -74,10 +82,7 @@ function withJosa(word, withBatchim, without) {
 const gapPhrase = computed(() =>
   withJosa(gaps.value.map(g => g.comp.name).join(', '), '은', '는'))
 
-const questions = computed(() => {
-  const app = store.applications.find(a => a.postingId === posting.value?.id)
-  return app ? store.questions.filter(q => q.applicationId === app.id) : []
-})
+const questions = computed(() => posting.value ? A.questionsFor(posting.value.id) : [])
 </script>
 
 <template>
@@ -108,9 +113,9 @@ const questions = computed(() => {
       <!-- 매칭과 즐겨찾기는 탭이 아니라 이 공고 자체에 붙는 것이라 머리에 둔다.
            상자로 감싸지 않는다 — 이 화면에서 테두리는 탭 아래 내용의 몫이다. -->
       <div v-if="auth.signedIn" class="hd-r">
-        <button class="btn btn--sm bm" :aria-pressed="store.bookmarks.has(posting.id)"
-                @click="store.toggleBookmark(posting.id)">
-          {{ store.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
+        <button class="btn btn--sm bm" :aria-pressed="ui.bookmarks.has(posting.id)"
+                @click="ui.toggleBookmark(posting.id)">
+          {{ ui.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}
         </button>
         <!-- 막대 게이지는 뺐다. .gauge 정의가 어디에도 없어 10개 <i> 가
              보이지 않는 채로 18px 만 먹고 있었고, 그게 판정을 퍼센트에서
@@ -171,7 +176,8 @@ const questions = computed(() => {
 
     <!-- ── 매칭 ──────────────────────────────────────────── -->
     <section v-show="tab === 'match'" class="pane">
-      <SignInGate v-if="!auth.signedIn"
+      <Skeleton v-if="!auth.loaded || !D.ready" :rows="6" />
+      <SignInGate v-else-if="!auth.signedIn"
                   desc="이 공고가 요구하는 역량을 내 경험과 맞춰 봅니다. 내 경험을 읽어야 하는 화면이라 로그인이 필요합니다." />
 
       <template v-else>
@@ -204,7 +210,8 @@ const questions = computed(() => {
 
     <!-- ── 자소서 ────────────────────────────────────────── -->
     <section v-show="tab === 'essay'" class="pane">
-      <SignInGate v-if="!auth.signedIn"
+      <Skeleton v-if="!auth.loaded || !A.loaded" :rows="6" />
+      <SignInGate v-else-if="!auth.signedIn"
                   desc="자소서 초안은 계정에 저장됩니다. 로그인하면 쓰던 곳부터 이어서 쓸 수 있습니다." />
 
       <div v-else-if="!questions.length" class="panel body empty">
@@ -222,6 +229,7 @@ const questions = computed(() => {
     </section>
   </template>
 
+  <Skeleton v-else-if="!P.loaded" :rows="6" />
   <p v-else class="panel body">공고를 찾을 수 없습니다.</p>
 </template>
 

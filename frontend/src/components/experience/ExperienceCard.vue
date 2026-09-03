@@ -1,11 +1,13 @@
 <script setup>
 import { computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { strLabel } from '@/lib/matching.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { useDerivedStore } from '@/stores/derived.js'
+import { strLabel } from '@/domain/matching.js'
 
 const props = defineProps({ exp: { type: Object, required: true } })
 const emit = defineEmits(['edit'])
-const store = useCareerStore()
+const P = usePostingsStore()
+const D = useDerivedStore()
 
 const STAR = [
   { k: 'situation', l: 'S' },
@@ -14,7 +16,7 @@ const STAR = [
   { k: 'result',    l: 'R' },
 ]
 
-const used = computed(() => store.usedIn(props.exp.id))
+const used = computed(() => D.usedIn(props.exp.id))
 
 /* 인테이크로 만든 경험의 출처 표시.
    AI 문장이 하나도 안 남았으면 근거를 달지 않는다 — 통째로 다시 쓴 문장에
@@ -32,7 +34,7 @@ const origin = computed(() => {
 })
 
 const comps = computed(() => props.exp.competencyIds.map(id => ({
-  c: store.competencies.find(x => x.id === id),
+  c: P.competencies.find(x => x.id === id),
   s: props.exp.strength?.[id] ?? 0.6,
 })).filter(x => x.c))
 </script>

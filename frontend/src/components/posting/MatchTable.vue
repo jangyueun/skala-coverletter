@@ -1,6 +1,7 @@
 <script setup>
 import { ref } from 'vue'
-import { strLabel, catShort } from '@/lib/matching.js'
+import { strLabel } from '@/domain/matching.js'
+import { catShort } from '@/domain/competency.js'
 
 /* 목업의 구성을 그대로 가져왔다 — 표 + 누르면 펼쳐지는 근거.
    역량이 10~14개라 블록으로 쌓으면 화면이 길어져 비교가 안 된다.

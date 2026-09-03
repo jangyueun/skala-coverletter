@@ -1,12 +1,18 @@
 <script setup>
 import { ref, computed } from 'vue'
-import { useCareerStore } from '@/stores/careerStore.js'
-import { useAuthStore } from '@/stores/authStore.js'
-import { groupByCategory } from '@/lib/matching.js'
+import { useAuthStore } from '@/stores/auth.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { useUiStore } from '@/stores/ui.js'
+import { useDerivedStore } from '@/stores/derived.js'
+import { groupByCategory } from '@/domain/competency.js'
+import Skeleton from '@/components/state/Skeleton.vue'
+import ErrorNote from '@/components/state/ErrorNote.vue'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
-const store = useCareerStore()
 const auth = useAuthStore()
+const P = usePostingsStore()
+const ui = useUiStore()
+const D = useDerivedStore()
 const q = ref('')
 const role = ref('ALL')
 const picked = ref(new Set())      // 선택된 competencyId
@@ -20,7 +26,7 @@ const ROLES = [
 ]
 
 /* 사전 전체를 범주별로 묶어 낸다. 접어 두면 있는 줄도 모른다. */
-const groups = computed(() => groupByCategory(store.competencies))
+const groups = computed(() => groupByCategory(P.competencies))
 
 /* 한 번에 한 범주만 편다. 다섯을 다 펼치면 39개가 한꺼번에 쏟아져
    사이드바가 목록보다 길어진다. */
@@ -47,7 +53,7 @@ const activeCount = computed(() =>
    "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도 요구 역량에 있으면 나와야 한다. */
 const list = computed(() => {
   const kw = q.value.trim().toLowerCase()
-  return store.cards.filter(c => {
+  return D.cards.filter(c => {
     if (role.value !== 'ALL' && c.posting.role !== role.value) return false
     // 고른 역량을 **하나라도** 요구하는 공고. AND 로 걸면 대부분 0건이 된다.
     if (picked.value.size && !c.match.rows.some(r => picked.value.has(r.competencyId))) return false
@@ -89,16 +95,20 @@ const list = computed(() => {
         </div>
         <!-- 매칭순은 내 경험과 맞춰 본 결과로 정렬하는 것이라 로그인해야 뜻이 있다 -->
         <div class="sorts">
-          <button v-if="auth.signedIn" class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
-          <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
+          <button v-if="auth.signedIn" class="btn btn--sm" :aria-pressed="ui.sort === 'match'" @click="ui.sort = 'match'">매칭순</button>
+          <button class="btn btn--sm" :aria-pressed="ui.sort === 'deadline'" @click="ui.sort = 'deadline'">마감 임박순</button>
         </div>
       </div>
 
     <section class="list" aria-label="공고 목록">
-      <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="store.toggleBookmark" />
-      <p v-if="!list.length" class="empty full">
-        조건에 맞는 공고가 없습니다. 검색어나 필터를 지워 보세요.
-      </p>
+      <Skeleton v-if="!D.ready || !auth.loaded" :rows="8" class="full" />
+      <ErrorNote v-else-if="P.error" :error="P.error" what="공고 불러오기" class="full" @retry="P.load()" />
+      <template v-else>
+        <PostingCard v-for="c in list" :key="c.posting.id" :card="c" @bookmark="ui.toggleBookmark" />
+        <p v-if="!list.length" class="empty full">
+          조건에 맞는 공고가 없습니다. 검색어나 필터를 지워 보세요.
+        </p>
+      </template>
       </section>
     </section>
 
