@@ -83,7 +83,9 @@ const questions = computed(() => {
         <p class="label">{{ posting.company }} · {{ roleLabel }}</p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
-          <span class="tag tag--ink"><b class="num">D-{{ d }}</b>&nbsp;{{ posting.deadline }} 마감</span>
+          <span class="tag tag--ink">
+            <b v-if="d >= 0" class="num">D-{{ d }}</b>{{ d >= 0 ? '\u00a0' : '' }}{{ posting.deadline }} {{ d >= 0 ? '마감' : '마감됨' }}
+          </span>
           <span class="tag" :class="essay?.state === 'DONE' ? 'tag--ok' : ''">{{ essay?.label }}</span>
           <span class="tag mono">{{ posting.source }}</span>
         </div>

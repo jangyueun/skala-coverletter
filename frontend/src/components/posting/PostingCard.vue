@@ -21,7 +21,8 @@ const covered = computed(() =>
 const rest = computed(() => props.card.match.rows.length - covered.value.slice(0, 3).length)
 
 /* 마감이 급한 것만 주황으로 채운다. 전부 채우면 급한 게 하나도 없는 것과 같다. */
-const urgent = computed(() => props.card.d <= 7)
+/* 마감이 지난 것은 급할 것이 없다 — 음수 D 가 urgent 로 잡혀 주황이 되던 걸 막는다 */
+const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
 </script>
 
 <template>
@@ -57,8 +58,9 @@ const urgent = computed(() => props.card.d <= 7)
 
     <footer class="foot">
       <div class="when">
-        <b class="num dd" :class="{ urgent }">D-{{ card.d }}</b>
-        <span class="date">{{ p.deadline }} 마감</span>
+        <!-- 지난 공고에 D-(-5) 는 셈이 아니라 잡음이다. 날짜만 남긴다. -->
+        <b v-if="card.d >= 0" class="num dd" :class="{ urgent }">D-{{ card.d }}</b>
+        <span class="date">{{ p.deadline }} {{ card.d >= 0 ? '마감' : '마감됨' }}</span>
       </div>
       <span class="tag" :class="card.essay.state === 'DONE' ? 'tag--ok' : ''">
         자소서 {{ card.essay.label }}<template v-if="card.essay.total"> {{ card.essay.done }}/{{ card.essay.total }}</template>

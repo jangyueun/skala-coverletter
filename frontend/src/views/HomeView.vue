@@ -138,8 +138,8 @@ const list = computed(() => {
       <div v-for="g in groups" :key="g.k" class="acc">
         <button class="acch" :aria-expanded="openCat === g.k" @click="toggleCat(g.k)">
           <span class="accn">{{ g.label }}</span>
-          <span v-if="pickedIn(g.k)" class="accp">{{ pickedIn(g.k) }}</span>
           <span class="fgn">{{ g.items.length }}</span>
+          <span v-if="pickedIn(g.k)" class="accp">{{ pickedIn(g.k) }}</span>
           <span class="chev" aria-hidden="true">{{ openCat === g.k ? '−' : '+' }}</span>
         </button>
         <div v-show="openCat === g.k" class="fgb">
@@ -228,6 +228,8 @@ const list = computed(() => {
 .fg { display: flex; flex-direction: column; gap: 9px; }
 .fgt { margin: 0; font-size: 13px; font-weight: 700; }
 .fgn { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 500; }
+/* 이름은 왼쪽, 숫자와 펼침 표시는 오른쪽 — 접힌 줄이 다섯이라 오른쪽 끝이 맞아야 훑힌다 */
+.acch .fgn { margin-left: auto; }
 .fgb { display: flex; gap: 6px; flex-wrap: wrap; }
 .w { width: 100%; }
 
@@ -249,7 +251,7 @@ const list = computed(() => {
   border-radius: var(--pill); background: var(--accent); color: var(--accent-ink);
   font-size: 9.5px; font-weight: 700;
 }
-.chev { margin-left: auto; font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
+.chev { font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
 .acch[aria-expanded='true'] .chev { color: var(--ink); }
 
 @media (max-width: 900px) {
