@@ -49,17 +49,17 @@ const filterName = computed(() =>
   <section class="readout" aria-label="현황">
     <div class="nums">
       <div class="panel cell">
+        <p class="ct">등록한 경험</p>
         <div class="num num--lg num--read">{{ store.experiences.length }}</div>
-        <p class="label">등록한 경험</p>
       </div>
       <div class="panel cell">
+        <p class="ct">태그된 역량</p>
         <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
-        <p class="label">태그된 역량</p>
       </div>
     </div>
 
     <div class="panel cell filt" aria-label="역량으로 필터링">
-    <p class="label">역량으로 필터링</p>
+    <p class="ct">역량으로 필터링</p>
     <div class="grps">
       <div v-for="g in chips" :key="g.k" class="grp">
         <p class="label gl">{{ g.label }}</p>
@@ -112,12 +112,13 @@ const filterName = computed(() =>
    높이는 필터 패널이 정하고, 두 칸이 그걸 반씩 나눠 갖는다. */
 .nums { display: flex; flex-direction: column; gap: 12px; flex: none; width: 152px; }
 .nums .cell { flex: 1; }
-/* 늘어난 칸에서 숫자가 위에만 붙어 있으면 아래가 텅 빈다. 가운데 앉힌다. */
-.cell {
-  padding: 14px 20px; display: flex; flex-direction: column;
-  justify-content: center; gap: 4px;
+/* 세 칸 모두 제목이 왼쪽 위에 먼저 온다 — 무엇을 세는 칸인지 읽고
+   숫자를 본다. 칸마다 제목 위치가 다르면 눈이 매번 찾아야 한다. */
+.cell { padding: 14px 20px; display: flex; flex-direction: column; gap: 9px; }
+.ct {
+  margin: 0; font-size: 13.5px; font-weight: 700;
+  color: var(--ink); letter-spacing: var(--track-tight);
 }
-.filt { justify-content: flex-start; }
 .of { font-size: 0.5em; color: var(--muted); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 20px 0 0; min-height: 22px; }
@@ -134,7 +135,7 @@ const filterName = computed(() =>
    필터가 목록보다 길어진다. 좁아지면 홈통을 접는다. */
 /* 범주 사이 간격은 태그가 줄바꿈되는 간격(5px)보다 확실히 커야 한다.
    비슷하면 묶음선이 안 보이고 그냥 긴 목록으로 읽힌다. */
-.grps { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
+.grps { display: flex; flex-direction: column; gap: 16px; }
 .grp { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .gl { margin: 0; text-align: right; white-space: nowrap; }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }
