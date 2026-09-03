@@ -171,12 +171,17 @@ const questions = computed(() => {
       <template v-else>
       <div class="panel body">
         <p class="subhead">평가</p>
+        <!-- 매칭률은 여기서 말하지 않는다. "덮었다" 는 0.45 를 넘었는지의 이진 판정이고
+             매칭률은 점수의 가중 평균이라 기준이 다르다. 한 문장에 섞어 놓으면
+             "다 덮었는데 왜 100%가 아니지" 가 된다. 퍼센트는 머리글이 이미 말한다. -->
         <p class="assess">
-          요구 역량 {{ match.rows.length }}개 중 <b>{{ match.rows.length - gaps.length }}개</b>를 덮어
-          매칭 <b class="num">{{ pct }}%</b>입니다.
           <template v-if="gaps.length">
-            반면 <b class="gaptext">{{ gapPhrase }}</b>
+            요구 역량 {{ match.rows.length }}개 중 <b>{{ match.rows.length - gaps.length }}개</b>를
+            증명할 경험이 있습니다. 반면 <b class="gaptext">{{ gapPhrase }}</b>
             증명할 경험이 없거나 너무 약합니다 — <b>보강이 필요한 역량</b>입니다.
+          </template>
+          <template v-else>
+            요구 역량 <b>{{ match.rows.length }}개를 모두</b> 증명할 경험이 있습니다.
           </template>
         </p>
       </div>
