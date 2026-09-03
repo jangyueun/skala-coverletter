@@ -2,10 +2,6 @@
 #    둘 다 두면 헷갈리니 properties 는 지우고 이 파일을 쓴다.
 
 spring:
-  config:
-    import:
-      - optional:file:.env[.properties]
-      - optional:file:../.env[.properties]
   application:
     name: careerfit
   datasource:
@@ -47,3 +43,12 @@ careerfit:
     redirect-uri: ${SLACK_REDIRECT_URI:}
     cookie-secure: ${SESSION_COOKIE_SECURE:true}
     session-ttl: 14d
+
+---
+# test 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
+# 파일이 없으면 Spring이 즉시 경로와 원인을 표시하고 종료한다.
+spring:
+  config:
+    activate:
+      on-profile: "!test"
+    import: file:../.env[.properties]

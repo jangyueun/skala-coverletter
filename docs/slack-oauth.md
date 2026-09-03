@@ -11,12 +11,8 @@
 
 ### ① 의존성
 
-```groovy
-implementation 'org.springframework.boot:spring-boot-starter-web'
-implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-runtimeOnly   'org.postgresql:postgresql'
-testImplementation 'org.springframework.boot:spring-boot-starter-test'
-```
+의존성의 단일 출처는 [`backend/build.gradle`](../backend/build.gradle)이다.
+문서에 목록을 복제하지 않고 항상 해당 파일의 `dependencies` 블록을 확인한다.
 
 > `spring-boot-starter-restclient` 는 **필요 없다.** Boot 4 가 `RestClient.Builder`
 > 자동 설정을 별도 모듈로 뺐기 때문에, Builder 를 주입받게 짜면 그 의존성이 없는 순간
