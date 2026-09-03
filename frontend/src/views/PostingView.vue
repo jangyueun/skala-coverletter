@@ -4,6 +4,7 @@ import { useRouter } from 'vue-router'
 import { useCareerStore } from '@/stores/careerStore.js'
 import { SCORE, dday } from '@/lib/matching.js'
 import MatchRow from '@/components/posting/MatchRow.vue'
+import EssayEditor from '@/components/posting/EssayEditor.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const store = useCareerStore()
@@ -189,19 +190,8 @@ const questions = computed(() => {
         <button class="btn" disabled>문항 등록</button>
       </div>
 
-      <div v-for="q in questions" :key="q.id" class="panel body">
-        <div class="qh">
-          <p class="label">문항 {{ q.id }} · {{ q.charLimit }}자</p>
-          <span class="tag" :class="(q.draft || '').trim() ? 'tag--ok' : ''">
-            {{ (q.draft || '').trim() ? '작성됨' : '작성 전' }}
-          </span>
-        </div>
-        <p class="qt">{{ q.text }}</p>
-        <p v-if="q.intent" class="hint">평가 의도 — {{ q.intent }}</p>
-        <div v-if="q.asks?.length" class="tags">
-          <span v-for="(a, i) in q.asks" :key="i" class="tag">{{ a }}</span>
-        </div>
-        <p v-if="q.draft" class="draft">{{ q.draft }}</p>
+      <div v-else class="panel body">
+        <EssayEditor :questions="questions" />
       </div>
     </section>
   </template>

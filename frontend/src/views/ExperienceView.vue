@@ -23,8 +23,6 @@ const shown = computed(() =>
 const filterName = computed(() =>
   filter.value ? store.competencies.find(c => c.id === filter.value)?.name : null)
 
-/* 경험이 못 덮는 역량 — 다음에 뭘 만들어야 하나 */
-const uncovered = computed(() => store.competencies.filter(c => !tagged.value.has(c.id)))
 </script>
 
 <template>
@@ -44,11 +42,17 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
       <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
       <p class="label">태그된 역량</p>
     </div>
-    <div class="panel cell cell--wide">
-      <p class="label">아직 경험이 없는 역량 {{ uncovered.length }}개</p>
-      <div class="tags">
-        <span v-for="c in uncovered" :key="c.id" class="tag tag--gap">{{ c.name }}</span>
-      </div>
+
+    <div class="panel cell filt" aria-label="역량으로 필터링">
+    <p class="label">역량으로 필터링</p>
+    <div class="tags">
+      <button
+        v-for="c in chips" :key="c.id"
+        class="tag chip"
+        :aria-pressed="filter === c.id"
+        @click="filter = filter === c.id ? null : c.id"
+      >{{ c.name }}<b class="n">{{ c.n }}</b></button>
+    </div>
     </div>
   </section>
 
@@ -58,17 +62,6 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
     <span class="muted count">{{ filterName ? `${filterName} · ${shown.length}건` : `전체 ${shown.length}건` }}</span>
   </section>
 
-  <section class="panel filt" aria-label="역량으로 좁히기">
-    <p class="label">역량으로 좁히기</p>
-    <div class="tags">
-      <button
-        v-for="c in chips" :key="c.id"
-        class="tag chip"
-        :aria-pressed="filter === c.id"
-        @click="filter = filter === c.id ? null : c.id"
-      >{{ c.name }}<b class="n">{{ c.n }}</b></button>
-    </div>
-  </section>
 
   <section class="grid">
     <ExperienceCard v-for="e in shown" :key="e.id" :exp="e" @edit="dlg.open($event)" />
@@ -81,15 +74,14 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
 .lede { max-width: 58ch; color: var(--muted); margin: 14px 0 0; }
 .lede b { color: var(--ink); font-weight: 600; }
 
-.readout { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; margin: 26px 0 0; }
-.cell { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 4px; }
-.cell--wide { grid-column: span 2; }
+.readout { display: flex; gap: 12px; flex-wrap: wrap; margin: 26px 0 0; }
+.cell { padding: 14px 20px 12px; display: flex; flex-direction: column; gap: 4px; min-width: 130px; }
 .of { font-size: 0.5em; color: var(--muted); }
 
 .controls { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 22px 0 0; }
 .count { margin-left: auto; font-size: 12.5px; }
 
-.filt { padding: 13px 16px; margin: 14px 0 0; }
+.filt { padding: 13px 16px; flex: 1 1 340px; min-width: 0; }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px; }
 
 /* 필터 칩 — 눌린 채로 두는 것이 "지금 이걸로 좁혔다" 표시다 */
@@ -104,7 +96,6 @@ const uncovered = computed(() => store.competencies.filter(c => !tagged.value.ha
 .grid { display: grid; gap: 12px; margin: 18px 0 0; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); }
 
 @media (max-width: 760px) {
-  .readout { grid-template-columns: repeat(2, 1fr); }
   .grid { grid-template-columns: 1fr; }
 }
 </style>
