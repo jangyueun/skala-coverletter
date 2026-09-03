@@ -1,5 +1,7 @@
 package com.team.careerfit.global.exception;
 
+import com.team.careerfit.competency.exception.CompetencyException;
+import com.team.careerfit.job.exception.JobException;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +30,17 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(ApiException.class)
     public ResponseEntity<Map<String, String>> handle(ApiException e) {
+        return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
+    }
+
+    /** competency·job 도메인은 {@link ApiException} 이전에 만들어져 따로 code()·status() 를 들고 있다. */
+    @ExceptionHandler(CompetencyException.class)
+    public ResponseEntity<Map<String, String>> handle(CompetencyException e) {
+        return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
+    }
+
+    @ExceptionHandler(JobException.class)
+    public ResponseEntity<Map<String, String>> handle(JobException e) {
         return ResponseEntity.status(e.status()).body(Map.of("code", e.code(), "message", e.getMessage()));
     }
 
