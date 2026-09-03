@@ -1,0 +1,163 @@
+/* 리셋 + 프리미티브.
+ *
+ * 채용 사이트 계열 — pill 버튼, 행 리스트, 얇은 선.
+ * 눌림을 컴포넌트마다 따로 쓰면 수치가 갈려서 어떤 건 딸깍이고 어떤 건
+ * 물컹해진다. 여기 한 곳에 모으고 컴포넌트는 클래스를 붙이기만 한다. */
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; }
+
+body {
+  margin: 0;
+  background: var(--panel);
+  color: var(--ink);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  letter-spacing: var(--track-tight);
+  -webkit-font-smoothing: antialiased;
+}
+
+img, svg { max-width: 100%; display: block; }
+button, input, select, textarea { font: inherit; letter-spacing: inherit; color: inherit; }
+
+/* 포커스 링은 절대 지우지 않는다. 키보드로만 쓰는 사람에게는 이게 커서다. */
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+/* ═══════════════════════════════════════════════════════════
+   .btn — pill. 이동 없이 즉각 반전.
+   ═══════════════════════════════════════════════════════════
+
+   버튼은 움직이지 않는다. 대신 누르는 순간(0ms) 색이 뒤집힌다.
+   들어갈 때 0ms / 나올 때 110ms 인 것이 핵심이다 —
+   둘 다 0ms 면 깜빡임이고, 둘 다 110ms 면 물컹하다. */
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 10px 20px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: var(--panel);
+  color: var(--ink);
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background var(--release) linear, color var(--release) linear,
+              border-color var(--release) linear;
+}
+.btn:hover { border-color: var(--ink); }
+.btn:active {
+  background: var(--ink); border-color: var(--ink); color: var(--panel);
+  transition-duration: var(--snap);
+}
+
+/* 주요 행동 — 검정 채움. 채용 사이트의 지원/저장 버튼 계열. */
+.btn--primary {
+  background: var(--ink); border-color: var(--ink); color: var(--panel); font-weight: 700;
+}
+.btn--primary:hover { background: var(--ink-2); border-color: var(--ink-2); }
+.btn--primary:active { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+
+.btn--quiet { border-color: transparent; color: var(--muted); padding: 7px 12px; }
+.btn--quiet:hover { border-color: var(--line); color: var(--ink); background: var(--panel); }
+
+.btn--sm { padding: 6px 14px; font-size: 12px; }
+
+.btn:disabled { cursor: not-allowed; border-color: var(--line-soft); color: var(--faint); background: var(--panel); }
+.btn:disabled:hover { border-color: var(--line-soft); color: var(--faint); }
+
+/* 선택된 채로 머무는 버튼(정렬·필터·탭) — 눌린 상태가 곧 "지금 여기" 다. */
+.btn[aria-pressed='true'] {
+  background: var(--ink); border-color: var(--ink); color: var(--panel);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   .row — 행 리스트. 카드가 아니다.
+   ═══════════════════════════════════════════════════════════
+
+   면을 채우지 않고 아래 선 하나로 나눈다. 누르면 살짝 가라앉고
+   왼쪽에 액센트 바가 선다 — 어느 행을 눌렀는지가 남는다. */
+
+.row {
+  position: relative;
+  display: block; width: 100%; text-align: left;
+  padding: 22px 4px 20px;
+  background: transparent;
+  border: none; border-bottom: 1px solid var(--line);
+  cursor: pointer; color: inherit; font: inherit;
+  transition: background var(--seat-out) linear, padding-left var(--seat-out) var(--ease);
+}
+.row::before {
+  content: ''; position: absolute; left: 0; top: 0; bottom: 0; width: 0;
+  background: var(--accent);
+  transition: width var(--seat-out) var(--ease);
+}
+.row:hover { background: var(--panel-sunken); padding-left: 14px; }
+.row:hover::before { width: 3px; }
+.row:active {
+  background: var(--panel-sunken); padding-left: 18px;
+  transition-duration: var(--seat-in);
+}
+.row:active::before { width: 5px; }
+
+/* 면이 필요한 곳 — 다이얼로그 안, 필터 사이드바. 선으로만 구분한다. */
+.panel {
+  background: var(--panel-raised);
+  border: 1px solid var(--line);
+  border-radius: var(--r);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   숫자 · 라벨 · 태그
+   ═══════════════════════════════════════════════════════════ */
+
+/* 자릿수가 흔들리지 않아야 행이 나란히 놓일 때 눈이 안 피곤하다. */
+.num { font-variant-numeric: tabular-nums; letter-spacing: -0.03em; }
+.num--lg { font-size: 30px; font-weight: 800; line-height: 1; }
+
+/* 매칭 수치는 잉크다. 빨강은 급한 것(D-day·개수)의 몫이다. */
+.num--read { color: var(--ink); }
+
+.display {
+  font-size: clamp(2.6rem, 8vw, 4.6rem);
+  font-weight: 900;
+  line-height: 0.94;
+  letter-spacing: var(--track-display);
+  margin: 0;
+  text-wrap: balance;
+}
+
+.label {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 500;
+  letter-spacing: var(--track-label);
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+/* 태그도 pill 이다. 이 스타일에서 각진 작은 조각은 안 어울린다. */
+.tag {
+  display: inline-flex; align-items: center;
+  padding: 3px 11px;
+  border: 1px solid var(--line);
+  border-radius: var(--pill);
+  background: var(--panel);
+  color: var(--muted);
+  font-size: 11.5px; font-weight: 500;
+  letter-spacing: 0;
+}
+.tag--gap { border-color: var(--gap); color: var(--gap); }
+.tag--ok  { border-color: var(--ok);  color: var(--ok); }
+.tag--ink { border-color: var(--ink); color: var(--ink); }
+
+/* D-day — 이 화면에서 유일하게 채워진 빨강 */
+.tag--due {
+  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  font-weight: 700; font-family: var(--mono); letter-spacing: 0;
+}
+
+.mono { font-family: var(--mono); letter-spacing: 0; }
+.muted { color: var(--muted); }
+
+[hidden] { display: none !important; }
