@@ -83,8 +83,11 @@ const questions = computed(() => {
         <p class="label">{{ posting.company }} · {{ roleLabel }}</p>
         <h1 class="display pos">{{ posting.position }}</h1>
         <div class="meta">
+          <!-- 끝난 공고라는 사실이 제일 먼저 읽혀야 한다. 이걸 놓치면
+               아래의 매칭·자소서를 아직 지원할 수 있는 것으로 읽는다. -->
+          <span v-if="d < 0" class="tag tag--closed">마감</span>
           <span class="tag tag--ink">
-            <b v-if="d >= 0" class="num">D-{{ d }}</b>{{ d >= 0 ? '\u00a0' : '' }}{{ posting.deadline }} {{ d >= 0 ? '마감' : '마감됨' }}
+            <b v-if="d >= 0" class="num">D-{{ d }}</b>{{ d >= 0 ? '\u00a0' : '' }}{{ posting.deadline }} 마감
           </span>
           <span class="tag" :class="essay?.state === 'DONE' ? 'tag--ok' : ''">{{ essay?.label }}</span>
           <span class="tag mono">{{ posting.source }}</span>

@@ -132,6 +132,13 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   font-weight: 700; font-family: var(--mono); letter-spacing: 0;
 }
 
+/* 마감됨 — 채우되 회색이다. 주황은 급한 것의 몫이고,
+   끝난 공고는 급함의 반대라 같은 색을 쓰면 뜻이 뒤집힌다. */
+.tag--closed {
+  background: var(--muted); border-color: var(--muted); color: var(--panel);
+  font-weight: 700;
+}
+
 .mono { font-family: var(--mono); letter-spacing: 0; }
 .muted { color: var(--muted); }
 
