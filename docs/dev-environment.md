@@ -39,6 +39,21 @@ Postgres 17 컨테이너가 붙고 Flyway 가 V1~V6 마이그레이션과 시드
 `.env` 가 아예 없어도 뜬다 — Slack 로그인만 안 된다. DB 를 처음부터 다시 만들려면 `down -v`.
 호스트에서 붙을 땐 `localhost:15432`(postgres / postgres) — 5432 는 로컬 Postgres 와 부딪혀 피했다.
 
+### 샘플 데이터 넣기 (로컬 DB)
+
+빈 DB 에는 역량 사전 8개와 공고 10건뿐이라 화면이 썰렁하다. 프론트 목 데이터(`frontend/src/api/mock/data.js`)를 그대로 SQL 로 만든
+스크립트가 `scripts/seed/` 에 있다 — 역량 사전 51개(+별칭)와 내 샘플 경험 6건. 여러 번 돌려도 안전하다.
+
+```bash
+docker compose -f compose.yaml -f compose.localdb.yaml exec -T db psql -U postgres < scripts/seed/competencies.sql
+# Slack 로그인을 한 번 해서 users 에 내 행이 생긴 뒤, 그 이메일로
+docker compose -f compose.yaml -f compose.localdb.yaml exec -T db psql -U postgres -v email=simonjiho@gmail.com < scripts/seed/my-experiences.sql
+```
+
+SQL 은 `node scripts/seed/generate.mjs` 가 만든다 — 손으로 고치지 말고 `data.js` 를 고친 뒤 다시 생성한다.
+Flyway 마이그레이션에 두지 않는 이유는 팀 공용 Supabase 에 개인 경험이 들어가면 안 돼서다. Supabase 에 넣고 싶으면 같은 SQL 을
+Supabase SQL Editor 에 붙여 넣으면 된다(사전은 팀이 합의한 뒤에).
+
 ### 자주 쓰는 것
 
 | 하고 싶은 것 | 명령 |
