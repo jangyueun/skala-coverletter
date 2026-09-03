@@ -1,6 +1,7 @@
 package com.team.careerfit.experience.repository;
 
 import com.team.careerfit.experience.entity.Experience;
+import java.util.Collection;
 import java.util.List;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
@@ -37,4 +38,6 @@ public interface ExperienceRepository extends JpaRepository<Experience, Long> {
 
         Long getUsedCount();
     }
+
+    long countByIdInAndUserId(Collection<Long> ids, Long userId);
 }

@@ -17,9 +17,11 @@ import com.team.careerfit.job.service.JobPostingService;
 import com.team.careerfit.user.entity.User;
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,6 +42,16 @@ public class ExperienceService {
         this.competencies = competencies;
         this.jobPostings = jobPostings;
         this.aiTasks = aiTasks;
+    }
+
+    /** 자소서 답변·초안의 근거 경험이 전부 이 사용자 소유인지 — 다른 도메인은 repository가 아니라 이 서비스로만 확인한다. */
+    @Transactional(readOnly = true)
+    public boolean allOwnedBy(Long userId, List<Long> experienceIds) {
+        Set<Long> distinctIds = new HashSet<>(experienceIds);
+        if (distinctIds.isEmpty()) {
+            return true;
+        }
+        return experiences.countByIdInAndUserId(distinctIds, userId) == distinctIds.size();
     }
 
     /** competencyId 가 없으면 전체, 있으면 그 역량이 붙은 경험만 돌려준다. */
