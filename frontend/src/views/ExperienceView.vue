@@ -62,8 +62,11 @@ const filtOpen = ref(true)
     </div>
   </header>
 
-  <section class="readout" aria-label="현황">
-    <div class="panel cell filt">
+  <!-- 숫자가 헤더로 올라가면서 이 구역에는 필터만 남았다.
+       aria-label="현황" 을 그대로 두면 스크린리더로 "현황" 구역에 들어와
+       태그 목록만 만난다. 패널 하나뿐이라 감싸는 section 자체가 필요 없다. -->
+  <section aria-label="역량으로 필터링">
+    <div class="panel filt">
     <button class="fh" :aria-expanded="filtOpen" @click="filtOpen = !filtOpen">
       <span class="ct">역량으로 필터링</span>
       <span class="fn">{{ chips.reduce((n, g) => n + g.items.length, 0) }}</span>
@@ -124,8 +127,6 @@ const filtOpen = ref(true)
 .star dd { margin: 0; font-size: 12.5px; color: var(--muted); }
 .star dd b { color: var(--ink-2); font-weight: 600; margin-right: 5px; }
 
-.readout { margin: 26px 0 0; }
-.cell { padding: 14px 20px; display: flex; flex-direction: column; gap: 9px; }
 .ct { font-size: 13.5px; font-weight: 700; color: var(--ink); letter-spacing: var(--track-tight); }
 
 /* 접기 머리 — 홈의 필터 아코디언(.acch)과 같은 어법이다.
@@ -156,7 +157,10 @@ const filtOpen = ref(true)
   .hb { width: 100%; }
 }
 
-.filt { padding: 13px 16px; min-width: 0; }
+/* .cell / .readout 은 뺐다. 숫자 칸이 헤더로 가면서 쓰는 곳이 하나씩만
+   남았는데, 한 요소에 클래스 셋을 걸어 두면 어느 쪽이 무엇을 하는지
+   나중에 못 읽는다 — .row 프리미티브로 사고 난 것과 같은 종류다. */
+.filt { margin: 26px 0 0; padding: 13px 16px 15px; min-width: 0; display: flex; flex-direction: column; gap: 11px; }
 /* 범주 이름은 왼쪽 홈통에 고정한다 — 위에 얹으면 줄 수가 두 배가 되고,
    필터가 목록보다 길어진다. 좁아지면 홈통을 접는다. */
 /* 범주 사이 간격은 태그가 줄바꿈되는 간격(5px)보다 확실히 커야 한다.

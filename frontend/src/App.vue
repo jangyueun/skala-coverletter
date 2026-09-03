@@ -1,5 +1,16 @@
 <script setup>
-import { RouterView, RouterLink } from 'vue-router'
+import { RouterView, RouterLink, useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore.js'
+
+const auth = useAuthStore()
+const router = useRouter()
+
+/* 로그인은 아직 화면뿐이다. 백엔드 Slack OAuth 가 붙으면
+   여기가 인가 URL 로 보내는 자리가 된다. */
+function signIn() {
+  auth.signIn()
+  router.push('/my')
+}
 
 const nav = [
   { to: '/',            key: 'FIND', label: '공고' },
@@ -15,7 +26,10 @@ const nav = [
 
     <nav class="nav" aria-label="주요">
       <RouterLink v-for="n in nav" :key="n.to" :to="n.to" class="navlink">{{ n.label }}</RouterLink>
-      <RouterLink to="/my" class="btn btn--sm my">MY</RouterLink>
+      <!-- 로그아웃 상태에서는 들어갈 MY 가 없다. 자리를 비우지 않고
+           그 자리에서 바로 들어올 수 있게 로그인으로 바꾼다. -->
+      <RouterLink v-if="auth.signedIn" to="/my" class="btn btn--sm my">MY</RouterLink>
+      <button v-else class="btn btn--sm my" @click="signIn">로그인</button>
     </nav>
   </header>
 

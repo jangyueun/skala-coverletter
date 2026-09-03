@@ -1,9 +1,20 @@
 <script setup>
 import { computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
+import { useAuthStore } from '@/stores/authStore.js'
+import { useRouter } from 'vue-router'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const store = useCareerStore()
+const auth = useAuthStore()
+const router = useRouter()
+
+/* 라우터 가드는 "이동할 때" 만 돈다. 여기서 로그아웃만 하면 상태만 바뀌고
+   화면은 남의 지원 현황을 계속 띄운 채로 있는다. 나가는 것까지가 로그아웃이다. */
+function signOut() {
+  auth.signOut()
+  router.push('/')
+}
 const lists = computed(() => store.myLists)
 const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0))
 </script>
@@ -45,9 +56,23 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
       <template v-else>마감까지 자소서를 완성한 공고가 아직 없습니다.</template>
     </p>
   </section>
+
+  <!-- 로그아웃은 목록을 다 보고 난 뒤에야 필요한 것이라 맨 아래 오른쪽에 둔다.
+       위에 두면 "내 지원 현황" 을 보러 온 사람이 제일 먼저 나가는 문을 만난다. -->
+  <section class="acct">
+    <p class="who">{{ auth.name }} 님으로 로그인되어 있습니다</p>
+    <button class="btn btn--sm" @click="signOut">로그아웃</button>
+  </section>
 </template>
 
 <style scoped>
+/* 목록과 확실히 떨어뜨린다 — 붙어 있으면 마지막 그룹의 일부로 읽힌다 */
+.acct {
+  display: flex; align-items: center; justify-content: flex-end; gap: 14px;
+  margin: 40px 0 8px; padding-top: 18px; border-top: 1px solid var(--line);
+}
+.who { margin: 0; font-size: 12.5px; color: var(--muted); }
+
 .hero {
   display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; flex-wrap: wrap;
   padding: 46px 0 34px;
