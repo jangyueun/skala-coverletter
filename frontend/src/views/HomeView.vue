@@ -35,11 +35,11 @@ function toggle(id) {
   picked.value = next
 }
 function clearAll() {
-  q.value = ''; role.value = 'ALL'; picked.value = new Set(); store.bookmarkOnly = false
+  q.value = ''; role.value = 'ALL'; picked.value = new Set()
 }
 const activeCount = computed(() =>
   picked.value.size + (role.value !== 'ALL' ? 1 : 0)
-  + (store.bookmarkOnly ? 1 : 0) + (q.value.trim() ? 1 : 0))
+  + (q.value.trim() ? 1 : 0))
 
 /* 검색은 기업·직무·역량 이름을 함께 본다.
    "쿠버네티스" 로 찾을 때 공고 제목에 그 단어가 없어도 요구 역량에 있으면 나와야 한다. */
@@ -103,14 +103,6 @@ const list = computed(() => {
       <div class="sh">
         <p class="sht">필터<span v-if="activeCount" class="badge">{{ activeCount }}</span></p>
         <button class="btn btn--sm" :disabled="!activeCount" @click="clearAll">초기화</button>
-      </div>
-
-      <!-- 즐겨찾기가 맨 위 — 가장 자주 쓰는 필터다 -->
-      <div class="fg">
-        <button class="btn btn--sm w" :aria-pressed="store.bookmarkOnly"
-                @click="store.bookmarkOnly = !store.bookmarkOnly">
-          {{ store.bookmarkOnly ? '★ 즐겨찾기만 보는 중' : '☆ 즐겨찾기만' }}
-        </button>
       </div>
 
       <div class="fg">
@@ -224,7 +216,6 @@ const list = computed(() => {
    margin-right:auto 를 여기 두면 배지가 없는 줄에서도 펼침 표시가 오른쪽에 선다. */
 .acch .fgn { margin-right: auto; }
 .fgb { display: flex; gap: 6px; flex-wrap: wrap; }
-.w { width: 100%; }
 
 /* 아코디언 — 접힌 상태가 기본이다 */
 .acc { display: flex; flex-direction: column; gap: 9px; }

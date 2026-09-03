@@ -2,19 +2,15 @@
 import { computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
 import { useAuthStore } from '@/stores/authStore.js'
-import { useRouter } from 'vue-router'
+import SignInGate from '@/components/SignInGate.vue'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const store = useCareerStore()
 const auth = useAuthStore()
-const router = useRouter()
 
-/* 라우터 가드는 "이동할 때" 만 돈다. 여기서 로그아웃만 하면 상태만 바뀌고
-   화면은 남의 지원 현황을 계속 띄운 채로 있는다. 나가는 것까지가 로그아웃이다. */
-function signOut() {
-  auth.signOut()
-  router.push('/')
-}
+/* 로그아웃해도 이 화면에 머문다. 목록이 사라지고 그 자리에 로그인 안내가
+   뜨므로 남의 현황이 남지 않고, 다시 로그인하면 보던 곳으로 바로 돌아온다. */
+function signOut() { auth.signOut() }
 const lists = computed(() => store.myLists)
 const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0))
 </script>
@@ -27,6 +23,10 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
     </div>
   </section>
 
+  <SignInGate v-if="!auth.signedIn"
+              desc="담아 둔 공고와 쓰던 자소서를 한 자리에서 봅니다. 내 것을 보는 화면이라 로그인이 필요합니다." />
+
+  <template v-else>
   <p class="count"><b class="num n">{{ total }}</b> 개의 공고가 내 목록에 있습니다.</p>
 
   <section v-for="l in lists" :key="l.k" class="grp" :class="{ closed: l.k === 'closed' }">
@@ -56,6 +56,7 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
     <p class="who">{{ auth.name }} 님으로 로그인되어 있습니다</p>
     <button class="btn btn--sm" @click="signOut">로그아웃</button>
   </section>
+  </template>
 </template>
 
 <style scoped>

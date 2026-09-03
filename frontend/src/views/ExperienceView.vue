@@ -4,8 +4,11 @@ import { useCareerStore } from '@/stores/careerStore.js'
 import { groupByCategory } from '@/lib/matching.js'
 import ExperienceCard from '@/components/experience/ExperienceCard.vue'
 import ExperienceDialog from '@/components/experience/ExperienceDialog.vue'
+import SignInGate from '@/components/SignInGate.vue'
+import { useAuthStore } from '@/stores/authStore.js'
 
 const store = useCareerStore()
+const auth = useAuthStore()
 const filter = ref(null)          // 선택된 competencyId
 const dlg = ref(null)
 
@@ -70,17 +73,22 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
          숫자에는 패널 테두리를 두르지 않는다 — 헤더에 카드가 뜨면 제목보다 무거워지고,
          이 줄에서 채워진 것은 등록 버튼 하나여야 한다. -->
     <div class="hr">
-      <div class="stat">
+      <div v-if="auth.signedIn" class="stat">
         <div class="num num--lg num--read">{{ store.experiences.length }}</div>
         <p class="sl">등록한 경험</p>
       </div>
-      <div class="stat">
+      <div v-if="auth.signedIn" class="stat">
         <div class="num num--lg num--read">{{ tagged.size }}<span class="of">/{{ store.competencies.length }}</span></div>
         <p class="sl">태그된 역량</p>
       </div>
-      <button class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
+      <button v-if="auth.signedIn" class="btn btn--primary hb" @click="dlg.open()">＋ 경험 등록</button>
     </div>
   </header>
+
+  <SignInGate v-if="!auth.signedIn"
+              desc="등록한 경험은 계정에 저장됩니다. 로그인하면 쌓아 둔 경험을 이어서 쓸 수 있습니다." />
+
+  <template v-else>
 
   <!-- 숫자가 헤더로 올라가면서 이 구역에는 필터만 남았다.
        aria-label="현황" 을 그대로 두면 스크린리더로 "현황" 구역에 들어와
@@ -120,6 +128,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   </section>
 
   <ExperienceDialog ref="dlg" />
+  </template>
 </template>
 
 <style scoped>

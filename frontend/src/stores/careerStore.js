@@ -21,7 +21,6 @@ export const useCareerStore = defineStore('career', {
 
     // 화면 상태
     sort: 'match',              // 'match' | 'deadline'
-    bookmarkOnly: false,
     bookmarks: new Set(),
 
     /* 자소서 편집 버퍼 — 아직 저장하지 않은 것.
@@ -43,7 +42,6 @@ export const useCareerStore = defineStore('career', {
     /** 카드가 필요한 것을 전부 계산해 붙인 목록. 정렬·필터까지 적용된 최종형. */
     cards() {
       const list = this.livePostings
-        .filter(p => !this.bookmarkOnly || this.bookmarks.has(p.id))
         .map(p => ({
           posting: p,
           match: computeMatch(p, this.experiences),

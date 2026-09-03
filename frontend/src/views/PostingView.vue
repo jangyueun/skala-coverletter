@@ -4,10 +4,13 @@ import { useRouter } from 'vue-router'
 import { useCareerStore } from '@/stores/careerStore.js'
 import { SCORE, dday } from '@/lib/matching.js'
 import MatchTable from '@/components/posting/MatchTable.vue'
+import SignInGate from '@/components/SignInGate.vue'
+import { useAuthStore } from '@/stores/authStore.js'
 import EssayEditor from '@/components/posting/EssayEditor.vue'
 
 const props = defineProps({ id: { type: [String, Number], required: true } })
 const store = useCareerStore()
+const auth = useAuthStore()
 const router = useRouter()
 
 /* 탭은 라우트가 아니라 컴포넌트 상태다.
@@ -161,6 +164,10 @@ const questions = computed(() => {
 
     <!-- ── 매칭 ──────────────────────────────────────────── -->
     <section v-show="tab === 'match'" class="pane">
+      <SignInGate v-if="!auth.signedIn"
+                  desc="이 공고가 요구하는 역량을 내 경험과 맞춰 봅니다. 내 경험을 읽어야 하는 화면이라 로그인이 필요합니다." />
+
+      <template v-else>
       <div class="panel body">
         <p class="subhead">평가</p>
         <p class="assess">
@@ -184,11 +191,15 @@ const questions = computed(() => {
         </div>
         <MatchTable :rows="[...match.rows].sort((a,b) => b.weight - a.weight)" />
       </div>
+      </template>
     </section>
 
     <!-- ── 자소서 ────────────────────────────────────────── -->
     <section v-show="tab === 'essay'" class="pane">
-      <div v-if="!questions.length" class="panel body empty">
+      <SignInGate v-if="!auth.signedIn"
+                  desc="자소서 초안은 계정에 저장됩니다. 로그인하면 쓰던 곳부터 이어서 쓸 수 있습니다." />
+
+      <div v-else-if="!questions.length" class="panel body empty">
         <p class="subhead">문항 없음</p>
         <p class="hint">
           이 공고는 서버가 자소서 문항을 주지 않았습니다.
