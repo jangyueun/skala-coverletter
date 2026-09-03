@@ -1,0 +1,97 @@
+/* ⚠ 임시 토큰. 디자인 명세가 나오면 이 파일이 통째로 교체된다.
+   레퍼런스에서 확실한 것만 먼저 넣었다 — 종이 오프화이트 · 블랙 잉크 ·
+   액센트 1색 · 블러 없는 하드 섀도. */
+
+:root {
+  /* ── 종이 ─────────────────────────────────────────────
+     순백(#FFF)이 아니다. 화면이 아니라 인쇄물처럼 읽히게 하는 것이 이 색의 일이다. */
+  --paper:        #EFEEEA;
+  --paper-raised: #F6F5F2;
+  --paper-sunken: #E5E3DD;
+
+  /* ── 잉크 ───────────────────────────────────────────── */
+  --ink:      #14140F;   /* 순흑이 아니다. 종이 위의 검정은 약간 따뜻하다 */
+  --ink-2:    #3A3A33;
+  --muted:    #6E6E64;
+  --faint:    #9A9A8E;
+
+  /* ── 액센트는 하나뿐 ─────────────────────────────────
+     화면에서 두세 군데만 나타나야 한다. 늘어나는 순간 아무 데도 눈이 안 간다. */
+  --accent:     #E8502A;
+  --accent-ink: #FFFFFF;
+
+  /* 상태색은 액센트가 아니다. 정보를 나르는 것이지 시선을 끄는 것이 아니다. */
+  --matched: #2F6B4F;
+  --gap:     #B8621B;
+  --info:    #3A6EA5;
+
+  --line:        #D6D3CB;
+  --line-strong: #14140F;
+
+  /* ── 타이포 ───────────────────────────────────────────
+     한글과 라틴이 한 가족이어야 거대 크기에서 어긋나지 않는다. */
+  --sans: 'Pretendard Variable', Pretendard, 'IBM Plex Sans KR',
+          -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+  --mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+
+  /* 거대 타이포는 자간을 조여야 덩어리로 읽힌다. 기본 자간이면 흩어진다. */
+  --track-display: -0.035em;
+  --track-tight:   -0.015em;
+  --track-label:    0.09em;   /* 초소형 대문자 라벨 */
+
+  /* ── 눌림 ─────────────────────────────────────────────
+     블러가 0인 것이 핵심이다. 블러를 주면 물렁해져서 '딸깍'이 사라진다. */
+  --lift:       3px;
+  --lift-deep:  5px;
+  --shadow:      var(--lift) var(--lift) 0 var(--line-strong);
+  --shadow-deep: var(--lift-deep) var(--lift-deep) 0 var(--line-strong);
+
+  /* 빠르지 않으면 물렁하다. 150ms 를 넘기지 마라. */
+  --press-in:  70ms;
+  --press-out: 110ms;
+  --ease: cubic-bezier(0.2, 0, 0.1, 1);
+
+  --r-sm: 3px;
+  --r:    5px;
+}
+
+/* 다크는 종이를 잉크로 뒤집는 것이지, 회색으로 흐리는 것이 아니다. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme='light']) {
+    --paper:        #16161A;
+    --paper-raised: #1E1E23;
+    --paper-sunken: #0F0F12;
+    --ink:      #F2F1EC;
+    --ink-2:    #C9C7BF;
+    --muted:    #918F86;
+    --faint:    #6A685F;
+    --accent:     #FF6B42;
+    --accent-ink: #16161A;
+    --matched: #5FBF8F;
+    --gap:     #E0A050;
+    --info:    #7BA9DC;
+    --line:        #33333A;
+    --line-strong: #F2F1EC;
+  }
+}
+:root[data-theme='dark'] {
+  --paper:        #16161A;
+  --paper-raised: #1E1E23;
+  --paper-sunken: #0F0F12;
+  --ink:      #F2F1EC;
+  --ink-2:    #C9C7BF;
+  --muted:    #918F86;
+  --faint:    #6A685F;
+  --accent:     #FF6B42;
+  --accent-ink: #16161A;
+  --matched: #5FBF8F;
+  --gap:     #E0A050;
+  --info:    #7BA9DC;
+  --line:        #33333A;
+  --line-strong: #F2F1EC;
+}
+
+/* 눌림을 못 견디는 사람이 있다. 깊이는 유지하되 움직임만 없앤다. */
+@media (prefers-reduced-motion: reduce) {
+  :root { --press-in: 0ms; --press-out: 0ms; }
+}
