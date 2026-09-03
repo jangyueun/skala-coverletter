@@ -4,8 +4,6 @@ import { RouterView, RouterLink } from 'vue-router'
 const nav = [
   { to: '/',            key: 'FIND', label: '공고' },
   { to: '/experiences', key: 'LIB',  label: '경험' },
-  // 개발 참고는 npm run dev 에서만 뜬다. 빌드하면 라우트째 사라진다.
-  ...(import.meta.env.DEV ? [{ to: '/spec', key: 'DEV', label: '개발참고' }] : []),
 ]
 </script>
 
