@@ -34,7 +34,8 @@ const urgent = computed(() => props.card.d <= 7)
            @keydown.enter.prevent="router.push(`/postings/${p.id}`)"
            @keydown.space.prevent="router.push(`/postings/${p.id}`)">
 
-    <!-- 윗줄 — 판독값과 즐겨찾기 -->
+    <!-- 윗줄 — 판독값과 즐겨찾기.
+         수치는 제목보다 작게 둔다. 카드의 머리는 직무명이지 숫자가 아니다. -->
     <header class="top">
       <div class="read">
         <span class="num pct">{{ pct }}<span class="pc">%</span></span>
@@ -94,9 +95,9 @@ const urgent = computed(() => props.card.d <= 7)
 
 .top { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .read { display: flex; align-items: baseline; gap: 7px; }
-.pct { font-size: 26px; font-weight: 800; line-height: 1; }
-.pc { font-size: 0.5em; color: var(--muted); margin-left: 1px; }
-.ml { font-size: 9px; }
+.pct { font-size: 17px; font-weight: 700; line-height: 1; }
+.pc { font-size: 0.62em; color: var(--muted); margin-left: 1px; }
+.ml { font-size: 8.5px; }
 
 .bm {
   padding: 5px 12px;
