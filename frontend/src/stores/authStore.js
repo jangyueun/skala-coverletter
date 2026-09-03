@@ -1,4 +1,5 @@
 import { defineStore } from 'pinia'
+import { useCareerStore } from './careerStore.js'
 
 /**
  * 로그인 상태.
@@ -18,6 +19,11 @@ export const useAuthStore = defineStore('auth', {
   }),
   actions: {
     signIn() { this.signedIn = true },
-    signOut() { this.signedIn = false },
+    signOut() {
+      this.signedIn = false
+      /* 매칭순은 로그인 상태에서만 뜻이 있다. 그대로 두면 로그아웃 뒤
+         정렬 버튼이 하나도 안 눌린 채 알 수 없는 순서로 목록이 남는다. */
+      useCareerStore().sort = 'deadline'
+    },
   },
 })

@@ -122,7 +122,7 @@ export const DATA = {
     {
       id: 9, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://careers.seumtech.example/jobs/2026-be',
       collectedAt:'2026-09-01 04:12',
-      company:'세움테크', position:'백엔드 엔지니어 (신입)', deadline:'2026-09-12',
+      company:'세움테크', position:'백엔드 엔지니어 (신입)', deadline:'2026-09-12 18:00',
     rawText:
 `[세움테크] 2026 하반기 신입 백엔드 엔지니어 채용
 
@@ -168,7 +168,7 @@ export const DATA = {
     {
       id: 10, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://recruit.daonsoft.example/2026h2/server',
       collectedAt:'2026-09-01 04:12',
-      company:'다온소프트', position:'서버 개발 (신입)', deadline:'2026-09-15',
+      company:'다온소프트', position:'서버 개발 (신입)', deadline:'2026-09-15 17:00',
       rawText:
 `[다온소프트] 2026 하반기 서버 개발 신입 채용
 
@@ -203,7 +203,7 @@ export const DATA = {
     {
       id: 11, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
       collectedAt:'2026-09-02 04:12',
-      company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21',
+      company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21 18:00',
       rawText:
 `[한빛시스템] 2026 하반기 플랫폼 엔지니어 채용
 
@@ -239,7 +239,7 @@ export const DATA = {
 
     {
       id: 12, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
-      company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28',
+      company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28 23:59',
       rawText:
 `[코어링크] AI 프로덕트 백엔드 엔지니어 (신입)
 
@@ -269,7 +269,7 @@ export const DATA = {
 
     {
       id: 13, role:'FULLSTACK', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://rivertree.example/careers/fullstack', collectedAt:'2026-09-02 04:12',
-      company:'리버트리', position:'풀스택 엔지니어 (신입)', deadline:'2026-09-08',
+      company:'리버트리', position:'풀스택 엔지니어 (신입)', deadline:'2026-09-08 12:00',
       rawText:
 `[리버트리] 풀스택 엔지니어 신입 채용
 
@@ -302,7 +302,7 @@ export const DATA = {
     {
       id: 14, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://careers.seumtech.example/jobs/2026-fe', collectedAt:'2026-09-01 04:12',
-      company:'세움테크', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-09-12',
+      company:'세움테크', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-09-12 18:00',
       rawText:
 `[세움테크] 2026 하반기 신입 프론트엔드 엔지니어 채용
 
@@ -342,7 +342,7 @@ export const DATA = {
     {
       id: 15, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED',
       sourceUrl:'https://hanbit-sys.example/careers/sre', collectedAt:'2026-09-02 04:12',
-      company:'한빛시스템', position:'SRE (신입)', deadline:'2026-09-25',
+      company:'한빛시스템', position:'SRE (신입)', deadline:'2026-09-25 18:00',
       rawText:
 `[한빛시스템] 2026 하반기 SRE 채용
 
@@ -374,7 +374,7 @@ export const DATA = {
 
     {
       id: 16, role:'BACKEND', questionsFromServer: true, source:'CRAWLED',
-      company:'넥스트레이어', position:'백엔드 엔지니어 (신입)', deadline:'2026-08-25',
+      company:'넥스트레이어', position:'백엔드 엔지니어 (신입)', deadline:'2026-08-25 18:00',
       rawText:`[넥스트레이어] 2026 상반기 백엔드 엔지니어 채용
 
 ■ 담당 업무
@@ -401,7 +401,7 @@ export const DATA = {
     },
     {
       id: 17, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
-      company:'하람랩스', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-08-30',
+      company:'하람랩스', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-08-30 23:59',
       rawText:`[하람랩스] 2026 상반기 프론트엔드 엔지니어 채용
 
 ■ 담당 업무

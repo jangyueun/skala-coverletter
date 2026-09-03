@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { DATA } from '@/lib/mockData.js'
-import { computeMatch, essayProgress, dday, topGap, usedIn } from '@/lib/matching.js'
+import { computeMatch, essayProgress, dday, isClosed, topGap, usedIn } from '@/lib/matching.js'
 
 /**
  * 지금은 목 데이터를 그대로 들고 있다.
@@ -37,7 +37,7 @@ export const useCareerStore = defineStore('career', {
 
   getters: {
     /** 마감이 지나지 않은 공고만. 지난 공고를 목록에 두면 할 일이 아닌 것이 섞인다. */
-    livePostings: s => s.postings.filter(p => dday(p.deadline) >= 0),
+    livePostings: s => s.postings.filter(p => !isClosed(p.deadline)),
 
     /** 카드가 필요한 것을 전부 계산해 붙인 목록. 정렬·필터까지 적용된 최종형. */
     cards() {
@@ -47,6 +47,7 @@ export const useCareerStore = defineStore('career', {
           match: computeMatch(p, this.experiences),
           essay: essayProgress(p, this.questions),
           d: dday(p.deadline),
+          closed: isClosed(p.deadline),
           bookmarked: this.bookmarks.has(p.id),
           // 같은 기업의 다른 직무가 몇 건인지 — 공고가 직무 단위임을 카드에서 드러낸다
           sameCompany: this.livePostings.filter(x => x.company === p.company).length,
@@ -73,10 +74,11 @@ export const useCareerStore = defineStore('career', {
         match: computeMatch(p, this.experiences),
         essay: essayProgress(p, this.questions),
         d: dday(p.deadline),
+        closed: isClosed(p.deadline),
         bookmarked: this.bookmarks.has(p.id),
         sameCompany: this.postings.filter(x => x.company === p.company).length,
       }))
-      const live = all.filter(c => c.d >= 0)
+      const live = all.filter(c => !c.closed)
       const byDeadline = (a, b) => a.d - b.d
 
       return [
@@ -98,7 +100,7 @@ export const useCareerStore = defineStore('career', {
            D-day 가 아니라 "얼마나 전이었나" 순으로 최근 것부터 본다. */
         { k: 'closed', title: '마감 지남',
           desc: '끝난 공고. 다 쓴 것은 다음 지원에 다시 쓰고, 못 끝낸 것은 왜 그랬는지 본다',
-          items: all.filter(c => c.d < 0).sort((a, b) => b.d - a.d) },
+          items: all.filter(c => c.closed).sort((a, b) => b.d - a.d) },
       ]
     },
 

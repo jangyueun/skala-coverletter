@@ -1,15 +1,24 @@
 <script setup>
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
+import { useAuthStore } from '@/stores/authStore.js'
 
 const props = defineProps({ card: { type: Object, required: true } })
 const emit = defineEmits(['bookmark'])
 const router = useRouter()
+const auth = useAuthStore()
 
 const p = computed(() => props.card.posting)
 const pct = computed(() => Math.round(props.card.match.overall * 100))
-const covered = computed(() =>
-  props.card.match.rows.filter(r => !r.isGap).sort((a, b) => b.weight - a.weight))
+/* 로그인 상태면 "내가 덮은 역량", 아니면 "이 공고가 요구하는 역량".
+   덮었다는 건 내 경험과 맞춰 본 결과라 로그아웃 상태에서는 낼 수 없다.
+   대신 요구 역량 자체는 공고에 적힌 것이니 그대로 보여 준다 —
+   태그 줄을 통째로 비우면 카드가 무엇을 뽑는 자리인지 안 보인다. */
+const covered = computed(() => {
+  const rows = props.card.match.rows
+  const src = auth.signedIn ? rows.filter(r => !r.isGap) : rows
+  return [...src].sort((a, b) => b.weight - a.weight)
+})
 
 /* 목록에는 **덮은 역량만** 낸다. 보강 필요는 상세의 매칭 상세 분석 탭에서 본다.
    목록은 "어디에 지원할까" 를 고르는 화면이고, "무엇이 부족한가" 는
@@ -22,7 +31,7 @@ const rest = computed(() => props.card.match.rows.length - covered.value.slice(0
 
 /* 마감이 급한 것만 주황으로 채운다. 전부 채우면 급한 게 하나도 없는 것과 같다. */
 /* 마감이 지난 것은 급할 것이 없다 — 음수 D 가 urgent 로 잡혀 주황이 되던 걸 막는다 */
-const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
+const urgent = computed(() => !props.card.closed && props.card.d <= 7)
 </script>
 
 <template>
@@ -34,12 +43,14 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
 
     <!-- 윗줄 — 판독값과 즐겨찾기.
          수치는 제목보다 작게 둔다. 카드의 머리는 직무명이지 숫자가 아니다. -->
-    <header class="top">
-      <div class="read">
+    <header v-if="auth.signedIn" class="top">
+      <!-- 매칭률과 즐겨찾기는 나에 관한 것이라 로그인해야 나온다.
+           상세의 매칭 탭을 막아 놓고 목록에서 그 결과를 보여 주면 앞뒤가 안 맞는다. -->
+      <div v-if="auth.signedIn" class="read">
         <span class="ml">매칭률 :</span>
         <span class="num pct">{{ pct }}<span class="pc">%</span></span>
       </div>
-      <button class="bm" :aria-pressed="card.bookmarked"
+      <button v-if="auth.signedIn" class="bm" :aria-pressed="card.bookmarked"
               :aria-label="`${p.company} ${p.position} 즐겨찾기`"
               @click.stop="emit('bookmark', p.id)">
         {{ card.bookmarked ? '★ 즐겨찾기됨' : '☆ 즐겨찾기' }}
@@ -59,8 +70,8 @@ const urgent = computed(() => props.card.d >= 0 && props.card.d <= 7)
     <footer class="foot">
       <div class="when">
         <!-- 지난 공고에 D-(-5) 는 셈이 아니라 잡음이다. 날짜만 남긴다. -->
-        <b v-if="card.d >= 0" class="num dd" :class="{ urgent }">D-{{ card.d }}</b>
-        <span class="date">{{ p.deadline }} {{ card.d >= 0 ? '마감' : '마감됨' }}</span>
+        <b v-if="!card.closed" class="num dd" :class="{ urgent }">D-{{ card.d }}</b>
+        <span class="date">{{ p.deadline }} {{ card.closed ? '마감됨' : '마감' }}</span>
       </div>
       <span class="tag" :class="card.essay.state === 'DONE' ? 'tag--ok' : ''">
         자소서 {{ card.essay.label }}<template v-if="card.essay.total"> {{ card.essay.done }}/{{ card.essay.total }}</template>

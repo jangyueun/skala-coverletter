@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useCareerStore } from '@/stores/careerStore.js'
-import { SCORE, dday } from '@/lib/matching.js'
+import { SCORE, dday, isClosed } from '@/lib/matching.js'
 import MatchTable from '@/components/posting/MatchTable.vue'
 import SignInGate from '@/components/SignInGate.vue'
 import { useAuthStore } from '@/stores/authStore.js'
@@ -28,6 +28,7 @@ const essay   = computed(() => posting.value ? store.cards.find(c => c.posting.i
 const pct     = computed(() => Math.round((match.value?.overall ?? 0) * 100))
 const gaps    = computed(() => match.value?.rows.filter(r => r.isGap) ?? [])
 const d       = computed(() => posting.value ? dday(posting.value.deadline) : 0)
+const closed  = computed(() => !!posting.value && isClosed(posting.value.deadline))
 
 /* 판정 — 숫자만 주면 사용자가 뭘 해야 할지 모른다. */
 const verdict = computed(() => {
@@ -90,9 +91,9 @@ const questions = computed(() => {
         <div class="meta">
           <!-- 끝난 공고라는 사실이 제일 먼저 읽혀야 한다. 이걸 놓치면
                아래의 매칭·자소서를 아직 지원할 수 있는 것으로 읽는다. -->
-          <span v-if="d < 0" class="tag tag--closed">마감</span>
+          <span v-if="closed" class="tag tag--closed">마감</span>
           <span class="tag tag--ink">
-            <b v-if="d >= 0" class="num">D-{{ d }}</b>{{ d >= 0 ? '\u00a0' : '' }}{{ posting.deadline }} 마감
+            <b v-if="!closed" class="num">D-{{ d }}</b>{{ !closed ? '\u00a0' : '' }}{{ posting.deadline }} 마감
           </span>
           <span class="tag" :class="essay?.state === 'DONE' ? 'tag--ok' : ''">{{ essay?.label }}</span>
         </div>
@@ -100,7 +101,7 @@ const questions = computed(() => {
 
       <!-- 매칭과 즐겨찾기는 탭이 아니라 이 공고 자체에 붙는 것이라 머리에 둔다.
            상자로 감싸지 않는다 — 이 화면에서 테두리는 탭 아래 내용의 몫이다. -->
-      <div class="hd-r">
+      <div v-if="auth.signedIn" class="hd-r">
         <button class="btn btn--sm bm" :aria-pressed="store.bookmarks.has(posting.id)"
                 @click="store.toggleBookmark(posting.id)">
           {{ store.bookmarks.has(posting.id) ? '★ 즐겨찾기' : '☆ 즐겨찾기' }}

@@ -1,10 +1,12 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
+import { useAuthStore } from '@/stores/authStore.js'
 import { groupByCategory } from '@/lib/matching.js'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const store = useCareerStore()
+const auth = useAuthStore()
 const q = ref('')
 const role = ref('ALL')
 const picked = ref(new Set())      // 선택된 competencyId
@@ -85,8 +87,9 @@ const list = computed(() => {
           <input id="q" v-model="q" class="q" placeholder="기업, 직무, 역량으로 찾아보세요">
           <button v-if="q" type="button" class="clr" aria-label="검색어 지우기" @click="q = ''">×</button>
         </div>
+        <!-- 매칭순은 내 경험과 맞춰 본 결과로 정렬하는 것이라 로그인해야 뜻이 있다 -->
         <div class="sorts">
-          <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
+          <button v-if="auth.signedIn" class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
           <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
         </div>
       </div>
