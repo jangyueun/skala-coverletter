@@ -46,10 +46,10 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 </script>
 
 <template>
-  <header class="hero">
-    <div class="hl">
+  <header class="pagehead">
+    <div class="pagehead-l">
       <h1 class="display">경험 관리</h1>
-      <p class="lede">
+      <p class="pagehead-lede">
         <span ref="starEl" class="anchor">
           STAR<button type="button" class="q" :aria-expanded="starOpen"
                       aria-label="STAR 기법 설명 보기"
@@ -123,11 +123,6 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 </template>
 
 <style scoped>
-/* 제목·STAR 안내가 왼쪽, "얼마나 모았나 + 더 모으기" 가 오른쪽.
-   오른쪽 덩어리는 왼쪽 글의 아래끝에 맞춰 앉는다 — 위로 붙이면
-   제목 옆에 떠 보이고, 여기 두면 글 덩어리가 그걸 받친다. */
-.hero { display: flex; align-items: flex-end; justify-content: space-between; gap: 24px; flex-wrap: wrap; }
-.hl { min-width: 0; }
 .hr { display: flex; align-items: flex-end; gap: 22px; flex: none; }
 .hb { flex: none; }
 
@@ -137,7 +132,6 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 .stat:first-child { padding-left: 0; border-left: none; }
 .sl { margin: 0; font-size: 11.5px; color: var(--muted); white-space: nowrap; }
 
-.lede { max-width: 58ch; color: var(--ink); margin: 14px 0 0; font-weight: 600; }
 
 /* 물음표 — 글 안에 박히는 버튼이라 원형으로 작게. */
 .anchor { position: relative; white-space: nowrap; }
@@ -191,7 +185,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 
 @media (max-width: 760px) {
   /* 좁아지면 오른쪽 덩어리가 제목 아래로 내려가 왼쪽 끝에 맞춰 선다 */
-  .hero { align-items: stretch; }
+  .pagehead { align-items: stretch; }
   .hr { flex-wrap: wrap; gap: 16px; }
   .hb { width: 100%; }
 }

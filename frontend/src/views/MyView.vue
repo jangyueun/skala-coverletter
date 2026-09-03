@@ -20,17 +20,10 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
 </script>
 
 <template>
-  <section class="hero">
-    <div>
-      <h1 class="display">MY</h1>
-      <p class="sub">내 지원 현황</p>
-    </div>
-    <div class="copy">
-      <p class="ch">담아 둔 것과<br>쓰다 만 것</p>
-      <p class="cb">
-        담아 둔 공고, 쓰다 만 자소서, 다 쓴 자소서를 한 자리에 놓습니다.<br>
-        마감이 지난 것도 지우지 않습니다 — 다음 지원에 다시 쓸 문장이 거기 있습니다.
-      </p>
+  <section class="pagehead">
+    <div class="pagehead-l">
+      <h1 class="display">내 지원 현황</h1>
+      <p class="pagehead-lede">담아 둔 공고와 쓰던 자소서를 한 자리에서 봅니다.</p>
     </div>
   </section>
 
@@ -72,15 +65,6 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
   margin: 40px 0 8px; padding-top: 18px; border-top: 1px solid var(--line);
 }
 .who { margin: 0; font-size: 12.5px; color: var(--muted); }
-
-.hero {
-  display: flex; justify-content: space-between; align-items: flex-end; gap: 40px; flex-wrap: wrap;
-  padding: 46px 0 34px;
-}
-.sub { margin: 10px 0 0; font-size: 15px; font-weight: 600; color: var(--ink-2); }
-.copy { max-width: 46ch; }
-.ch { margin: 0; font-size: clamp(1.2rem, 2.6vw, 1.75rem); font-weight: 700; line-height: 1.45; letter-spacing: var(--track-tight); }
-.cb { margin: 14px 0 0; font-size: 13px; color: var(--muted); line-height: 1.75; }
 
 .count { margin: 0 0 6px; font-size: 15px; font-weight: 600; padding-bottom: 14px; border-bottom: 2px solid var(--ink); }
 .count .n { font-size: 20px; font-weight: 800; color: var(--accent); margin-right: 3px; }

@@ -60,10 +60,10 @@ const list = computed(() => {
 <template>
   <!-- 히어로 — 제목 하나와 한 줄 설명. 경험 관리와 같은 어법이다.
        영문 타이틀 + 한글 부제 + 카피 두 문단은 같은 말을 네 번 하는 것이었다. -->
-  <section class="hero">
-    <div class="hl">
+  <section class="pagehead">
+    <div class="pagehead-l">
       <h1 class="display">공고 찾기</h1>
-      <p class="lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
+      <p class="pagehead-lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
     </div>
 
     <!-- 검색은 이 화면에서 제일 먼저 하는 일이라 제목과 같은 줄에 둔다.
@@ -150,16 +150,6 @@ const list = computed(() => {
 /* 히어로 */
 /* 히어로는 진입 장식이지 화면의 본론이 아니다. 본론은 바로 아래 검색과 목록이라
    위아래 여백과 글자 크기를 줄여 첫 화면에 공고가 같이 들어오게 한다. */
-/* 제목 왼쪽, 검색 오른쪽. 바닥선을 맞춰 한 줄로 읽힌다 —
-   경험 관리 머리글과 같은 구조다. */
-.hero {
-  display: flex; align-items: flex-end; justify-content: space-between;
-  gap: 20px 32px; flex-wrap: wrap; padding: 30px 0 24px;
-}
-.hl { min-width: 0; }
-.hero .display { font-size: clamp(2.1rem, 5.4vw, 3.3rem); }
-.lede { margin: 10px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink-2); }
-
 /* 검색은 한 덩어리다 — 회색 면 하나에 돋보기·입력·지우기가 같이 앉는다.
    밴드일 때는 배경이 화면 끝까지 갔지만, 이제 제목 옆 상자라 pill 로 닫는다. */
 .srch {
