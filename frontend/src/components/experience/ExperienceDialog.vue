@@ -2,10 +2,12 @@
 import { ref, computed, reactive } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
 import CompetencyPicker from './CompetencyPicker.vue'
+import IntakePanel from './IntakePanel.vue'
 
 const store = useCareerStore()
 const el = ref(null)
 const editId = ref(null)
+const tab = ref('manual')   // manual | intake
 
 const CATS = ['팀 프로젝트', '개인 프로젝트', '실습 프로젝트', '대외활동', '인턴·근무', '수상·자격']
 const FIELDS = [
@@ -37,6 +39,7 @@ function open(id) {
     }
   }
   errors.value = []
+  tab.value = 'manual'
   el.value.showModal()
 }
 defineExpose({ open })
@@ -95,7 +98,15 @@ function save() {
         <button type="button" class="btn btn--sm" @click="el.close()">닫기</button>
       </header>
 
-      <div class="body">
+      <!-- 수정 중에는 인테이크 탭이 아예 없다. 이미 있는 경험을
+           포폴에서 다시 가져올 일이 없고, 있으면 덮어쓸 위험만 생긴다. -->
+      <nav v-if="editId == null" class="tabs">
+        <button type="button" class="btn btn--sm" :aria-pressed="tab === 'manual'" @click="tab = 'manual'">직접 입력</button>
+        <button type="button" class="btn btn--sm" :aria-pressed="tab === 'intake'" @click="tab = 'intake'">포폴에서 가져오기</button>
+        <span class="tag ax">AX-4</span>
+      </nav>
+
+      <div v-show="tab === 'manual'" class="body">
         <div class="row2">
           <label class="fld f2">
             <span class="lb">제목 *</span>
@@ -139,7 +150,7 @@ function save() {
         </div>
       </div>
 
-      <footer class="ft">
+      <footer v-show="tab === 'manual'" class="ft">
         <p class="gaph">
           <template v-if="openGaps.length">
             지금 비어 있는 요구 역량 — <b>{{ openGaps.join(', ') }}</b>.
@@ -154,6 +165,10 @@ function save() {
           </button>
         </div>
       </footer>
+
+      <div v-show="tab === 'intake'" class="body">
+        <IntakePanel @done="n => { el.close(); }" />
+      </div>
     </form>
   </dialog>
 </template>
@@ -178,6 +193,12 @@ function save() {
 .h { margin: 3px 0 0; font-size: 20px; font-weight: 800; letter-spacing: var(--track-display); }
 
 .body { padding: 18px 20px; overflow-y: auto; display: flex; flex-direction: column; gap: 18px; }
+
+.tabs {
+  display: flex; align-items: center; gap: 7px;
+  padding: 11px 20px; border-bottom: 1px solid var(--line); background: var(--panel);
+}
+.ax { margin-left: auto; font-size: 10px; }
 
 .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 11px; }
 .f2 { grid-column: span 2; }
