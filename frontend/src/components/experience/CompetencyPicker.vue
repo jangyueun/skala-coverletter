@@ -1,7 +1,7 @@
 <script setup>
 import { computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
-import { STR, strLabel, SCORE } from '@/lib/matching.js'
+import { STR, strLabel, SCORE, groupByCategory } from '@/lib/matching.js'
 
 /* 수동 폼과 인테이크 에디터가 같이 쓴다.
    두 곳에 복사해 두면 한쪽만 고쳐진다.
@@ -20,7 +20,11 @@ const picked = computed(() =>
     .map(([id, s]) => ({ c: store.competencies.find(x => x.id === +id), s, id: +id }))
     .filter(x => x.c))
 
-const pool = computed(() => store.competencies.filter(c => !(c.id in props.pick)))
+/* 사전이 45개다. 평평하게 늘어놓으면 "이게 기술인지 인재상인지" 를
+   이름만 보고 판단해야 한다. 범주로 묶으면 고를 자리를 먼저 찾고 그 안에서 고른다.
+   이미 고른 것은 빠지므로, 한 범주를 다 고르면 그 줄 자체가 사라진다. */
+const pool = computed(() =>
+  groupByCategory(store.competencies.filter(c => !(c.id in props.pick))))
 
 const add    = id => { props.pick[id] = SCORE.PICK_STRENGTH }
 const remove = id => { delete props.pick[id] }
@@ -50,9 +54,15 @@ const cycle = id => {
     </div>
 
     <div class="pool">
-      <button v-for="c in pool" :key="c.id" type="button" class="tag add" @click="add(c.id)">
-        {{ c.name }}
-      </button>
+      <div v-for="g in pool" :key="g.k" class="grp">
+        <p class="label gl">{{ g.label }}</p>
+        <div class="tags">
+          <button v-for="c in g.items" :key="c.id" type="button" class="tag add" @click="add(c.id)">
+            {{ c.name }}
+          </button>
+        </div>
+      </div>
+      <p v-if="!pool.length" class="none">사전의 역량을 모두 골랐습니다.</p>
     </div>
   </div>
 </template>
@@ -84,8 +94,20 @@ const cycle = id => {
 .rm:active { background: var(--gap); color: var(--panel-raised); transition-duration: var(--snap); }
 
 .pool {
-  display: flex; gap: 5px; flex-wrap: wrap;
+  display: flex; flex-direction: column; gap: 9px;
   margin-top: 11px; padding-top: 11px; border-top: 1px dashed var(--line);
+}
+
+/* 범주 이름은 왼쪽 홈통에 고정한다. 위에 얹으면 줄 수가 두 배가 되고,
+   사전 45개가 다이얼로그를 넘겨 버린다. */
+.grp { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.gl { margin: 0; text-align: right; white-space: nowrap; }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+
+@media (max-width: 560px) {
+  /* 좁아지면 홈통을 접는다 — 78px 을 떼 주지 않으면 태그가 두 글자씩 끊긴다 */
+  .grp { grid-template-columns: 1fr; gap: 4px; }
+  .gl { text-align: left; }
 }
 .add { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }
 .add:hover { border-color: var(--line-strong); color: var(--ink); }

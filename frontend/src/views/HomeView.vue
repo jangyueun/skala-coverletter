@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
+import { groupByCategory } from '@/lib/matching.js'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const store = useCareerStore()
@@ -16,17 +17,8 @@ const ROLES = [
   { k: 'PLATFORM',  l: '플랫폼·인프라' },
 ]
 
-const CAT_LABEL = {
-  ROLE: '직무 역량', TECH: '기술·언어', SOFT: '일하는 방식',
-  DOMAIN: '산업', VALUE: '인재상',
-}
-
 /* 사전 전체를 범주별로 묶어 낸다. 접어 두면 있는 줄도 모른다. */
-const groups = computed(() =>
-  ['ROLE', 'TECH', 'SOFT', 'DOMAIN', 'VALUE'].map(k => ({
-    k, label: CAT_LABEL[k],
-    items: store.competencies.filter(c => c.category === k),
-  })))
+const groups = computed(() => groupByCategory(store.competencies))
 
 /* 한 번에 한 범주만 편다. 다섯을 다 펼치면 39개가 한꺼번에 쏟아져
    사이드바가 목록보다 길어진다. */

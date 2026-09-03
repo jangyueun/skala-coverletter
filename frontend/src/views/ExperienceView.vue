@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
+import { groupByCategory } from '@/lib/matching.js'
 import ExperienceCard from '@/components/experience/ExperienceCard.vue'
 import ExperienceDialog from '@/components/experience/ExperienceDialog.vue'
 
@@ -13,9 +14,10 @@ const tagged = computed(() => store.taggedCompetencyIds)
 /* 경험이 덮고 있는 역량만 칩으로 낸다. 안 덮은 20개를 다 늘어놓으면
    "고를 수 있는 것"과 "내가 가진 것"이 섞여 필터가 필터로 안 읽힌다. */
 const chips = computed(() =>
-  store.competencies
-    .filter(c => tagged.value.has(c.id))
-    .map(c => ({ ...c, n: store.experiences.filter(e => e.competencyIds.includes(c.id)).length })))
+  groupByCategory(
+    store.competencies
+      .filter(c => tagged.value.has(c.id))
+      .map(c => ({ ...c, n: store.experiences.filter(e => e.competencyIds.includes(c.id)).length }))))
 
 const shown = computed(() =>
   filter.value ? store.experiences.filter(e => e.competencyIds.includes(filter.value)) : store.experiences)
@@ -45,13 +47,18 @@ const filterName = computed(() =>
 
     <div class="panel cell filt" aria-label="역량으로 필터링">
     <p class="label">역량으로 필터링</p>
-    <div class="tags">
-      <button
-        v-for="c in chips" :key="c.id"
-        class="tag chip"
-        :aria-pressed="filter === c.id"
-        @click="filter = filter === c.id ? null : c.id"
-      >{{ c.name }}<b class="n">{{ c.n }}</b></button>
+    <div class="grps">
+      <div v-for="g in chips" :key="g.k" class="grp">
+        <p class="label gl">{{ g.label }}</p>
+        <div class="tags">
+          <button
+            v-for="c in g.items" :key="c.id"
+            class="tag chip"
+            :aria-pressed="filter === c.id"
+            @click="filter = filter === c.id ? null : c.id"
+          >{{ c.name }}<b class="n">{{ c.n }}</b></button>
+        </div>
+      </div>
     </div>
     </div>
   </section>
@@ -82,7 +89,17 @@ const filterName = computed(() =>
 .count { margin-left: auto; font-size: 12.5px; }
 
 .filt { padding: 13px 16px; flex: 1 1 340px; min-width: 0; }
-.tags { display: flex; gap: 5px; flex-wrap: wrap; margin-top: 9px; }
+/* 범주 이름은 왼쪽 홈통에 고정한다 — 위에 얹으면 줄 수가 두 배가 되고,
+   필터가 목록보다 길어진다. 좁아지면 홈통을 접는다. */
+.grps { display: flex; flex-direction: column; gap: 8px; margin-top: 9px; }
+.grp { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; align-items: baseline; }
+.gl { margin: 0; text-align: right; white-space: nowrap; }
+.tags { display: flex; gap: 5px; flex-wrap: wrap; }
+
+@media (max-width: 620px) {
+  .grp { grid-template-columns: 1fr; gap: 4px; }
+  .gl { text-align: left; }
+}
 
 /* 필터 칩 — 눌린 채로 두는 것이 "지금 이걸로 좁혔다" 표시다 */
 .chip { cursor: pointer; font: inherit; font-size: 11px; font-weight: 600; }

@@ -1,13 +1,12 @@
 <script setup>
 import { ref } from 'vue'
-import { strLabel } from '@/lib/matching.js'
+import { strLabel, catShort } from '@/lib/matching.js'
 
 /* 목업의 구성을 그대로 가져왔다 — 표 + 누르면 펼쳐지는 근거.
    역량이 10~14개라 블록으로 쌓으면 화면이 길어져 비교가 안 된다.
    표는 같은 축(커버리지·가중치)이 세로로 정렬돼 한눈에 대조된다. */
 defineProps({ rows: { type: Array, required: true } })
 
-const CAT = { ROLE: '직무', TECH: '기술', SOFT: '협업', DOMAIN: '산업', VALUE: '인재상' }
 const open = ref(new Set())
 function toggle(id) {
   const next = new Set(open.value)
@@ -39,7 +38,7 @@ function toggle(id) {
             <td>
               <b class="nm" :class="{ gap: r.isGap }">{{ r.comp.name }}</b>
             </td>
-            <td class="c cat">{{ CAT[r.comp.category] }}</td>
+            <td class="c cat">{{ catShort(r.comp.category) }}</td>
             <td>
               <div class="mt">
                 <div class="meter" :class="{ gap: r.isGap }">
