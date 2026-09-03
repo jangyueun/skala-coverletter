@@ -9,7 +9,7 @@
  *   ai     → real   (dev 는 vite 플러그인, 배포는 Spring)
  *   나머지 → mock   (팀원이 API 를 만드는 중이다)
  *
- * 팀원이 /api/postings 를 올리면 여기 한 줄만 바꾼다:
+ * 목의 반환 모양은 docs/api-spec-v6.md 의 DTO 다. 팀원이 /api/postings 를 올리면 여기 한 줄만 바꾼다:
  *   postings: mockPostings  →  REAL ? realPostings : mockPostings
  * 스토어·화면은 안 건드린다. 그게 이 층을 두는 이유다. */
 
@@ -25,10 +25,10 @@ const REAL = import.meta.env.VITE_API_MOCK === '0'
 
 export const api = {
   auth:        REAL ? realAuth : mockAuth,
-  postings:    mockPostings,      // TODO 백엔드 /api/postings 가 생기면 real 로
-  experiences: mockExperiences,   // TODO /api/experiences
-  answers:     mockAnswers,       // TODO /api/answers
-  // AI 는 dev 에서 vite 플러그인이 /api/ai/* 를 서빙하므로 real 이 그대로 된다.
-  // 키가 없으면 503 이 오고, 그건 ErrorNote 가 그린다.
+  postings:    mockPostings,      // TODO GET /api/postings · /api/competencies 가 생기면 real 로
+  experiences: mockExperiences,   // TODO GET·POST /api/experiences · PUT /api/experiences/{id}
+  answers:     mockAnswers,       // TODO GET /api/postings/{id}/questions · PUT /api/questions/{id}/answer
+  // AI 는 dev 에서 vite 플러그인이 /api/experience-intakes · /api/ai-tasks 를 서빙하므로 real 이 그대로 된다.
+  // 키가 없으면 503 이 오고, 그건 화면이 오류 문구로 그린다.
   ai:          REAL ? realAi : mockAi,
 }

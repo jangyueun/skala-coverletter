@@ -1,6 +1,7 @@
 <script setup>
 import { ref, computed, reactive } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
+import { EXPERIENCE_CATEGORIES, toMonth, fromMonth, periodValid } from '@/domain/experience.js'
 import CompetencyPicker from './CompetencyPicker.vue'
 import IntakePanel from './IntakePanel.vue'
 
@@ -9,7 +10,6 @@ const el = ref(null)
 const editId = ref(null)
 const tab = ref('manual')   // manual | intake
 
-const CATS = ['팀 프로젝트', '개인 프로젝트', '실습 프로젝트', '대외활동', '인턴·근무', '수상·자격']
 const FIELDS = [
   { k: 'situation', l: 'S', d: '어떤 상황이었나', rows: 2 },
   { k: 'task',      l: 'T', d: '무엇을 목표로 삼았나', rows: 2 },
@@ -17,8 +17,11 @@ const FIELDS = [
   { k: 'result',    l: 'R', d: '결과 (숫자로)', rows: 2 },
 ]
 
+/* 기간은 시작·종료 월 두 칸이다(v6). 서버는 startDate·endDate(YYYY-MM-DD, 둘 다 NULL 허용)로 받고
+   월 입력은 1일로 저장한다. 표시 문자열("2025.03 – 2025.11")은 카드가 periodLabel() 로 만든다.
+   분류는 코드값이고 한글은 EXPERIENCE_CATEGORIES 가 붙인다. */
 const blank = () => ({
-  title: '', period: '', category: CATS[0],
+  title: '', startMonth: '', endMonth: '', category: EXPERIENCE_CATEGORIES[0].k,
   situation: '', task: '', action: '', result: '', comp: {},
 })
 const form = reactive(blank())
@@ -31,11 +34,11 @@ function open(id) {
     const e = E.byId(id)
     if (e) {
       Object.assign(form, {
-        title: e.title, period: e.period, category: e.category,
-        situation: e.situation, task: e.task, action: e.action, result: e.result,
-        comp: { ...(e.strength || {}) },
+        title: e.title, startMonth: toMonth(e.startDate), endMonth: toMonth(e.endDate), category: e.category,
+        // S·T·A 는 서버에서 NULL 일 수 있다 — trim() 이 터지지 않게 빈 문자열로 받는다
+        situation: e.situation ?? '', task: e.task ?? '', action: e.action ?? '', result: e.result ?? '',
+        comp: Object.fromEntries(e.competencies.map(c => [c.competencyId, c.strength])),
       })
-      e.competencyIds.forEach(cid => { if (!(cid in form.comp)) form.comp[cid] = 0.7 })
     }
   }
   errors.value = []
@@ -45,30 +48,32 @@ function open(id) {
 defineExpose({ open })
 
 const starDone = computed(() => FIELDS.filter(f => form[f.k].trim()).length)
+const periodOk = computed(() => periodValid(fromMonth(form.startMonth), fromMonth(form.endMonth)))
 
 /* 서버에 await 한다. 성공해야 닫는다 — 실패하면 폼이 남고 이유가 errors 에 뜬다. */
 async function save() {
   const errs = []
   if (!form.title.trim()) errs.push('제목은 필수입니다.')
   if (!form.result.trim()) errs.push('결과(R)는 필수입니다. 성과 없는 경험은 자소서에서 쓸 수 없습니다.')
+  if (!periodOk.value) errs.push('종료 월이 시작 월보다 앞섭니다.')
   if (!Object.keys(form.comp).length) errs.push('역량을 최소 하나 태그해야 매칭에 쓰입니다.')
   errors.value = errs
   if (errs.length) return
 
-  const patch = {
+  /* v6 POST·PUT /api/experiences 본문 그대로. 역량은 { competencyId, strength } 목록이다. */
+  const body = {
     title: form.title.trim(),
-    period: form.period.trim() || '기간 미입력',
     category: form.category,
+    startDate: fromMonth(form.startMonth), endDate: fromMonth(form.endMonth),
     situation: form.situation.trim(), task: form.task.trim(),
     action: form.action.trim(), result: form.result.trim(),
-    competencyIds: Object.keys(form.comp).map(Number),
-    strength: { ...form.comp },
+    competencies: Object.entries(form.comp).map(([id, strength]) => ({ competencyId: Number(id), strength })),
   }
   try {
-    if (editId.value != null) await E.update(editId.value, patch)
-    else await E.create({ ...patch, usedInAnswers: 0 })
+    if (editId.value != null) await E.update(editId.value, body)
+    else await E.create(body)
   } catch (e) {
-    errors.value = [`저장에 실패했습니다 — ${e.message}`]
+    errors.value = [`저장에 실패했습니다 — ${e.body?.message || e.message}`]
     return
   }
   el.value.close()
@@ -100,14 +105,20 @@ async function save() {
             <span class="lb">제목 *</span>
             <input v-model="form.title" class="inp" placeholder="MSA 주문·결제 서비스 구축">
           </label>
-          <label class="fld">
-            <span class="lb">기간</span>
-            <input v-model="form.period" class="inp" placeholder="2026.08">
-          </label>
+          <!-- 월 두 칸. 한 칸짜리 자유 문자열이던 때는 "2026.08" 과 "26년 8월" 이 섞여 정렬도 못 했다.
+               종료는 비워도 된다 — 진행 중이거나 한 달짜리다. -->
+          <div class="fld">
+            <span id="period-lb" class="lb">기간 <span class="lbn">비워도 됩니다</span></span>
+            <div class="months" role="group" aria-labelledby="period-lb">
+              <input v-model="form.startMonth" type="month" class="inp" aria-label="시작 월" :max="form.endMonth || undefined">
+              <span class="dash" aria-hidden="true">–</span>
+              <input v-model="form.endMonth" type="month" class="inp" aria-label="종료 월" :min="form.startMonth || undefined">
+            </div>
+          </div>
           <label class="fld">
             <span class="lb">분류</span>
             <select v-model="form.category" class="inp">
-              <option v-for="c in CATS" :key="c">{{ c }}</option>
+              <option v-for="c in EXPERIENCE_CATEGORIES" :key="c.k" :value="c.k">{{ c.label }}</option>
             </select>
           </label>
         </div>
@@ -189,7 +200,13 @@ async function save() {
 
 .fld { display: flex; flex-direction: column; gap: 5px; }
 .lb { font-size: var(--fs-2xs); font-weight: 600; color: var(--muted); }
+.lbn { font-weight: 500; margin-left: 4px; }
 .fl { color: var(--accent); font-family: var(--mono); margin-right: 3px; }
+
+/* 시작–종료 두 칸이 한 줄에 앉는다. 대시는 장식이지 입력이 아니다. */
+.months { display: flex; align-items: center; gap: 6px; }
+.months .inp { flex: 1; min-width: 0; }
+.dash { color: var(--muted); flex: none; }
 
 .inp {
   padding: 9px 11px;

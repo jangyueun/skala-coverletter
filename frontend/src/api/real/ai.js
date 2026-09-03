@@ -1,31 +1,47 @@
-/* AI. dev 에서는 vite-plugins/aiDevServer.js 가 /api/ai/* 를 서빙한다.
- * 키가 없으면 503 + 이유가 온다 — ApiError 로 던져지고 화면이 ErrorNote 로 그린다.
- * 배포에서는 Spring 이 같은 경로를 서빙한다. 프런트는 안 바뀐다. */
-
-import { client } from '../client.js'
-
-/**
- * 공고 원문 → { required:[{competencyId, weight, evidence}], newCompetencies, role }
+/* AI 는 비동기 작업이다(v6 6절). 요청은 202 + { taskId } 로 끝나고, 결과는
+ * GET /api/ai-tasks/{taskId} 를 폴링해 받는다. 화면은 이걸 모른다 — 이 파일이 폴링을 안고
+ * 결과가 담긴 Promise 하나를 돌려준다. 목(api/mock/ai.js)과 시그니처가 같다.
  *
- * 사전을 같이 보낸다. 서버는 이 안에서만 고르게 하고, 밖의 id 가 오면 버린다 —
- * 지어낸 id 가 매칭 점수로 흘러들면 안 되기 때문이다. 아직 이 함수를 부르는 화면은 없다
- * (공고 등록이 백엔드 몫이라). 붙일 때 사전은 postings 스토어의 competencies 를 준다. */
-export const extract = (text, competencies) =>
-  client.post('/ai/extract', { text, competencies })
+ * 같은 입력으로 다시 부르면 서버가 200 + 기존 taskId 를 준다 — 그것도 그냥 폴링하면 된다.
+ * 같은 대상에 다른 입력이 진행 중이면 409 *_ALREADY_RUNNING 이 ApiError 로 온다.
+ * dev 에서는 vite-plugins/aiDevServer.js 가 같은 경로를 서빙한다. 배포는 Spring. 프런트는 안 바뀐다. */
+
+import { client, ApiError } from '../client.js'
+
+export const task = taskId => client.get(`/ai-tasks/${taskId}`)
+
+/** COMPLETED 면 작업을, FAILED 면 error 를 ApiError 로 던진다. 1초 간격, 최대 5분. */
+export async function waitFor(taskId, { interval = 1000, timeout = 5 * 60 * 1000 } = {}) {
+  const until = Date.now() + timeout
+  for (;;) {
+    const t = await task(taskId)
+    if (t.status === 'COMPLETED') return t
+    if (t.status === 'FAILED') throw new ApiError(502, t.error?.message || 'AI 작업이 실패했습니다', t.error)
+    if (Date.now() > until) throw new ApiError(504, 'AI 작업이 너무 오래 걸립니다. 잠시 후 다시 시도하세요', { taskId })
+    await new Promise(r => setTimeout(r, interval))
+  }
+}
 
 /**
- * 자소서 초안. 아직 서버에 없다 — 부르면 404 가 ApiError 로 온다.
- * 백엔드가 붙을 때까지는 api/index.js 가 mock 을 쓴다.
+ * 자소서 초안 — POST /api/questions/{id}/drafts { experienceIds } → result { draft, charCount }
+ * 초안은 서버에 저장되지 않는다. 화면이 버퍼에 넣고, 저장할 때 draftTaskId 로 출처를 남긴다.
  */
-export const draft = (questionId, usedExperienceIds) =>
-  client.post('/ai/draft', { questionId, usedExperienceIds })
+export async function draft(questionId, experienceIds) {
+  const { taskId } = await client.post(`/questions/${questionId}/drafts`, { experienceIds })
+  const { result } = await waitFor(taskId)
+  return { taskId, ...result }
+}
 
 /**
- * 포폴 인테이크 — 링크는 모델이 web_fetch 로 직접 읽는다.
- *
- * files 는 base64 로 싣는다. PDF 는 모델이 네이티브로 읽고, md·txt 는 서버가
- * 풀어서 본문에 붙인다. 업로드 스토리지가 없으므로 요청 본문에 그대로 담는다 —
- * Anthropic 요청 한도가 32MB 라 발표자료 몇 건은 문제없다.
+ * 포폴 인테이크 — POST /api/experience-intakes (multipart) → result { candidates }
+ * links 는 줄바꿈으로 이은 텍스트 한 칸, files 는 PDF·MD·TXT (파일당 10MB · 최대 5개, 반복 필드).
+ * 서버가 파일을 Storage 에 올리고 AI 서버에는 URL 만 넘긴다 — 프런트는 base64 를 만들지 않는다.
  */
-export const intake = (links, files, competencies) =>
-  client.post('/ai/intake', { links, files, competencies })
+export async function intake(links, files) {
+  const form = new FormData()
+  form.append('links', links.join('\n'))
+  for (const f of files) form.append('files', f, f.name)
+  const { taskId } = await client.post('/experience-intakes', form)
+  const { result } = await waitFor(taskId)
+  return { taskId, ...result }
+}

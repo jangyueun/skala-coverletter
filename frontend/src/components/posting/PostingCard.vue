@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
+import { deadlineLabel } from '@/domain/deadline.js'
 
 const props = defineProps({ card: { type: Object, required: true } })
 const emit = defineEmits(['bookmark'])
@@ -73,7 +74,7 @@ const urgent = computed(() => !props.card.closed && props.card.d <= 7)
       <div class="when">
         <!-- 지난 공고에 D-(-5) 는 셈이 아니라 잡음이다. 날짜만 남긴다. -->
         <b v-if="!card.closed" class="num dd" :class="{ urgent }">D-{{ card.d }}</b>
-        <span class="date">{{ p.deadline }} {{ card.closed ? '마감됨' : '마감' }}</span>
+        <span class="date">{{ deadlineLabel(p.deadline) }} {{ card.closed ? '마감됨' : '마감' }}</span>
       </div>
       <span class="tag" :class="card.essay.state === 'DONE' ? 'tag--ok' : ''">
         자소서 {{ card.essay.label }}<template v-if="card.essay.total"> {{ card.essay.done }}/{{ card.essay.total }}</template>

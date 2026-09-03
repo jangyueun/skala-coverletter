@@ -16,6 +16,7 @@ import { dday, isClosed } from '@/domain/deadline.js'
  * 알게 되고, 백엔드가 붙어 갱신 시점이 갈라질 때 그 결합이 발목을 잡는다.
  *
  * 계산은 domain/ 에 있다. 여기서는 부르기만 한다.
+ * v6 목록 DTO 는 match·essay 를 서버가 계산해 실어 준다 — 그날 이 게터가 서버 값을 우선하면 된다.
  */
 export const useDerivedStore = defineStore('derived', {
   getters: {
@@ -90,12 +91,10 @@ export const useDerivedStore = defineStore('derived', {
       return computeMatch(posting, E.list, P.competencies)
     },
     essayFor(posting) {
-      const A = useAnswersStore()
-      return essayProgress(posting, A.applications, A.questions)
+      return essayProgress(useAnswersStore().questionsFor(posting.id))
     },
     usedIn(experienceId) {
-      const A = useAnswersStore()
-      return usedIn(experienceId, A.applications, A.questions)
+      return usedIn(experienceId, useAnswersStore().questions)
     },
   },
 })
