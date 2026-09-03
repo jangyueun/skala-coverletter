@@ -82,14 +82,17 @@ export const useCareerStore = defineStore('career', {
           desc: '문항은 있는데 아직 다 못 채운 것',
           items: live.filter(c => c.essay.state === 'WRITING' || c.essay.state === 'EMPTY').sort(byDeadline) },
 
-        { k: 'done', title: '작성 완료 · 마감 전',
+        { k: 'done', title: '작성 완료',
           desc: '다 썼고 아직 낼 수 있는 것',
           items: live.filter(c => c.essay.state === 'DONE').sort(byDeadline) },
 
-        // 마감이 지났으므로 D-day 가 아니라 "얼마나 전이었나" 순으로 최근 것부터
-        { k: 'closed', title: '작성 완료 · 마감 지남',
-          desc: '이미 끝난 공고. 다음 지원에 다시 쓸 문장이 여기 있다',
-          items: all.filter(c => c.d < 0 && c.essay.state === 'DONE').sort((a, b) => b.d - a.d) },
+        /* 마감 지남은 **자소서 완성 여부와 무관하게** 전부 넣는다.
+           다 쓰고 낸 것만 남기면, 쓰다가 마감을 놓친 공고가 화면에서 통째로
+           사라진다 — 그게 오히려 돌아봐야 할 것이다.
+           D-day 가 아니라 "얼마나 전이었나" 순으로 최근 것부터 본다. */
+        { k: 'closed', title: '마감 지남',
+          desc: '끝난 공고. 다 쓴 것은 다음 지원에 다시 쓰고, 못 끝낸 것은 왜 그랬는지 본다',
+          items: all.filter(c => c.d < 0).sort((a, b) => b.d - a.d) },
       ]
     },
 

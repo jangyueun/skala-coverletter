@@ -28,6 +28,15 @@ const groups = computed(() =>
     items: store.competencies.filter(c => c.category === k),
   })))
 
+/* 한 번에 한 범주만 편다. 다섯을 다 펼치면 39개가 한꺼번에 쏟아져
+   사이드바가 목록보다 길어진다. */
+const openCat = ref(null)
+const toggleCat = k => { openCat.value = openCat.value === k ? null : k }
+
+/* 접힌 범주에서도 몇 개를 골랐는지는 보여야 한다 —
+   안 그러면 필터가 걸린 줄 모르고 결과가 적다고 오해한다. */
+const pickedIn = k => groups.value.find(g => g.k === k)?.items.filter(c => picked.value.has(c.id)).length ?? 0
+
 function toggle(id) {
   const next = new Set(picked.value)
   next.has(id) ? next.delete(id) : next.add(id)
@@ -133,10 +142,15 @@ const list = computed(() => {
         </div>
       </div>
 
-      <!-- 역량 사전 전체. 범주로 묶어야 목록이 아니라 구조로 읽힌다. -->
-      <div v-for="g in groups" :key="g.k" class="fg">
-        <p class="fgt">{{ g.label }} <span class="fgn">{{ g.items.length }}</span></p>
-        <div class="fgb">
+      <!-- 역량 사전. 범주별로 접어 두고 한 번에 하나만 편다. -->
+      <div v-for="g in groups" :key="g.k" class="acc">
+        <button class="acch" :aria-expanded="openCat === g.k" @click="toggleCat(g.k)">
+          <span class="accn">{{ g.label }}</span>
+          <span v-if="pickedIn(g.k)" class="accp">{{ pickedIn(g.k) }}</span>
+          <span class="fgn">{{ g.items.length }}</span>
+          <span class="chev" aria-hidden="true">{{ openCat === g.k ? '−' : '+' }}</span>
+        </button>
+        <div v-show="openCat === g.k" class="fgb">
           <button v-for="c in g.items" :key="c.id" class="btn btn--sm"
                   :aria-pressed="picked.has(c.id)" @click="toggle(c.id)">{{ c.name }}</button>
         </div>
@@ -176,7 +190,7 @@ const list = computed(() => {
 
 /* 개수 — .cols 와 같은 그리드. 둘째 열(사이드바 자리)은 비워 둔다. */
 .count {
-  display: grid; grid-template-columns: minmax(0, 1fr) 244px; gap: 40px;
+  display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px;
   padding: 30px 0 12px;
 }
 .count-in {
@@ -188,7 +202,7 @@ const list = computed(() => {
 .sorts { display: flex; gap: 7px; margin-left: auto; }
 
 /* 좌 리스트 / 우 필터 */
-.cols { display: grid; grid-template-columns: minmax(0, 1fr) 244px; gap: 40px; align-items: start; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 40px; align-items: start; }
 .list {
   display: grid; gap: 12px;
   grid-template-columns: repeat(auto-fill, minmax(310px, 1fr));
@@ -201,7 +215,6 @@ const list = computed(() => {
 .side {
   position: sticky; top: 18px;
   display: flex; flex-direction: column; gap: 20px; padding-top: 14px;
-  max-height: calc(100vh - 40px); overflow-y: auto; scrollbar-width: thin;
 }
 .sh {
   display: flex; align-items: center; justify-content: space-between;
@@ -215,12 +228,33 @@ const list = computed(() => {
 }
 .fg { display: flex; flex-direction: column; gap: 9px; }
 .fgt { margin: 0; font-size: 13px; font-weight: 700; }
-.fgn { font-family: var(--mono); font-size: 10px; color: var(--faint); margin-left: 4px; font-weight: 500; }
+.fgn { font-family: var(--mono); font-size: 10px; color: var(--faint); font-weight: 500; }
 .fgb { display: flex; gap: 6px; flex-wrap: wrap; }
 .w { width: 100%; }
 
+/* 아코디언 — 접힌 상태가 기본이다 */
+.acc { display: flex; flex-direction: column; gap: 9px; }
+.acch {
+  display: flex; align-items: center; gap: 7px; width: 100%;
+  padding: 9px 2px; background: transparent; border: none;
+  border-bottom: 1px solid var(--line-soft);
+  cursor: pointer; text-align: left; font: inherit; color: inherit;
+  transition: border-color var(--release) linear;
+}
+.acch:hover { border-bottom-color: var(--ink); }
+.acch[aria-expanded='true'] { border-bottom-color: var(--ink); }
+.accn { font-size: 13px; font-weight: 700; }
+/* 접혀 있어도 몇 개 골랐는지는 보인다 */
+.accp {
+  display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
+  border-radius: var(--pill); background: var(--accent); color: var(--accent-ink);
+  font-size: 9.5px; font-weight: 700;
+}
+.chev { margin-left: auto; font-family: var(--mono); font-size: 14px; color: var(--muted); line-height: 1; }
+.acch[aria-expanded='true'] .chev { color: var(--ink); }
+
 @media (max-width: 900px) {
   .cols, .count { grid-template-columns: 1fr; gap: 28px; }
-  .side { position: static; order: -1; padding-top: 0; max-height: none; overflow: visible; }
+  .side { position: static; order: -1; padding-top: 0; }
 }
 </style>

@@ -196,7 +196,7 @@ export const DATA = {
     },
 
     {
-      id: 11, role:'PLATFORM', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
+      id: 11, role:'PLATFORM', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://hanbit-sys.example/careers/platform',
       collectedAt:'2026-09-02 04:12',
       company:'한빛시스템', position:'플랫폼 엔지니어 (신입)', deadline:'2026-09-21',
       rawText:
@@ -233,7 +233,7 @@ export const DATA = {
     },
 
     {
-      id: 12, role:'BACKEND', questionsFromServer: false, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
+      id: 12, role:'BACKEND', questionsFromServer: true, source:'CRAWLED', sourceUrl:'https://corelink.example/jobs/be-ai', collectedAt:'2026-09-02 04:12',
       company:'코어링크', position:'백엔드 엔지니어 · AI 프로덕트', deadline:'2026-09-28',
       rawText:
 `[코어링크] AI 프로덕트 백엔드 엔지니어 (신입)
@@ -401,6 +401,29 @@ export const DATA = {
       ],
       newCompetencies: [],
     },
+    {
+      id: 17, role:'FRONTEND', questionsFromServer: true, source:'CRAWLED',
+      company:'하람랩스', position:'프론트엔드 엔지니어 (신입)', deadline:'2026-08-30',
+      rawText:`[하람랩스] 2026 상반기 프론트엔드 엔지니어 채용
+
+■ 담당 업무
+· 헬스케어 예약·문진 서비스의 화면 개발
+· 디자인 시스템 컴포넌트 개선
+
+■ 자격 요건
+· React 또는 Vue 로 서비스를 만들어 본 경험
+· TypeScript 사용 경험
+· 화면 성능을 수치로 개선해 본 경험`,
+      required: [
+        { competencyId: 2,  weight:0.9, evidence:'React 또는 Vue 로 서비스를 만들어 본 경험' },
+        { competencyId: 18, weight:0.9, evidence:'React 로 서비스를 만들어 본 경험' },
+        { competencyId: 17, weight:0.8, evidence:'TypeScript 사용 경험' },
+        { competencyId: 11, weight:0.8, evidence:'화면 성능을 수치로 개선해 본 경험' },
+        { competencyId: 26, weight:0.7, evidence:'디자이너와 협업하며 컴포넌트를 개선' },
+        { competencyId: 34, weight:0.7, evidence:'헬스케어 예약·문진 서비스' },
+      ],
+      newCompetencies: [],
+    },
   ],
 
   /* --- 자소서 문항 4개 ------------------------------------
@@ -510,6 +533,48 @@ export const DATA = {
       draft:'넥스트레이어의 이커머스 주문·결제 도메인은 제가 다뤄 본 문제와 가장 가깝습니다. 주식 거래 REST API 를 만들면서 엔드포인트 18개의 에러 응답 형식을 1종으로 통일했고, 프론트 연동 문의를 9건에서 1건으로 줄인 경험이 있습니다. 주문·결제처럼 실패가 곧 돈이 되는 도메인에서는 이 정합성이 더 중요하다고 생각합니다. 입사 후에는 결제 API 의 실패 처리와 재시도 구조를 맡아 보고 싶습니다.',
       aiDraft:'',
     },
+    {
+      id: 81, applicationId: 103, charLimit: 800,
+      prompt:'인프라나 배포 환경을 직접 다뤄 본 경험을 하나 골라, 무엇을 개선했고 그 결과를 어떻게 확인했는지 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 82, applicationId: 103, charLimit: 700,
+      prompt:'문제가 생겼을 때 원인을 끝까지 추적해 본 경험을 써 주십시오. 어떤 근거로 범위를 좁혔는지 함께 적어 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 83, applicationId: 104, charLimit: 800,
+      prompt:'AI 또는 LLM 을 실제 서비스나 프로젝트에 붙여 본 경험을 써 주십시오. 무엇을 검증했고 한계는 무엇이었습니까?',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 84, applicationId: 104, charLimit: 600,
+      prompt:'사용자의 문제에서 출발해 기능을 정의해 본 경험을 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 85, applicationId: 106, charLimit: 800,
+      prompt:'화면을 직접 만들어 본 경험을 하나 골라, 사용자가 체감한 문제를 어떻게 개선했는지 수치와 함께 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 86, applicationId: 106, charLimit: 600,
+      prompt:'기획·디자인과 의견이 갈렸을 때 범위를 어떻게 조정했는지 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
+    {
+      id: 87, applicationId: 107, charLimit: 700,
+      prompt:'화면을 만들면서 사용자가 체감한 문제를 개선한 경험을 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[3],
+      draft:'화면 7개가 각자 API 를 중복 호출해 초기 로딩이 느렸습니다. Pinia 로 전역 상태를 통합하고 Axios 인터셉터로 인증·에러를 한 곳에 모았습니다. 라우터 단위 코드 스플리팅까지 적용해 중복 호출을 24회에서 7회로 줄였고, 초기 렌더 시간이 2.4초에서',
+      aiDraft:'',
+    },
+    {
+      id: 88, applicationId: 107, charLimit: 600,
+      prompt:'당사에 지원한 이유를 써 주십시오.',
+      intent:'', asks:[], usedExperienceIds:[], draft:'', aiDraft:'',
+    },
   ],
 
   /* --- 지원 현황 ------------------------------------------- */
@@ -524,6 +589,8 @@ export const DATA = {
     { id:105, postingId:13, company:'리버트리',   position:'풀스택 엔지니어' },
     { id:109, postingId:15, company:'한빛시스템', position:'SRE' },
     { id: 110, postingId: 16, company:'넥스트레이어', position:'백엔드 엔지니어 (신입)' },
+    { id: 106, postingId: 14, company:'세움테크', position:'프론트엔드 엔지니어 (신입)' },
+    { id: 107, postingId: 17, company:'하람랩스', position:'프론트엔드 엔지니어 (신입)' },
   ],
 
 
