@@ -165,6 +165,7 @@ async load() {
 | 실패 화면을 보고 싶다 | `VITE_API_MOCK_FAIL=postings` — 그 API 만 500 을 준다 |
 | AI 추출·초안 | `.env` 에 `ANTHROPIC_API_KEY` — vite 플러그인이 `/api/experience-intakes` · `/api/ai-tasks` 를 dev 에서 서빙. 키 없으면 503 + 이유 |
 | 같은 Wi-Fi 팀원에게 보여주기 | `host: true` 라 `npm run dev` 가 찍는 Network 주소 |
+| 세 서버를 한 번에, 팀 표준 버전으로 | 루트에서 `docker compose up --build` — 웹은 nginx 가 서빙하고 `/api` 를 프록시한다. 컨테이너의 웹은 늘 real 모드다. `docs/dev-environment.md` |
 
 `VITE_` 접두사는 값이 빌드 산출물에 박히므로 **스위치에만** 쓴다. 키는 절대 안 된다(`.env.example` 참조).
 

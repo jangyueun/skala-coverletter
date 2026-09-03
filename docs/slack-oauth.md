@@ -44,7 +44,7 @@ Initializr 가 만들어 준다. 우리는 `application.yml` 을 쓰니 둘 다 
 
 | 항목 | 값 |
 |---|---|
-| **OpenID Connect** → Redirect URLs | `http://localhost:8080/api/auth/slack/callback` (로컬)<br>배포 주소가 생기면 `https://.../api/auth/slack/callback` 추가 |
+| **OpenID Connect** → Redirect URLs | `http://localhost:5173/api/auth/slack/callback` (로컬 — vite 프록시·Docker nginx 가 `/api` 를 8080 으로 넘긴다)<br>배포 주소가 생기면 `https://.../api/auth/slack/callback` 추가 |
 | **User Token Scopes** | `openid`, `profile`, `email` |
 
 봇 토큰이나 `chat:write` 는 **요청하지 않는다.** 사람을 로그인시키는 것뿐이라 받을
@@ -72,7 +72,9 @@ cd backend
 ./gradlew bootRun
 ```
 
-브라우저에서 <http://localhost:8080/api/auth/slack/start> 로 들어가면 Slack 동의 화면이 뜬다.
+프론트(`npm run dev`, 5173)를 띄우고 로그인 버튼을 누르면 Slack 동의 화면이 뜬다. 백엔드만 확인하려면
+<http://localhost:8080/api/auth/slack/start> 로 직접 들어가도 동의 화면까지는 뜨지만, 콜백 주소가 5173 이라
+돌아온 뒤에는 프론트가 떠 있어야 한다. 세 서버를 Docker 로 한 번에 띄우는 법은 `docs/dev-environment.md`.
 
 ---
 

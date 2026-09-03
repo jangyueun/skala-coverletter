@@ -1,0 +1,44 @@
+# 세 서버를 한 번에 띄운다 — 팀원 컴마다 Java · Node · Python 버전이 달라 "내 컴에선 되는데" 가 나는 걸 막으려고.
+# 기준 버전은 각 Dockerfile 의 이미지 태그이고, 사용법은 docs/dev-environment.md 다.
+#
+#   docker compose up --build                                    Supabase 를 쓰는 사람(.env 에 접속 정보)
+#   docker compose -f compose.yaml -f compose.localdb.yaml up --build   DB 까지 로컬 컨테이너로(.env 없어도 뜬다)
+#
+# 포트는 로컬 개발과 같다(web 5173 · api 8080 · ai 8000). npm run dev 나 bootRun 을 띄워 둔 채로 올리면 충돌한다 —
+# 그럴 땐 WEB_PORT=15173 API_PORT=18080 docker compose up 처럼 호스트 포트만 바꾼다.
+# 브라우저는 web 포트로 들어간다. /api 는 nginx 가 api 로 넘기므로 api 포트를 직접 열 일은 curl 뿐이다.
+
+services:
+  web:
+    build: ./frontend
+    ports:
+      - "${WEB_PORT:-5173}:80"
+    depends_on:
+      - api
+
+  api:
+    build: ./backend
+    # Supabase · Slack 값. 없으면 SUPABASE_DB_URL 자리표시자를 못 풀어 바로 죽는다 — 그게 맞다.
+    # 로컬 DB 오버레이(compose.localdb.yaml)를 쓰면 DB 값은 거기서 오므로 .env 가 없어도 된다.
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      # application.yml 의 ../.env 강제 import 를 끈다 — 값은 위 env_file 로 받는다.
+      SPRING_PROFILES_ACTIVE: docker
+      # 워커가 부르는 AI 서버. localhost 가 아니라 compose 네트워크의 서비스 이름이다.
+      AI_SERVER_BASE_URL: http://ai:8000
+    ports:
+      - "${API_PORT:-8080}:8080"
+    depends_on:
+      - ai
+
+  ai:
+    build: ./ai
+    # /ai/* 는 지금 Mock 이라 키가 없어도 뜬다. AI_INTERNAL_TOKEN 을 두면 Spring 쪽 AI_INTERNAL_TOKEN 과 같아야 한다.
+    env_file:
+      - path: ai/.env
+        required: false
+    ports:
+      # 프론트도 브라우저도 직접 부르지 않는다. 호스트에서 curl 로 확인할 때만 쓰라고 127.0.0.1 에만 연다.
+      - "127.0.0.1:8000:8000"
