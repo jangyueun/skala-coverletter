@@ -65,36 +65,26 @@ const list = computed(() => {
       <h1 class="display">공고 찾기</h1>
       <p class="pagehead-lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
     </div>
-
-    <!-- 검색은 이 화면에서 제일 먼저 하는 일이라 제목과 같은 줄에 둔다.
-         전폭 회색 밴드로 아래에 깔아 두면 제목과 목록 사이를 한 층 더 밀어
-         첫 화면에 들어오는 공고가 줄어든다. 경험 관리의 오른쪽 덩어리와
-         같은 자리·같은 바닥선이다. -->
-    <div class="srch">
-      <span class="mag" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
-          <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 L21 21" stroke-linecap="round" />
-        </svg>
-      </span>
-      <label for="q" class="vh">공고 검색</label>
-      <input id="q" v-model="q" class="q" placeholder="기업, 직무, 역량으로 찾아보세요">
-      <button v-if="q" type="button" class="clr" aria-label="검색어 지우기" @click="q = ''">×</button>
-    </div>
   </section>
 
-  <!-- 개수 + 정렬.
-       아래 .cols 와 같은 그리드를 써서 목록 열 안에 넣는다 —
-       전폭으로 두면 정렬 버튼이 사이드바 위까지 나가 목록과 안 맞는다. -->
-  <!-- 좌 목록 / 우 필터. 개수·정렬 줄을 목록 열 안에 넣어야
+  <!-- 좌 목록 / 우 필터. 검색·정렬 줄을 목록 열 안에 넣어야
        필터와 목록이 같은 높이에서 시작한다. 밖으로 빼면 필터만 한 줄 밑에서
        시작해 두 열의 머리가 어긋난다. -->
   <div class="cols">
     <section class="listcol">
+      <!-- 검색은 목록 바로 위에 둔다. 자기가 거르는 것 위에 있어야
+           "이 목록이 검색 결과다" 가 보인다. 개수는 화면이 이미 보여 준다. -->
       <div class="count-in">
-        <p class="cn">
-          <b class="num n">{{ list.length }}</b> 개의 공고가 현재 진행중입니다.
-          <span v-if="store.dueSoonCount" class="soon">· 마감 7일 내 {{ store.dueSoonCount }}건</span>
-        </p>
+    <div class="srch">
+          <span class="mag" aria-hidden="true">
+            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+            <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 L21 21" stroke-linecap="round" />
+            </svg>
+          </span>
+          <label for="q" class="vh">공고 검색</label>
+          <input id="q" v-model="q" class="q" placeholder="기업, 직무, 역량으로 찾아보세요">
+          <button v-if="q" type="button" class="clr" aria-label="검색어 지우기" @click="q = ''">×</button>
+        </div>
         <div class="sorts">
           <button class="btn btn--sm" :aria-pressed="store.sort === 'match'" @click="store.sort = 'match'">매칭순</button>
           <button class="btn btn--sm" :aria-pressed="store.sort === 'deadline'" @click="store.sort = 'deadline'">마감 임박순</button>
@@ -155,7 +145,7 @@ const list = computed(() => {
 /* 검색은 한 덩어리다 — 회색 면 하나에 돋보기·입력·지우기가 같이 앉는다.
    밴드일 때는 배경이 화면 끝까지 갔지만, 이제 제목 옆 상자라 pill 로 닫는다. */
 .srch {
-  display: flex; align-items: center; gap: 10px; flex: 1 1 360px; max-width: 460px;
+  display: flex; align-items: center; gap: 10px; flex: 1 1 300px; max-width: 480px; min-width: 0;
   padding: 11px 16px; background: var(--panel-sunken); border-radius: var(--pill);
   border: 1px solid transparent;
   transition: border-color var(--release) linear, background var(--release) linear;
@@ -182,11 +172,7 @@ const list = computed(() => {
   overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
 }
 
-/* 개수 — .cols 와 같은 그리드. 둘째 열(사이드바 자리)은 비워 둔다. */
-.cn { margin: 0; font-size: 15px; font-weight: 600; }
-.cn .n { font-size: 20px; font-weight: 800; color: var(--accent); margin-right: 3px; }
-.soon { color: var(--muted); font-weight: 500; font-size: 13px; margin-left: 4px; }
-.sorts { display: flex; gap: 7px; margin-left: auto; }
+.sorts { display: flex; gap: 7px; margin-left: auto; flex: none; }
 
 /* 좌 리스트 / 우 필터 */
 /* 두 열 사이에 옅은 선. 선은 목록 열이 긋는다 — 필터는 sticky 라
@@ -197,8 +183,7 @@ const list = computed(() => {
   padding-right: 28px; border-right: 1px solid var(--line-soft);
 }
 .count-in {
-  display: flex; align-items: baseline; justify-content: space-between; gap: 16px; flex-wrap: wrap;
-  padding-top: 6px;
+  display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap;
 }
 .list {
   display: grid; gap: 12px;

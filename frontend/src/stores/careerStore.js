@@ -109,10 +109,6 @@ export const useCareerStore = defineStore('career', {
       return Object.keys(this.drafts).map(Number).filter(id => this.isDirty(id))
     },
 
-    dueSoonCount() {
-      return this.cards.filter(c => c.d <= 7).length
-    },
-
     /** 경험이 덮고 있는 역량 id 집합 */
     taggedCompetencyIds() {
       return new Set(this.experiences.flatMap(e => e.competencyIds))
