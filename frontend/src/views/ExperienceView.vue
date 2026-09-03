@@ -1,5 +1,5 @@
 <script setup>
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useCareerStore } from '@/stores/careerStore.js'
 import { groupByCategory } from '@/lib/matching.js'
 import ExperienceCard from '@/components/experience/ExperienceCard.vue'
@@ -30,21 +30,41 @@ const filterName = computed(() =>
    "왜 6건이 아니지" 하는 일이 없다. */
 const filtOpen = ref(true)
 
+/* STAR 설명은 물음표 뒤에 접어 둔다. 네 줄을 늘 펴 두면 머리글이
+   공고 찾기(제목 + 한 줄)보다 두 배로 길어져 두 화면이 다른 리듬이 된다.
+
+   펼침은 흐름을 밀지 않고 떠오른다 — 안으로 밀어 넣으면 열 때마다
+   오른쪽 숫자·버튼이 아래로 뛴다. */
+const starOpen = ref(false)
+const starEl = ref(null)
+
+function onDocClick(e) { if (starEl.value && !starEl.value.contains(e.target)) starOpen.value = false }
+function onEsc(e) { if (e.key === 'Escape') starOpen.value = false }
+onMounted(() => { document.addEventListener('click', onDocClick); document.addEventListener('keydown', onEsc) })
+onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); document.removeEventListener('keydown', onEsc) })
+
 </script>
 
 <template>
   <header class="hero">
     <div class="hl">
-      <h1 class="display">경험 라이브러리</h1>
-      <p class="lede">STAR 기법을 사용해 본인의 경험을 적어 두세요.</p>
-      <!-- 글자와 설명은 등록 폼의 FIELDS 와 같은 문구다.
-           두 화면이 다른 말을 하면 어느 쪽을 믿어야 할지 모른다. -->
-      <dl class="star">
-        <div><dt>S</dt><dd><b>Situation</b> 어떤 상황이었나</dd></div>
-        <div><dt>T</dt><dd><b>Task</b> 무엇을 목표로 삼았나</dd></div>
-        <div><dt>A</dt><dd><b>Action</b> 내가 한 행동과 적용한 방식</dd></div>
-        <div><dt>R</dt><dd><b>Result</b> 결과 — 숫자로</dd></div>
-      </dl>
+      <h1 class="display">경험 관리</h1>
+      <p class="lede">
+        <span ref="starEl" class="anchor">
+          STAR<button type="button" class="q" :aria-expanded="starOpen"
+                      aria-label="STAR 기법 설명 보기"
+                      @click="starOpen = !starOpen">?</button>
+          <!-- 글자와 설명은 등록 폼의 FIELDS 와 같은 문구다.
+               두 화면이 다른 말을 하면 어느 쪽을 믿어야 할지 모른다. -->
+          <dl v-if="starOpen" class="star">
+            <div><dt>S</dt><dd><b>Situation</b> 어떤 상황이었나</dd></div>
+            <div><dt>T</dt><dd><b>Task</b> 무엇을 목표로 삼았나</dd></div>
+            <div><dt>A</dt><dd><b>Action</b> 내가 한 행동과 적용한 방식</dd></div>
+            <div><dt>R</dt><dd><b>Result</b> 결과 — 숫자로</dd></div>
+          </dl>
+        </span>
+        기법을 사용해 본인의 경험을 적어 두세요.
+      </p>
     </div>
     <!-- 오른쪽은 "얼마나 모았나" 와 "더 모으기" 다. 같은 이야기라 붙여 둔다.
          숫자에는 패널 테두리를 두르지 않는다 — 헤더에 카드가 뜨면 제목보다 무거워지고,
@@ -119,9 +139,28 @@ const filtOpen = ref(true)
 
 .lede { max-width: 58ch; color: var(--ink); margin: 14px 0 0; font-weight: 600; }
 
+/* 물음표 — 글 안에 박히는 버튼이라 원형으로 작게. */
+.anchor { position: relative; white-space: nowrap; }
+.q {
+  width: 15px; height: 15px; margin-left: 2px; padding: 0;
+  border: 1px solid var(--line-strong); border-radius: 50%; background: var(--panel);
+  color: var(--ink-2); font-family: var(--mono); font-size: 9.5px; font-weight: 700;
+  line-height: 1; cursor: pointer; vertical-align: 2px;
+  transition: background var(--release) linear, color var(--release) linear;
+}
+.q:hover { background: var(--panel-sunken); }
+.q[aria-expanded='true'] { background: var(--ink); border-color: var(--ink); color: var(--panel); }
+
 /* STAR 안내 — 읽고 지나가는 글이 아니라 옆에 두고 보는 표에 가깝다.
-   글자 열을 고정 폭으로 잡아 네 줄의 설명 시작점이 맞는다. */
-.star { margin: 9px 0 0; display: flex; flex-direction: column; gap: 3px; }
+   글자 열을 고정 폭으로 잡아 네 줄의 설명 시작점이 맞는다.
+   흐름 위에 떠오른다 — 안으로 밀면 열 때마다 오른쪽 숫자·버튼이 아래로 뛴다.
+   그림자 대신 진한 테두리로 띄운다. 이 스타일에 그림자는 없다. */
+.star {
+  position: absolute; z-index: 5; top: calc(100% + 8px); left: 0;
+  padding: 13px 16px; white-space: nowrap;
+  background: var(--panel-raised); border: 1px solid var(--line-strong); border-radius: var(--r);
+  margin: 0; display: flex; flex-direction: column; gap: 3px;
+}
 .star > div { display: grid; grid-template-columns: 14px 1fr; gap: 8px; align-items: baseline; }
 .star dt { color: var(--accent); font-family: var(--mono); font-weight: 700; font-size: 12px; }
 .star dd { margin: 0; font-size: 12.5px; color: var(--muted); }

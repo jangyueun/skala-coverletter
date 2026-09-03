@@ -58,24 +58,27 @@ const list = computed(() => {
 </script>
 
 <template>
-  <!-- 히어로 — 제목 하나와 한 줄 설명. 경험 라이브러리와 같은 어법이다.
+  <!-- 히어로 — 제목 하나와 한 줄 설명. 경험 관리와 같은 어법이다.
        영문 타이틀 + 한글 부제 + 카피 두 문단은 같은 말을 네 번 하는 것이었다. -->
   <section class="hero">
-    <h1 class="display">공고 찾기</h1>
-    <p class="lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
-  </section>
+    <div class="hl">
+      <h1 class="display">공고 찾기</h1>
+      <p class="lede">내가 저장한 경험과 매칭되는 공고를 찾아보세요!</p>
+    </div>
 
-  <!-- 전폭 회색 검색 밴드 -->
-  <section class="band">
-    <div class="band-in">
+    <!-- 검색은 이 화면에서 제일 먼저 하는 일이라 제목과 같은 줄에 둔다.
+         전폭 회색 밴드로 아래에 깔아 두면 제목과 목록 사이를 한 층 더 밀어
+         첫 화면에 들어오는 공고가 줄어든다. 경험 관리의 오른쪽 덩어리와
+         같은 자리·같은 바닥선이다. -->
+    <div class="srch">
       <span class="mag" aria-hidden="true">
-        <svg viewBox="0 0 24 24" width="17" height="17" fill="none" stroke="currentColor" stroke-width="2.2">
+        <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
           <circle cx="10.5" cy="10.5" r="6.5" /><path d="M15.5 15.5 L21 21" stroke-linecap="round" />
         </svg>
       </span>
-      <label for="q" class="blabel">공고 검색</label>
+      <label for="q" class="vh">공고 검색</label>
       <input id="q" v-model="q" class="q" placeholder="기업, 직무, 역량으로 찾아보세요">
-      <button v-if="q" class="btn btn--sm clr" @click="q = ''">지우기</button>
+      <button v-if="q" type="button" class="clr" aria-label="검색어 지우기" @click="q = ''">×</button>
     </div>
   </section>
 
@@ -147,27 +150,45 @@ const list = computed(() => {
 /* 히어로 */
 /* 히어로는 진입 장식이지 화면의 본론이 아니다. 본론은 바로 아래 검색과 목록이라
    위아래 여백과 글자 크기를 줄여 첫 화면에 공고가 같이 들어오게 한다. */
-.hero { padding: 30px 0 24px; }
+/* 제목 왼쪽, 검색 오른쪽. 바닥선을 맞춰 한 줄로 읽힌다 —
+   경험 관리 머리글과 같은 구조다. */
+.hero {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 20px 32px; flex-wrap: wrap; padding: 30px 0 24px;
+}
+.hl { min-width: 0; }
 .hero .display { font-size: clamp(2.1rem, 5.4vw, 3.3rem); }
 .lede { margin: 10px 0 0; font-size: 14.5px; font-weight: 600; color: var(--ink-2); }
 
-/* 전폭 밴드 — wrap 의 좌우 여백을 넘어 화면 끝까지 */
-.band {
-  background: var(--panel-sunken);
-  margin: 0 calc(50% - 50vw); padding: 0 calc(50vw - 50%);
+/* 검색은 한 덩어리다 — 회색 면 하나에 돋보기·입력·지우기가 같이 앉는다.
+   밴드일 때는 배경이 화면 끝까지 갔지만, 이제 제목 옆 상자라 pill 로 닫는다. */
+.srch {
+  display: flex; align-items: center; gap: 10px; flex: 1 1 360px; max-width: 460px;
+  padding: 11px 16px; background: var(--panel-sunken); border-radius: var(--pill);
+  border: 1px solid transparent;
+  transition: border-color var(--release) linear, background var(--release) linear;
 }
-.band-in { display: flex; align-items: center; gap: 14px; max-width: 1160px; margin: 0 auto; padding: 22px 0; }
-.mag {
-  width: 40px; height: 40px; flex: none; border-radius: 50%;
-  background: var(--ink); color: var(--panel); display: grid; place-items: center;
-}
-.blabel { font-size: 13px; font-weight: 700; flex: none; }
+.srch:focus-within { background: var(--panel); border-color: var(--accent); }
+.mag { color: var(--ink); display: grid; place-items: center; flex: none; }
 .q {
   flex: 1; min-width: 0; border: none; background: transparent; outline: none;
-  font-size: clamp(15px, 2.2vw, 20px); font-weight: 500; color: var(--ink);
+  font-size: 14.5px; font-weight: 500; color: var(--ink);
 }
 .q::placeholder { color: var(--faint); font-weight: 400; }
-.clr { flex: none; }
+.clr {
+  flex: none; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
+  background: var(--line); color: var(--ink-2); cursor: pointer;
+  font-size: 13px; line-height: 1;
+  transition: background var(--release) linear, color var(--release) linear;
+}
+.clr:hover { background: var(--ink); color: var(--panel); }
+
+/* 라벨은 화면에서 뺀다 — 돋보기와 플레이스홀더가 이미 말한다.
+   지우지는 않는다. 스크린리더에는 입력의 이름이 있어야 한다. */
+.vh {
+  position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+  overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; border: 0;
+}
 
 /* 개수 — .cols 와 같은 그리드. 둘째 열(사이드바 자리)은 비워 둔다. */
 .count {
