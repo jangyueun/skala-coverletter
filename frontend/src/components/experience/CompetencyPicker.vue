@@ -93,9 +93,11 @@ const cycle = id => {
 .rm:hover { color: var(--gap); }
 .rm:active { background: var(--gap); color: var(--panel-raised); transition-duration: var(--snap); }
 
+/* 범주 사이 간격은 태그가 줄바꿈되는 간격(5px)보다 확실히 커야 한다.
+   비슷하면 묶음이 안 보이고 그냥 45개짜리 긴 목록으로 읽힌다. */
 .pool {
-  display: flex; flex-direction: column; gap: 9px;
-  margin-top: 11px; padding-top: 11px; border-top: 1px dashed var(--line);
+  display: flex; flex-direction: column; gap: 16px;
+  margin-top: 11px; padding-top: 12px; border-top: 1px dashed var(--line);
 }
 
 /* 범주 이름은 왼쪽 홈통에 고정한다. 위에 얹으면 줄 수가 두 배가 되고,

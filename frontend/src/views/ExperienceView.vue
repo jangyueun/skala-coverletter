@@ -91,7 +91,9 @@ const filterName = computed(() =>
 .filt { padding: 13px 16px; flex: 1 1 340px; min-width: 0; }
 /* 범주 이름은 왼쪽 홈통에 고정한다 — 위에 얹으면 줄 수가 두 배가 되고,
    필터가 목록보다 길어진다. 좁아지면 홈통을 접는다. */
-.grps { display: flex; flex-direction: column; gap: 8px; margin-top: 9px; }
+/* 범주 사이 간격은 태그가 줄바꿈되는 간격(5px)보다 확실히 커야 한다.
+   비슷하면 묶음선이 안 보이고 그냥 긴 목록으로 읽힌다. */
+.grps { display: flex; flex-direction: column; gap: 16px; margin-top: 10px; }
 .grp { display: grid; grid-template-columns: 78px minmax(0, 1fr); gap: 10px; align-items: baseline; }
 .gl { margin: 0; text-align: right; white-space: nowrap; }
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }
