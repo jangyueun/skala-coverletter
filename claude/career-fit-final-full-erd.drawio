@@ -1,0 +1,146 @@
+<?xml version='1.0' encoding='utf-8'?>
+<mxfile host="app.diagrams.net" agent="Codex" version="24.7.17" type="device">
+  <diagram id="career-fit-final" name="Career-Fit 전체 ERD">
+    <mxGraphModel dx="2100" dy="1700" grid="1" gridSize="10" guides="1" connect="1" arrows="1" page="1" pageScale="1" pageWidth="2339" pageHeight="1654" shadow="0">
+      <root>
+        <mxCell id="0" />
+        <mxCell id="1" parent="0" />
+        <mxCell id="title" parent="1" vertex="1" value="&lt;b style=&quot;font-size:23px&quot;&gt;Career-Fit 전체 기능 ERD&lt;/b&gt;&lt;br&gt;&lt;font color=&quot;#64748b&quot;&gt;목업 기능 + 역량 태그 매칭 + Google 로그인 + AI 작업 상태&lt;/font&gt;" style="text;html=1;strokeColor=none;fillColor=none;align=left;verticalAlign=middle;whiteSpace=wrap;">
+          <mxGeometry x="40" y="20" width="1200" height="60" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_auth" parent="1" edge="1" source="users" target="auth" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_experiences" parent="1" edge="1" source="users" target="experiences" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_competencies_aliases" parent="1" edge="1" source="competencies" target="aliases" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_experiences_exp_comp" parent="1" edge="1" source="experiences" target="exp_comp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_competencies_exp_comp" parent="1" edge="1" source="competencies" target="exp_comp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_companies_postings" parent="1" edge="1" source="companies" target="postings" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postings_posting_comp" parent="1" edge="1" source="postings" target="posting_comp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_competencies_posting_comp" parent="1" edge="1" source="competencies" target="posting_comp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_matches" parent="1" edge="1" source="users" target="matches" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postings_matches" parent="1" edge="1" source="postings" target="matches" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_matches_match_actions" parent="1" edge="1" source="matches" target="match_actions" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_applications" parent="1" edge="1" source="users" target="applications" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postings_applications" parent="1" edge="1" source="postings" target="applications" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_applications_questions" parent="1" edge="1" source="applications" target="questions" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_questions_requirements" parent="1" edge="1" source="questions" target="requirements" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_questions_answers" parent="1" edge="1" source="questions" target="answers" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_answers_answer_exp" parent="1" edge="1" source="answers" target="answer_exp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_experiences_answer_exp" parent="1" edge="1" source="experiences" target="answer_exp" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_bookmarks" parent="1" edge="1" source="users" target="bookmarks" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postings_bookmarks" parent="1" edge="1" source="postings" target="bookmarks" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_users_ai_tasks" parent="1" edge="1" source="users" target="ai_tasks" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_postings_ai_tasks" parent="1" edge="1" source="postings" target="ai_tasks" value="1:0..N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_questions_ai_tasks" parent="1" edge="1" source="questions" target="ai_tasks" value="1:0..N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="e_companies_crawl_tasks" parent="1" edge="1" source="companies" target="crawl_tasks" value="1:N" style="edgeStyle=orthogonalEdgeStyle;rounded=0;orthogonalLoop=1;jettySize=auto;html=1;endArrow=ERmany;endFill=0;startArrow=ERone;startFill=0;strokeColor=#475569;strokeWidth=1.5;fontStyle=1;labelBackgroundColor=#ffffff;">
+          <mxGeometry relative="1" as="geometry" />
+        </mxCell>
+        <mxCell id="users" parent="1" vertex="1" value="&lt;div style=&quot;background:#1d4ed8;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;USERS · 사용자&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;email : VARCHAR(255) UQ NN&lt;br&gt;name : VARCHAR(100) NN&lt;br&gt;profile_image_url : VARCHAR(1000) NULL&lt;br&gt;created_at / updated_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#1d4ed8;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="40" y="100" width="310" height="183" as="geometry" />
+        </mxCell>
+        <mxCell id="auth" parent="1" vertex="1" value="&lt;div style=&quot;background:#1d4ed8;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;USER_AUTH_PROVIDERS · 로그인 수단&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK user_id → users.id&lt;br&gt;provider : VARCHAR(20) — LOCAL/GOOGLE&lt;br&gt;provider_user_id : VARCHAR(255)&lt;br&gt;password_hash : VARCHAR(255) NULL&lt;br&gt;UQ (provider, provider_user_id)&lt;br&gt;UQ (user_id, provider)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#eff6ff;strokeColor=#1d4ed8;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="40" y="410" width="350" height="233" as="geometry" />
+        </mxCell>
+        <mxCell id="competencies" parent="1" vertex="1" value="&lt;div style=&quot;background:#047857;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;COMPETENCIES · 표준 역량 사전&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;name : VARCHAR(100) UQ NN&lt;br&gt;category : VARCHAR(20) — TECH/SOFT/DOMAIN/VALUE&lt;br&gt;is_active : BOOLEAN&lt;br&gt;created_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#047857;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="440" y="100" width="330" height="183" as="geometry" />
+        </mxCell>
+        <mxCell id="aliases" parent="1" vertex="1" value="&lt;div style=&quot;background:#047857;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;COMPETENCY_ALIASES · 역량 동의어&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK competency_id → competencies.id&lt;br&gt;alias : VARCHAR(100) NN&lt;br&gt;UQ (competency_id, alias)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#047857;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="440" y="410" width="330" height="158" as="geometry" />
+        </mxCell>
+        <mxCell id="experiences" parent="1" vertex="1" value="&lt;div style=&quot;background:#047857;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;EXPERIENCES · 사용자 경험(STAR)&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK user_id → users.id&lt;br&gt;title : VARCHAR(200) NN&lt;br&gt;category : VARCHAR(50) — Java Enum/DB VARCHAR&lt;br&gt;start_date / end_date : DATE NULL&lt;br&gt;situation / task / action / result : TEXT&lt;br&gt;source : VARCHAR(20) — MANUAL/AI_INTAKE&lt;br&gt;created_at / updated_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#047857;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="820" y="100" width="350" height="258" as="geometry" />
+        </mxCell>
+        <mxCell id="exp_comp" parent="1" vertex="1" value="&lt;div style=&quot;background:#047857;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;EXPERIENCE_COMPETENCIES · 경험-역량 연결 및 강도&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK/FK experience_id → experiences.id&lt;br&gt;PK/FK competency_id → competencies.id&lt;br&gt;strength : DECIMAL(3,2) — 약 .40/중 .70/강 .90&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#ecfdf5;strokeColor=#047857;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="810" y="480" width="370" height="133" as="geometry" />
+        </mxCell>
+        <mxCell id="companies" parent="1" vertex="1" value="&lt;div style=&quot;background:#b45309;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;COMPANIES · 기업&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;name : VARCHAR(200) NN&lt;br&gt;career_url : VARCHAR(1000) NULL&lt;br&gt;created_at / updated_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#b45309;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1230" y="100" width="310" height="158" as="geometry" />
+        </mxCell>
+        <mxCell id="postings" parent="1" vertex="1" value="&lt;div style=&quot;background:#b45309;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;JOB_POSTINGS · 채용공고&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK company_id → companies.id&lt;br&gt;title : VARCHAR(300) NN&lt;br&gt;position : VARCHAR(200)&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;content : TEXT ⓓ — 수집 당시 본문 스냅샷&lt;/span&gt;&lt;br&gt;source_url : VARCHAR(1000) UQ&lt;br&gt;deadline : DATE NULL&lt;br&gt;source : VARCHAR(20)&lt;br&gt;collected_at / created_at / updated_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#b45309;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1600" y="100" width="370" height="283" as="geometry" />
+        </mxCell>
+        <mxCell id="posting_comp" parent="1" vertex="1" value="&lt;div style=&quot;background:#b45309;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;POSTING_COMPETENCIES · 공고-요구역량 연결&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK/FK job_posting_id → job_postings.id&lt;br&gt;PK/FK competency_id → competencies.id&lt;br&gt;weight : DECIMAL(3,2) — 중요도&lt;br&gt;evidence_line : TEXT — 추출 근거&lt;br&gt;evidence_status : VARCHAR(20)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#b45309;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1210" y="470" width="390" height="183" as="geometry" />
+        </mxCell>
+        <mxCell id="matches" parent="1" vertex="1" value="&lt;div style=&quot;background:#be123c;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;JOB_MATCHES · 사용자-공고 매칭 결과&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK user_id → users.id&lt;br&gt;FK job_posting_id → job_postings.id&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;match_score : DECIMAL(5,2) ⓓ&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;verdict : VARCHAR(20) ⓓ&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;headline : VARCHAR(300) ⓓ&lt;/span&gt;&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;summary : TEXT ⓓ — AI 요약&lt;/span&gt;&lt;br&gt;input_hash : VARCHAR(64)&lt;br&gt;computed_at / created_at / updated_at : TIMESTAMP&lt;br&gt;UQ (user_id, job_posting_id)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff1f2;strokeColor=#be123c;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1620" y="520" width="380" height="308" as="geometry" />
+        </mxCell>
+        <mxCell id="match_actions" parent="1" vertex="1" value="&lt;div style=&quot;background:#be123c;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;JOB_MATCH_ACTIONS · 매칭 보완 행동&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK job_match_id → job_matches.id&lt;br&gt;sequence : INTEGER&lt;br&gt;effort : VARCHAR(20)&lt;br&gt;tag : VARCHAR(100)&lt;br&gt;title : VARCHAR(500)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fff1f2;strokeColor=#be123c;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1630" y="900" width="350" height="208" as="geometry" />
+        </mxCell>
+        <mxCell id="applications" parent="1" vertex="1" value="&lt;div style=&quot;background:#0369a1;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;APPLICATIONS · 지원서&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK user_id → users.id&lt;br&gt;FK job_posting_id → job_postings.id&lt;br&gt;status : VARCHAR(20)&lt;br&gt;submitted_at : TIMESTAMP NULL&lt;br&gt;created_at / updated_at : TIMESTAMP&lt;br&gt;UQ (user_id, job_posting_id)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0369a1;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="40" y="800" width="340" height="233" as="geometry" />
+        </mxCell>
+        <mxCell id="questions" parent="1" vertex="1" value="&lt;div style=&quot;background:#0369a1;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;COVER_LETTER_QUESTIONS · 자기소개서 문항&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK application_id → applications.id&lt;br&gt;sequence : INTEGER&lt;br&gt;prompt_text : TEXT&lt;br&gt;length_limit : INTEGER NULL&lt;br&gt;length_limit_unit : VARCHAR(10) — CHARACTER/BYTE&lt;br&gt;created_at / updated_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0369a1;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="430" y="800" width="390" height="233" as="geometry" />
+        </mxCell>
+        <mxCell id="requirements" parent="1" vertex="1" value="&lt;div style=&quot;background:#0369a1;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;QUESTION_REQUIREMENTS · 문항 요구사항&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK question_id → cover_letter_questions.id&lt;br&gt;sequence : INTEGER&lt;br&gt;content : VARCHAR(300)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0369a1;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="450" y="1150" width="350" height="158" as="geometry" />
+        </mxCell>
+        <mxCell id="answers" parent="1" vertex="1" value="&lt;div style=&quot;background:#0369a1;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;COVER_LETTER_ANSWERS · 문항별 답변 버전&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK question_id → cover_letter_questions.id&lt;br&gt;version : INTEGER&lt;br&gt;content : TEXT&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;char_count / byte_count : INTEGER ⓓ&lt;/span&gt;&lt;br&gt;is_final : BOOLEAN&lt;br&gt;source : VARCHAR(20) — MANUAL/AI_DRAFT&lt;br&gt;created_at : TIMESTAMP&lt;br&gt;UQ (question_id, version)&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0369a1;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="870" y="840" width="390" height="283" as="geometry" />
+        </mxCell>
+        <mxCell id="answer_exp" parent="1" vertex="1" value="&lt;div style=&quot;background:#0369a1;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;ANSWER_EXPERIENCES · 답변-근거경험 연결&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK/FK answer_id → cover_letter_answers.id&lt;br&gt;PK/FK experience_id → experiences.id&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f0f9ff;strokeColor=#0369a1;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="880" y="1210" width="370" height="108" as="geometry" />
+        </mxCell>
+        <mxCell id="bookmarks" parent="1" vertex="1" value="&lt;div style=&quot;background:#b45309;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;BOOKMARKS · 공고 즐겨찾기&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK/FK user_id → users.id&lt;br&gt;PK/FK job_posting_id → job_postings.id&lt;br&gt;created_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffbeb;strokeColor=#b45309;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1280" y="1150" width="330" height="133" as="geometry" />
+        </mxCell>
+        <mxCell id="ai_tasks" parent="1" vertex="1" value="&lt;div style=&quot;background:#7c3aed;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;AI_TASKS · AI 비동기 작업 상태&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK user_id → users.id&lt;br&gt;FK job_posting_id NULL → job_postings.id&lt;br&gt;FK question_id NULL → cover_letter_questions.id&lt;br&gt;task_type : VARCHAR(30)&lt;br&gt;status : VARCHAR(20)&lt;br&gt;input_hash : VARCHAR(64)&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;request_payload / result_payload : JSONB ⓓ&lt;/span&gt;&lt;br&gt;progress / retry_count : INTEGER&lt;br&gt;error_code : VARCHAR(50) NULL&lt;br&gt;error_message : TEXT NULL&lt;br&gt;created_at / started_at / completed_at : TIMESTAMP&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f3ff;strokeColor=#7c3aed;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="40" y="1260" width="390" height="358" as="geometry" />
+        </mxCell>
+        <mxCell id="crawl_tasks" parent="1" vertex="1" value="&lt;div style=&quot;background:#7c3aed;color:white;padding:8px;font-size:14px&quot;&gt;&lt;b&gt;CRAWL_TASKS · 공고 수집 작업&lt;/b&gt;&lt;/div&gt;&lt;div style=&quot;padding:7px;line-height:1.5&quot;&gt;PK id : BIGINT&lt;br&gt;FK company_id → companies.id&lt;br&gt;status : VARCHAR(20)&lt;br&gt;started_at / completed_at : TIMESTAMP&lt;br&gt;error_message : TEXT NULL&lt;/div&gt;" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#f5f3ff;strokeColor=#7c3aed;strokeWidth=2;align=left;verticalAlign=top;spacing=0;shadow=1;">
+          <mxGeometry x="1640" y="1270" width="350" height="183" as="geometry" />
+        </mxCell>
+        <mxCell id="legend" parent="1" vertex="1" value="&lt;b style=&quot;font-size:15px&quot;&gt;범례 · 설계 원칙&lt;/b&gt;&lt;br&gt;&lt;br&gt;&lt;span style=&quot;background:#d1fae5&quot;&gt;정규화 핵심&lt;/span&gt; PK/FK와 연결 엔터티로 중복·수정 이상 방지&lt;br&gt;&lt;span style=&quot;background:#ffedd5&quot;&gt;ⓓ 반정규화/스냅샷&lt;/span&gt; AI 재호출 방지, 당시 결과 재현, 조회 성능 목적&lt;br&gt;&lt;b&gt;태그 매칭&lt;/b&gt; experiences → experience_competencies → competencies ← posting_competencies ← job_postings&lt;br&gt;&lt;b&gt;표기&lt;/b&gt; PK 기본키 · FK 외래키 · UQ 유일 제약 · NN NOT NULL" style="rounded=1;whiteSpace=wrap;html=1;fillColor=#fffdf5;strokeColor=#a16207;strokeWidth=2;align=left;verticalAlign=top;spacing=12;">
+          <mxGeometry x="760" y="1510" width="820" height="135" as="geometry" />
+        </mxCell>
+      </root>
+    </mxGraphModel>
+  </diagram>
+</mxfile>

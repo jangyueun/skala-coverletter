@@ -1,0 +1,109 @@
+Project ai_service {
+  database_type: 'PostgreSQL'
+  note: '''
+    AI Service DB — 물리 ERD v2 (2026-09-03)
+    Career Backend DB(career_fit.dbml)와 별도 물리 데이터베이스.
+    external_* 컬럼은 Career DB의 PK 값을 저장만 할 뿐 물리 FK가 아니다
+    (PostgreSQL은 cross-database FK를 지원하지 않음).
+    Career DB ↔ AI Service DB 연결은 outbox_events → 메시지 브로커/API 호출 → 콜백으로 처리한다.
+  '''
+}
+
+Enum ai_task_type {
+  EXTRACT
+  MATCH
+  DRAFT
+  INTAKE
+  CRAWL
+}
+
+Enum ai_task_status {
+  PENDING
+  RUNNING
+  COMPLETED
+  FAILED
+}
+
+Table ai_tasks {
+  id                 bigint         [pk, increment]
+  task_type          ai_task_type   [not null]
+  status             ai_task_status [not null, default: 'PENDING']
+
+  // 외부(Career DB) 참조값 — FK 아님, 값만 저장
+  external_user_id        bigint    [note: 'MATCH/DRAFT/INTAKE 필수']
+  external_company_id     bigint    [note: 'CRAWL 필수']
+  external_job_posting_id bigint    [note: 'MATCH/EXTRACT 필수']
+  external_question_id    bigint    [note: 'DRAFT 필수']
+
+  // v1: (user_id, task_type, input_hash) UNIQUE → user_id가 NULL인 CRAWL/EXTRACT는 멱등성 우회 가능
+  // v2: NULL이 절대 끼지 않는 단일 컬럼 유니크 키로 대체
+  idempotency_key    varchar(128)   [not null, note: 'task_type + external_ids + input_hash + model + prompt_version 조합 해시']
+  input_hash         varchar(64)    [not null]
+  model              varchar(50)
+  prompt_version     varchar(20)
+  algorithm_version  varchar(20)
+
+  request_payload    jsonb
+  result_payload     jsonb
+  retry_count        integer        [not null, default: 0, note: 'CHECK >= 0']
+  total_tokens       integer
+  latency_ms         integer
+  error_message      text
+
+  created_at         timestamptz    [not null, default: `now()`]
+  started_at         timestamptz
+  completed_at       timestamptz
+
+  Indexes {
+    idempotency_key [unique, note: '멱등성 최종 방어선 — NULL 우회 문제 자체가 발생하지 않음']
+    (task_type, external_job_posting_id, status) [note: '공고별 재계산 상태 조회에 사용. WHERE에 반드시 external_job_posting_id 포함']
+    (status, task_type)
+  }
+
+  note: '''
+    MATCH 작업 단위 = (external_user_id, external_job_posting_id, input_hash) → 공고 1건당 task 1개.
+    재계산 상태 조회 시 반드시 external_job_posting_id 조건을 포함해야 한다.
+    예) WHERE task_type='MATCH' AND external_user_id=:uid AND external_job_posting_id=:pid AND status IN ('PENDING','RUNNING')
+    작업 유형별 필수 external_* 컬럼 정합성은 ai_service_constraints.sql의 CHECK로 보강.
+  '''
+}
+
+// v1에는 없던 재시도 이력 테이블 — 실패 후 재시도 시 idempotency_key 유니크와 충돌하지 않도록 시도별로 분리
+Table ai_task_attempts {
+  id            bigint         [pk, increment]
+  ai_task_id    bigint         [not null]
+  attempt_no    integer        [not null, note: 'CHECK > 0']
+  status        ai_task_status [not null]
+  error_message text
+  started_at    timestamptz    [not null]
+  finished_at   timestamptz
+
+  Indexes {
+    (ai_task_id, attempt_no) [unique]
+  }
+
+  note: 'ai_tasks 행은 최신 상태만 유지. 시도별 상세(실패 사유·소요시간)는 여기 누적'
+}
+
+Table ai_usage {
+  id                bigint      [pk, increment]
+  ai_task_id        bigint      [not null]
+  model             varchar(50) [not null]
+  prompt_tokens     integer     [not null, default: 0]
+  completion_tokens integer     [not null, default: 0]
+  cost_usd          decimal(10,4)
+  created_at        timestamptz [not null, default: `now()`]
+
+  Indexes {
+    ai_task_id
+  }
+}
+
+Ref: ai_task_attempts.ai_task_id > ai_tasks.id [delete: cascade]
+Ref: ai_usage.ai_task_id > ai_tasks.id [delete: cascade]
+
+TableGroup "AI 작업" {
+  ai_tasks
+  ai_task_attempts
+  ai_usage
+}

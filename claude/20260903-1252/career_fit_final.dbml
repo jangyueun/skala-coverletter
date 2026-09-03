@@ -1,0 +1,375 @@
+Project career_fit_final {
+  database_type: 'PostgreSQL'
+  note: '''
+    Career Lab 최종 화면 기준 Career Backend 물리 ERD.
+    - 매칭 단위: 로그인 사용자 + 채용공고
+    - 매칭 입력: 사용자의 경험/역량과 공고 요구 역량
+    - 공고 문항은 지원서 생성 전부터 조회 가능
+    - 문항별 답변은 현재 내용 1건만 저장하며 버전 이력은 관리하지 않음
+    - applications/outbox_events는 현재 MVP 범위에서 제외
+    - AI Service DB의 ai_tasks.id는 source_ai_task_id에 값만 저장하며 물리 FK를 걸지 않음
+    - Supabase Auth 사용자 ID는 users.supabase_user_id로 연결하며 비밀번호는 저장하지 않음
+
+    [리뷰 수정] 원본에 있던 테이블별 checks {} 블록은 dbdiagram.io가 실제로 쓰는
+    @dbml/core(현재 최신 10.1.1 기준)에서 파싱 자체가 실패하는 문법이라 전부 제거했다.
+    ("Expected note/indexes/} ... but checks found" — 실제 파싱 테스트로 확인됨)
+    모든 CHECK 제약은 career_fit_final_constraints.sql로 옮겼다.
+    이 파일은 dbdiagram.io에 그대로 붙여넣어 파싱되는 것까지 로컬 PostgreSQL 16으로 검증 완료.
+  '''
+}
+
+Enum competency_category {
+  TECH
+  SOFT
+  DOMAIN
+  VALUE
+}
+
+Enum candidate_status {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+Enum experience_source {
+  MANUAL
+  AI_INTAKE
+}
+
+Enum posting_source {
+  CRAWLED
+  MANUAL
+}
+
+Enum posting_status {
+  ACTIVE
+  CLOSED
+  DELETED
+  COLLECT_FAILED
+}
+
+Enum posting_question_status {
+  NOT_CHECKED
+  AVAILABLE
+  NOT_AVAILABLE
+  FAILED
+}
+
+Enum question_source {
+  CRAWLED
+  MANUAL
+  AI_EXTRACTED
+}
+
+Enum evidence_verify_status {
+  UNVERIFIED
+  VERIFIED
+  REJECTED
+}
+
+Enum match_verdict {
+  RECOMMEND
+  CONDITIONAL
+  HOLD
+}
+
+Enum length_unit {
+  CHARACTER
+  BYTE
+}
+
+Enum answer_source {
+  MANUAL
+  AI_GENERATED
+  AI_ASSISTED
+}
+
+Table users {
+  id                bigint       [pk, increment]
+  supabase_user_id  uuid         [not null, unique, note: 'Supabase Auth auth.users.id. 별도 DB 사용 시 논리 참조이며 물리 FK 없음']
+  email             varchar(255) [not null, unique, note: '서비스 조회용 스냅샷. 인증의 원본은 Supabase Auth']
+  name              varchar(100) [not null]
+  profile_image_url varchar(1000)
+  created_at        timestamptz  [not null, default: `now()`]
+  updated_at        timestamptz  [not null, default: `now()`]
+}
+
+Table competencies {
+  id         bigint              [pk, increment]
+  name       varchar(100)        [not null, unique]
+  category   competency_category [not null]
+  created_at timestamptz         [not null, default: `now()`]
+  updated_at timestamptz         [not null, default: `now()`]
+}
+
+Table competency_aliases {
+  id            bigint       [pk, increment]
+  competency_id bigint       [not null]
+  alias         varchar(100) [not null, unique, note: '별칭 하나는 하나의 표준 역량만 가리킴']
+  created_at    timestamptz  [not null, default: `now()`]
+
+  Indexes {
+    competency_id
+  }
+}
+
+Table competency_candidates {
+  id                   bigint           [pk, increment]
+  job_posting_id       bigint           [not null]
+  raw_term             varchar(100)     [not null]
+  status               candidate_status [not null, default: 'PENDING']
+  merged_competency_id bigint
+  reviewed_by          bigint
+  created_at           timestamptz      [not null, default: `now()`]
+  reviewed_at          timestamptz
+
+  Indexes {
+    (job_posting_id, raw_term) [unique]
+    status
+  }
+}
+
+Table experiences {
+  id                bigint            [pk, increment]
+  user_id           bigint            [not null]
+  title             varchar(200)      [not null]
+  category          varchar(50)
+  period_text       varchar(50)       [not null]
+  sort_date         date
+  situation         text
+  task              text
+  action            text
+  result            text
+  source            experience_source [not null, default: 'MANUAL']
+  source_ai_task_id bigint             [note: 'AI Service DB ai_tasks.id 논리 참조']
+  created_at        timestamptz        [not null, default: `now()`]
+  updated_at        timestamptz        [not null, default: `now()`]
+
+  Indexes {
+    (user_id, sort_date)
+  }
+}
+
+Table experience_competencies {
+  experience_id bigint       [not null]
+  competency_id bigint       [not null]
+  strength      decimal(3,2) [not null, default: 0.70, note: 'CHECK 0~1은 career_fit_final_constraints.sql']
+  created_at    timestamptz  [not null, default: `now()`]
+  updated_at    timestamptz  [not null, default: `now()`]
+
+  Indexes {
+    (experience_id, competency_id) [pk]
+    competency_id
+  }
+}
+
+Table companies {
+  id              bigint        [pk, increment]
+  name            varchar(200)  [not null]
+  normalized_name varchar(200)  [not null, unique, note: '소문자화·법인표기/공백/특수문자 정규화 값']
+  career_url      varchar(1000)
+  created_at      timestamptz   [not null, default: `now()`]
+  updated_at      timestamptz   [not null, default: `now()`]
+}
+
+Table job_postings {
+  id                          bigint                     [pk, increment]
+  company_id                  bigint                     [not null]
+  position                    varchar(200)               [not null]
+  content                     text
+  source_url                  varchar(1000)              [unique]
+  deadline                    date                       [note: 'NULL이면 상시채용']
+  source                      posting_source             [not null]
+  status                      posting_status             [not null, default: 'ACTIVE']
+  question_collection_status  posting_question_status [not null, default: 'NOT_CHECKED']
+  source_ai_task_id           bigint                     [note: '공고 역량 추출 AI 작업 ID. 물리 FK 없음']
+  collected_at                timestamptz
+  created_at                  timestamptz                [not null, default: `now()`]
+  updated_at                  timestamptz                [not null, default: `now()`]
+
+  Indexes {
+    (status, deadline)
+    (company_id, deadline)
+  }
+}
+
+Table posting_competencies {
+  job_posting_id        bigint                 [not null]
+  competency_id         bigint                 [not null]
+  weight                decimal(3,2)           [not null, note: 'CHECK 0~1, offset 정합성은 career_fit_final_constraints.sql']
+  evidence_line         text
+  evidence_section      varchar(100)
+  evidence_start_offset integer
+  evidence_end_offset   integer
+  extractor_version     varchar(50)
+  evidence_status       evidence_verify_status [not null, default: 'UNVERIFIED']
+  created_at            timestamptz            [not null, default: `now()`]
+  updated_at            timestamptz            [not null, default: `now()`]
+
+  Indexes {
+    (job_posting_id, competency_id) [pk]
+    competency_id
+  }
+}
+
+Table job_posting_questions {
+  id                bigint          [pk, increment]
+  job_posting_id    bigint          [not null]
+  sequence          integer         [not null]
+  prompt_text       text            [not null]
+  intent            text
+  length_limit      integer
+  length_limit_unit length_unit     [not null, default: 'CHARACTER']
+  requirements      jsonb           [not null, default: '[]', note: '[{"seq":1,"content":"지원 동기"}]']
+  source            question_source [not null, default: 'CRAWLED']
+  source_ai_task_id bigint          [note: '[리뷰 수정] POSTING_COMPETENCY_EXTRACTION 작업 ID 참조로 가정 — 별도 QUESTION_EXTRACTION task_type이 ai_service_final.dbml에 없어, 공고 역량 추출과 문항 추출을 같은 작업이 함께 처리한다고 해석함. 다른 파이프라인이면 팀 확인 필요']
+  is_active         boolean         [not null, default: true, note: '답변 이력 보존을 위해 수집 갱신 시 hard delete 대신 비활성화']
+  created_at        timestamptz     [not null, default: `now()`]
+  updated_at        timestamptz     [not null, default: `now()`]
+
+  Indexes {
+    (job_posting_id, sequence) [unique]
+    (job_posting_id, is_active)
+  }
+
+  note: 'CHECK(sequence>0, length_limit>0)는 career_fit_final_constraints.sql'
+}
+
+Table bookmarks {
+  user_id        bigint      [not null]
+  job_posting_id bigint      [not null]
+  created_at     timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (user_id, job_posting_id) [pk]
+  }
+}
+
+Table job_matches {
+  id                bigint        [pk, increment]
+  user_id           bigint        [not null]
+  job_posting_id    bigint        [not null]
+  match_score       decimal(5,2)  [not null, note: 'CHECK 0~100은 career_fit_final_constraints.sql']
+  verdict           match_verdict [not null]
+  headline          varchar(300)
+  summary           text
+  coverage          jsonb         [not null, default: '[]', note: '역량별 점수와 근거 경험 ID 목록']
+  actions           jsonb         [not null, default: '[]']
+  input_hash        varchar(64)    [not null, note: '경험/역량/공고 요구사항 변경 감지용']
+  source_ai_task_id bigint         [note: 'MATCH 작업 ID. 물리 FK 없음']
+  computed_at       timestamptz    [not null]
+  created_at        timestamptz    [not null, default: `now()`]
+  updated_at        timestamptz    [not null, default: `now()`]
+
+  Indexes {
+    (user_id, job_posting_id) [unique]
+    (user_id, match_score)
+  }
+
+  note: '현재 최신 매칭 결과 1건만 유지. 사용자가 등록한 경험과 공고 요구 역량의 비교 결과'
+}
+
+Table cover_letter_answers {
+  id                      bigint        [pk, increment]
+  user_id                 bigint        [not null]
+  job_posting_question_id bigint        [not null]
+  content                 text          [not null]
+  char_count              integer       [not null, default: 0, note: 'CHECK >= 0는 career_fit_final_constraints.sql']
+  byte_count              integer       [not null, default: 0, note: 'CHECK >= 0는 career_fit_final_constraints.sql']
+  source                  answer_source [not null, default: 'MANUAL']
+  source_ai_task_id       bigint        [note: '초안 생성 작업 ID. 물리 FK 없음']
+  created_at              timestamptz   [not null, default: `now()`]
+  updated_at              timestamptz   [not null, default: `now()`]
+
+  Indexes {
+    (user_id, job_posting_question_id) [unique]
+    job_posting_question_id
+  }
+
+  note: '버전 이력 없음. 최초 PUT은 INSERT, 이후 PUT은 현재 행 UPDATE. 저장됨 표시는 API 성공과 updated_at으로 표현'
+}
+
+Table answer_requirement_results {
+  id              bigint      [pk, increment]
+  answer_id       bigint      [not null]
+  requirement_seq integer     [not null, note: 'job_posting_questions.requirements[].seq 논리 참조. CHECK > 0는 career_fit_final_constraints.sql']
+  addressed       boolean     [not null, default: false]
+  created_at      timestamptz [not null, default: `now()`]
+  updated_at      timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (answer_id, requirement_seq) [unique]
+  }
+
+  note: '[리뷰] 현재 API 명세(api-spec-final-change-guide.md)의 어떤 응답에도 requirements/addressed가 노출되지 않음. 실제로 쓰는 화면이 있는지 팀 확인 후 유지/삭제 결정 필요'
+}
+
+Table answer_experiences {
+  answer_id     bigint      [not null]
+  experience_id bigint      [not null]
+  created_at    timestamptz [not null, default: `now()`]
+
+  Indexes {
+    (answer_id, experience_id) [pk]
+    experience_id
+  }
+}
+
+Ref: competency_aliases.competency_id > competencies.id [delete: cascade]
+Ref: competency_candidates.merged_competency_id > competencies.id [delete: set null]
+Ref: competency_candidates.reviewed_by > users.id [delete: set null]
+
+Ref: experiences.user_id > users.id [delete: cascade]
+Ref: experience_competencies.experience_id > experiences.id [delete: cascade]
+Ref: experience_competencies.competency_id > competencies.id
+
+Ref: job_postings.company_id > companies.id
+Ref: posting_competencies.job_posting_id > job_postings.id [delete: cascade]
+Ref: posting_competencies.competency_id > competencies.id
+Ref: competency_candidates.job_posting_id > job_postings.id [delete: cascade]
+Ref: job_posting_questions.job_posting_id > job_postings.id
+
+Ref: bookmarks.user_id > users.id [delete: cascade]
+Ref: bookmarks.job_posting_id > job_postings.id [delete: cascade]
+
+Ref: job_matches.user_id > users.id [delete: cascade]
+Ref: job_matches.job_posting_id > job_postings.id [delete: cascade]
+
+Ref: cover_letter_answers.user_id > users.id [delete: cascade]
+Ref: cover_letter_answers.job_posting_question_id > job_posting_questions.id
+Ref: answer_requirement_results.answer_id > cover_letter_answers.id [delete: cascade]
+Ref: answer_experiences.answer_id > cover_letter_answers.id [delete: cascade]
+Ref: answer_experiences.experience_id > experiences.id [delete: restrict]
+
+TableGroup "사용자" {
+  users
+}
+
+TableGroup "역량 사전" {
+  competencies
+  competency_aliases
+  competency_candidates
+}
+
+TableGroup "경험" {
+  experiences
+  experience_competencies
+}
+
+TableGroup "공고" {
+  companies
+  job_postings
+  posting_competencies
+  job_posting_questions
+  bookmarks
+}
+
+TableGroup "매칭" {
+  job_matches
+}
+
+TableGroup "자소서 현재 답변" {
+  cover_letter_answers
+  answer_requirement_results
+  answer_experiences
+}
