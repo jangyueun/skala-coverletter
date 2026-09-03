@@ -410,7 +410,7 @@ const onEdit = () => { armed.value = null }
 .evnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.55; }
 .evnote.gap { color: var(--gap); font-weight: 600; }
 .evq {
-  margin: 0; font-size: var(--fs-2xs); color: var(--faint); line-height: 1.5;
+  margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5;
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
 .cnote { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }

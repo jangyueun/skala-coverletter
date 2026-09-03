@@ -101,7 +101,7 @@ const revert = () => { value.value = props.aiText }
 
 .q { display: flex; flex-direction: column; gap: 3px; }
 .qt { margin: 0; font-size: var(--fs-xs); font-weight: 600; line-height: 1.5; }
-.qw { margin: 0; font-size: var(--fs-2xs); color: var(--faint); line-height: 1.5; }
+.qw { margin: 0; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5; }
 
 .inp {
   padding: 9px 11px; background: var(--panel);

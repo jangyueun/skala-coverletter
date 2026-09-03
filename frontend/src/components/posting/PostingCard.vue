@@ -155,7 +155,7 @@ const urgent = computed(() => !props.card.closed && props.card.d <= 7)
 }
 
 .tags { display: flex; gap: 5px; flex-wrap: wrap; }
-.more { border-style: dashed; color: var(--faint); }
+.more { border-style: dashed; color: var(--muted); }
 
 .foot {
   display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap;
@@ -164,5 +164,5 @@ const urgent = computed(() => !props.card.closed && props.card.d <= 7)
 .when { display: flex; align-items: baseline; gap: 9px; min-width: 0; }
 .dd { font-size: var(--fs-lg); font-weight: 800; }
 .dd.urgent { color: var(--accent); }
-.date { font-size: var(--fs-2xs); color: var(--faint); transition: color var(--seat-out) linear; }
+.date { font-size: var(--fs-2xs); color: var(--muted); transition: color var(--seat-out) linear; }
 </style>

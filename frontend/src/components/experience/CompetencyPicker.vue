@@ -86,7 +86,7 @@ const setStr = (id, v) => { props.pick[id] = v }
 .sv, .rm {
   border: none; background: transparent; cursor: pointer;
   font-family: var(--mono); font-weight: 700; font-size: var(--fs-2xs);
-  padding: 3px 6px; color: var(--faint);
+  padding: 3px 6px; color: var(--muted);
   transition: background var(--release) linear, color var(--release) linear;
 }
 .str { display: inline-flex; border-left: 1px solid var(--line); margin-left: 7px; }

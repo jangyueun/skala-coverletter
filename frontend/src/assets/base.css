@@ -64,8 +64,8 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
 
 .btn--sm { padding: 6px 14px; font-size: 12px; }
 
-.btn:disabled { cursor: not-allowed; border-color: var(--line-soft); color: var(--faint); background: var(--panel); }
-.btn:disabled:hover { border-color: var(--line-soft); color: var(--faint); }
+.btn:disabled { cursor: not-allowed; border-color: var(--line-soft); color: var(--muted); background: var(--panel); }
+.btn:disabled:hover { border-color: var(--line-soft); color: var(--muted); }
 
 /* 선택된 채로 머무는 버튼(정렬·필터·탭) — 눌린 상태가 곧 "지금 여기" 다. */
 .btn[aria-pressed='true'] {

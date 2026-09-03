@@ -95,5 +95,5 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
 .star dd.empty { color: var(--gap); font-style: italic; }
 
 .chips { display: flex; gap: 5px; flex-wrap: wrap; }
-.str { margin-left: 5px; color: var(--faint); font-weight: 700; }
+.str { margin-left: 5px; color: var(--muted); font-weight: 700; }
 </style>

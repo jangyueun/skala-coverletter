@@ -142,7 +142,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .min0 { min-width: 0; }
 
 .qtabs { display: flex; gap: 7px; flex-wrap: wrap; }
-.st { font-size: var(--fs-3xs); color: var(--faint); }
+.st { font-size: var(--fs-3xs); color: var(--muted); }
 .st.on { color: var(--ok); }
 .st.dirty { color: var(--gap); }
 /* 선택된 탭에서는 배지가 흰색으로 덮인다. 그래도 되는 이유는 —
@@ -161,7 +161,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .meter.bad i { background: var(--accent); }
 .cnt { font-size: var(--fs-xs); font-weight: 600; flex: none; }
 .cnt.bad { color: var(--accent); }
-.cnt.idle { color: var(--faint); }
+.cnt.idle { color: var(--muted); }
 
 .inp {
   padding: 13px 14px; background: var(--panel); color: var(--ink);
@@ -175,7 +175,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .saverow { display: flex; align-items: center; gap: 10px; }
 .sst { margin: 0; flex: 1; min-width: 0; font-size: var(--fs-xs); color: var(--muted); }
 .sst.warn { color: var(--gap); font-weight: 600; }
-.also { color: var(--faint); font-weight: 400; }
+.also { color: var(--muted); font-weight: 400; }
 
 .side { display: flex; flex-direction: column; gap: 7px; }
 .sd { margin: 0 0 3px; font-size: var(--fs-2xs); color: var(--muted); line-height: 1.5; }
@@ -188,7 +188,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
 .ex.on { border-color: var(--accent); }
 .ex input { margin-top: 2px; accent-color: var(--accent); flex: none; }
 .et { display: block; font-size: var(--fs-xs); font-weight: 600; line-height: 1.4; }
-.em { display: block; font-size: var(--fs-3xs); color: var(--faint); margin-top: 2px; }
+.em { display: block; font-size: var(--fs-3xs); color: var(--muted); margin-top: 2px; }
 
 @media (max-width: 820px) {
   /* 좁은 폭에서도 문항과 본문이 먼저다. 근거 경험은 아래로 —

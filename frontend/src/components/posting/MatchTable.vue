@@ -115,7 +115,7 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 
 .nm { font-size: var(--fs-sm); font-weight: 700; letter-spacing: var(--track-tight); }
 .nm.gap { color: var(--gap); }
-.cat { font-size: var(--fs-2xs); color: var(--faint); white-space: nowrap; }
+.cat { font-size: var(--fs-2xs); color: var(--muted); white-space: nowrap; }
 
 .mt { display: flex; align-items: center; gap: 9px; }
 .meter { flex: 1; min-width: 60px; height: 5px; background: var(--panel-sunken); border-radius: var(--pill); overflow: hidden; }
@@ -145,7 +145,7 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 .dk {
   margin: 0; text-align: right; white-space: nowrap;
   font-family: var(--mono); font-size: var(--fs-3xs); font-weight: 500;
-  letter-spacing: var(--track-label); color: var(--faint);
+  letter-spacing: var(--track-label); color: var(--muted);
 }
 .dv { margin: 0; min-width: 0; }
 
@@ -159,7 +159,7 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 /* 강도는 알약이 아니라 글자 뒤에 붙는 작은 표식이다 */
 .st {
   font-family: var(--mono); font-style: normal; font-size: var(--fs-3xs); font-weight: 700;
-  color: var(--faint); margin-left: 5px;
+  color: var(--muted); margin-left: 5px;
 }
 .res { color: var(--muted); margin-left: 8px; }
 .none { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-weight: 600; line-height: 1.6; }

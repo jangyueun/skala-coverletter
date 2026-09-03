@@ -291,7 +291,7 @@ const questions = computed(() => {
   display: flex; align-items: baseline; justify-content: space-between;
   gap: 12px; flex-wrap: wrap; margin-bottom: 13px;
 }
-.chint { margin: 0; font-size: var(--fs-2xs); color: var(--faint); }
+.chint { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
 
 .assess { margin: 8px 0 0; font-size: var(--fs-md); line-height: 1.7; }
 .assess b { font-weight: 700; }

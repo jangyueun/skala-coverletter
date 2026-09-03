@@ -178,7 +178,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   padding: 0; background: transparent; border: none;
   cursor: pointer; text-align: left; font: inherit; color: inherit;
 }
-.fn { margin-right: auto; font-family: var(--mono); font-size: var(--fs-3xs); color: var(--faint); font-weight: 500; }
+.fn { margin-right: auto; font-family: var(--mono); font-size: var(--fs-3xs); color: var(--muted); font-weight: 500; }
 /* 접혀 있어도 고른 게 있다는 건 보여야 한다 */
 .fp {
   display: inline-grid; place-items: center; min-width: 16px; height: 16px; padding: 0 4px;
@@ -224,7 +224,7 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
 }
 .chip[aria-pressed='true'] .n { color: var(--accent-ink); opacity: .7; }
-.n { margin-left: 6px; color: var(--faint); font-weight: 700; }
+.n { margin-left: 6px; color: var(--muted); font-weight: 700; }
 
 .grid { display: grid; gap: 12px; margin: 18px 0 0; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); }
 

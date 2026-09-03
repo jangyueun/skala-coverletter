@@ -151,7 +151,7 @@ const list = computed(() => {
   flex: 1; min-width: 0; border: none; background: transparent; outline: none;
   font-size: var(--fs-md); font-weight: 500; color: var(--ink);
 }
-.q::placeholder { color: var(--faint); font-weight: 400; }
+.q::placeholder { color: var(--muted); font-weight: 400; }
 .clr {
   flex: none; width: 20px; height: 20px; padding: 0; border: none; border-radius: 50%;
   background: var(--line); color: var(--ink-2); cursor: pointer;
@@ -212,7 +212,7 @@ const list = computed(() => {
 }
 .fg { display: flex; flex-direction: column; gap: 9px; }
 .fgt { margin: 0; font-size: var(--fs-sm); font-weight: 700; }
-.fgn { font-family: var(--mono); font-size: var(--fs-3xs); color: var(--faint); font-weight: 500; }
+.fgn { font-family: var(--mono); font-size: var(--fs-3xs); color: var(--muted); font-weight: 500; }
 /* 전체 개수는 제목에 딸린 수라 이름 바로 옆에 붙인다.
    오른쪽 끝에는 "내가 고른 수"(주황)와 펼침 표시만 남는다 —
    접힌 줄이 다섯이라 그 둘의 오른쪽 끝이 맞아야 훑힌다.
