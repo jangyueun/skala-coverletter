@@ -109,7 +109,7 @@ POSTING_ANALYSIS `PostingAnalysisTaskHandler`. 멱등 키에는 AI 서버의 pro
 
 AI 서버는 상태를 갖지 않는다. 요청을 받아 LLM을 호출하고 결과를 돌려줄 뿐이며, 작업 상태·재시도·결과 저장은 Spring의 `ai_tasks`가 맡는다. 모든 응답에 `promptVersion`·`model`을 싣는다. 실패는 `attempts`에 기록하고 최대 3회 지수 백오프 재시도, 소진 시 FAILED.
 
-구현 (2026-09-04) — `ai/.env` 의 `ANTHROPIC_API_KEY` 가 있으면 `ClaudeAiProvider`, 없으면 `MockAiProvider`. 공고 분석·인테이크·초안은 Claude(구조화 출력, 인테이크는 `web_fetch` 로 링크·파일 URL 을 직접 읽음), **매칭은 LLM 없이 결정론 공식**이다(프론트 카드와 같은 식, `ai/app/services/matching.py`). 프롬프트와 버전은 `ai/app/services/prompts.py` — 문장을 고치면 버전을 올린다. 한 호출 상한은 AI 서버 300초 · Spring 330초.
+구현 (2026-09-04) — `ai/.env` 의 `ANTHROPIC_API_KEY` 가 있으면 `ClaudeAiProvider`, 없으면 `MockAiProvider`. 공고 분석·인테이크는 Sonnet 5, 초안은 Opus 5(구조화 출력). 인테이크는 `web_fetch` 로 링크·파일 URL 을 직접 읽고, 판단이 갈릴 때만 advisor(Opus 5, 기본 2회)에게 묻는다. **매칭은 LLM 없이 결정론 공식**이다(프론트 카드와 같은 식, `ai/app/services/matching.py`). 프롬프트와 버전은 `ai/app/services/prompts.py` — 문장을 고치면 버전을 올린다. 시스템 프롬프트·역량 사전은 프롬프트 캐시. 한 호출 상한은 AI 서버 300초 · Spring 330초.
 
 | 계약 | Request | Response | 상태 |
 |---|---|---|---|

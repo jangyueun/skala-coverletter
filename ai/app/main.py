@@ -11,7 +11,9 @@ from app.core.config import settings
 from app.services.mock_provider import MockAiProvider
 from app.services.provider import ProviderError
 
-# uvicorn 이 INFO 까지 찍어 주는 로거를 빌린다. 앱 로거는 기본이 WARNING 이라 "Claude 로 떴다" 가 안 보였다.
+# 앱 로거(app.*)의 INFO 를 콘솔로 보낸다. uvicorn 은 자기 로거만 꾸미고 루트에는 핸들러를 안 달아서, 이게 없으면
+# 토큰·캐시·advisor 호출·후보 수 같은 INFO 로그가 전부 사라진다. basicConfig 는 루트에 핸들러가 없을 때만 붙는다.
+logging.basicConfig(level=logging.INFO, format="%(levelname)s:     [%(name)s] %(message)s")
 logger = logging.getLogger("uvicorn.error")
 
 

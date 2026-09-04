@@ -26,6 +26,13 @@ class Settings:
     effort_posting_analysis: str = os.getenv("AI_EFFORT_POSTING_ANALYSIS") or "medium"
     effort_experience_intake: str = os.getenv("AI_EFFORT_EXPERIENCE_INTAKE") or "high"
     effort_draft: str = os.getenv("AI_EFFORT_DRAFT") or "high"
+    # 인테이크 advisor — 실행 모델(Sonnet)이 자료를 읽고, 후보를 나누거나 합칠지·역량 태깅이 애매할 때만 무거운 모델에게
+    # 묻는다. advisor 는 실행 모델의 맥락을 그대로 받아 판단만 하고 자료를 직접 읽지 않는다. 짝은 정해져 있다 —
+    # Sonnet 5 실행 → advisor 는 Opus 5 이상(아니면 400). max_tokens 는 1024 미만이면 400.
+    advisor_experience_intake: bool = os.getenv("AI_ADVISOR_EXPERIENCE_INTAKE", "1") == "1"
+    advisor_model: str = os.getenv("AI_ADVISOR_MODEL") or "claude-opus-5"
+    advisor_max_uses: int = int(os.getenv("AI_ADVISOR_MAX_USES") or "2")
+    advisor_max_tokens: int = int(os.getenv("AI_ADVISOR_MAX_TOKENS") or "4096")
     # 프롬프트 캐시 TTL("5m" 또는 "1h"). 시스템 프롬프트와 역량 사전은 호출마다 같아서 캐시한다.
     # 작업은 사용자가 띄엄띄엄 만든다 — 5분 안에 다음 호출이 온다고 볼 수 없어 1h 가 기본이다.
     # 쓰기 비용은 1h 가 2배(5m 는 1.25배), 읽기는 둘 다 0.1배. 5분 안에 계속 오는 트래픽이면 5m 이 싸다.

@@ -33,6 +33,8 @@ from app.services.provider import ProviderError
 logger = logging.getLogger(__name__)
 
 MAX_OUTPUT_TOKENS = 16000
+# advisor 도구는 아직 베타다 — 이 헤더가 있어야 하고 client.beta.messages 로 불러야 한다.
+ADVISOR_BETA = "advisor-tool-2026-03-01"
 # web_fetch 는 서버 도구라 한 요청 안에서 여러 턴을 돈다. 서버 쪽 반복 한도에 걸리면 pause_turn 으로 돌아오고,
 # 지금까지의 응답을 그대로 붙여 다시 부르면 이어서 한다. 무한히 이어 가지 않게 상한을 둔다.
 MAX_PAUSE_TURNS = 8
@@ -210,14 +212,19 @@ class ClaudeAiProvider:
         tools = [{
             "type": "web_fetch_20260209",
             "name": "web_fetch",
-            # 실패한 fetch 도 이 수에 든다. 저장소 하나를 주면 안의 파일로 더 들어가므로 링크 수보다 넉넉히.
-            "max_uses": min(24, len(sources) * 4 + 4),
+            # 실패한 fetch 도 이 수에 든다. GitHub 프로필 하나를 주면 저장소 목록 → 저장소 → README 로 들어가므로
+            # 링크 수보다 훨씬 넉넉해야 한다 — 8회로는 저장소 25개 중 6개만 보고 한도에 걸렸다(실측). 캐시가 반복 읽기를 0.1배로 만든다.
+            "max_uses": min(24, len(sources) * 6 + 10),
             # 500kB PDF 하나가 12만 토큰이다. 상한을 안 두면 포트폴리오 한 건이 컨텍스트를 통째로 먹는다.
             "max_content_tokens": 40000,
         }]
+        betas = None
+        if self._config.advisor_experience_intake:
+            tools.append(self._advisor_tool())
+            betas = [ADVISOR_BETA]
         message = await self._create(
             model=self._config.model_experience_intake, effort=self._config.effort_experience_intake,
-            system=system, content=user, schema=_IntakeOut, tools=tools,
+            system=system, content=user, schema=_IntakeOut, tools=tools, betas=betas,
         )
         parsed = self._parse(message, _IntakeOut)
 
@@ -248,8 +255,10 @@ class ClaudeAiProvider:
         if dropped_ids:
             logger.info("experience_intake: 사전 밖 competency_id %d건 제외", dropped_ids)
         if parsed.unreadable:
-            # 계약 응답에는 자리가 없다(§8). 몇 건인지만 남긴다 — URL 은 남기지 않는다.
-            logger.info("experience_intake: 읽지 못한 자료 %d건", len(parsed.unreadable))
+            # 계약 응답에는 자리가 없다(§8). 건수와 사유만 남긴다 — URL 은 남기지 않는다.
+            logger.info("experience_intake: 읽지 못한 자료 %d건 — %s", len(parsed.unreadable),
+                        " / ".join(u.reason[:80] for u in parsed.unreadable))
+        logger.info("experience_intake: 후보 %d건 (모델이 낸 %d건)", len(candidates), len(parsed.candidates))
         return IntakeResponse(
             candidates=candidates, prompt_version=prompts.EXPERIENCE_INTAKE.label,
             model=message.model or self._config.model_experience_intake,
@@ -323,12 +332,28 @@ class ClaudeAiProvider:
         blocks[-1]["cache_control"] = {"type": "ephemeral", "ttl": self._config.cache_ttl}
         return blocks
 
+    def _advisor_tool(self) -> dict:
+        """인테이크의 advisor. 실행 모델(Sonnet)이 판단이 필요할 때 부르는 무거운 모델(Opus).
+
+        Opus 5 를 advisor 로 두면 조언이 암호화 블록(advisor_redacted_result)으로 온다 — 우리는 읽을 수 없고 그대로
+        되돌려 보내기만 하면 되는데, pause_turn 이어가기가 응답 블록을 통째로 붙이므로 그 조건은 이미 맞는다.
+        caching 은 advisor 자신의 프롬프트(실행 모델의 맥락 전체) 캐시다 — 한 요청에서 두 번 부르면 둘째가 싸진다."""
+        return {
+            "type": "advisor_20260301",
+            "name": "advisor",
+            "model": self._config.advisor_model,
+            "max_uses": self._config.advisor_max_uses,
+            "max_tokens": max(1024, self._config.advisor_max_tokens),
+            "caching": {"type": "ephemeral", "ttl": self._config.cache_ttl},
+        }
+
     async def _create(
         self, *, model: str, effort: str, system: list[dict], content: str, schema: type[BaseModel],
-        tools: list | None = None,
+        tools: list | None = None, betas: list[str] | None = None,
     ):
         """구조화 출력으로 한 번 부른다. 서버 도구가 pause_turn 을 주면 응답을 그대로 붙여 이어 간다.
-        model·effort 는 기능마다 다르다(core/config.py) — 여기서는 받은 값을 그대로 쓴다."""
+        model·effort 는 기능마다 다르다(core/config.py) — 여기서는 받은 값을 그대로 쓴다.
+        betas 가 있으면 베타 엔드포인트(client.beta.messages)로 간다 — advisor 도구가 그렇다."""
         messages: list[dict] = [{"role": "user", "content": content}]
         kwargs: dict = {
             "model": model,
@@ -340,9 +365,12 @@ class ClaudeAiProvider:
         }
         if tools:
             kwargs["tools"] = tools
+        if betas:
+            kwargs["betas"] = betas
+        endpoint = self._client.beta.messages if betas else self._client.messages
         try:
             for _ in range(MAX_PAUSE_TURNS):
-                message = await self._client.messages.create(messages=messages, **kwargs)
+                message = await endpoint.create(messages=messages, **kwargs)
                 self._log_usage(model, message)
                 if message.stop_reason != "pause_turn":
                     return message
@@ -365,16 +393,23 @@ class ClaudeAiProvider:
 
     @staticmethod
     def _log_usage(model: str, message) -> None:
-        """호출 한 번의 토큰. cache_read 가 0 이면 캐시가 안 맞은 것 — 사전 순서가 흔들렸거나 접두사가 너무 짧다."""
+        """호출 한 번의 토큰. cache_read 가 0 이면 캐시가 안 맞은 것 — 사전 순서가 흔들렸거나 접두사가 너무 짧다.
+        advisor 를 몇 번 불렀는지도 여기 남긴다 — 조언 내용은 암호화라 못 보지만, 부른 횟수와 실패는 보인다."""
         usage = getattr(message, "usage", None)
-        if usage is None:
-            return
-        logger.info(
-            "Claude %s 토큰 input=%s cache_write=%s cache_read=%s output=%s stop=%s",
-            model, getattr(usage, "input_tokens", None),
-            getattr(usage, "cache_creation_input_tokens", None), getattr(usage, "cache_read_input_tokens", None),
-            getattr(usage, "output_tokens", None), message.stop_reason,
-        )
+        if usage is not None:
+            logger.info(
+                "Claude %s 토큰 input=%s cache_write=%s cache_read=%s output=%s stop=%s",
+                model, getattr(usage, "input_tokens", None),
+                getattr(usage, "cache_creation_input_tokens", None), getattr(usage, "cache_read_input_tokens", None),
+                getattr(usage, "output_tokens", None), message.stop_reason,
+            )
+        results = [b for b in (getattr(message, "content", None) or []) if getattr(b, "type", None) == "advisor_tool_result"]
+        if results:
+            errors = [
+                getattr(b.content, "error_code", None) for b in results
+                if getattr(getattr(b, "content", None), "type", None) == "advisor_tool_result_error"
+            ]
+            logger.info("advisor 호출 %d회%s", len(results), f" (실패 {errors})" if errors else "")
 
     @staticmethod
     def _parse(message, schema: type[BaseModel]):
