@@ -1,4 +1,4 @@
-# CareerFit AI 제공자 서버
+# Career Lab AI 제공자 서버
 
 `docs/api-spec-v6.md` **8. AI 제공자 계약**을 구현한 stateless FastAPI 서버입니다.
 `ANTHROPIC_API_KEY`가 있으면 `ClaudeAiProvider`(실제 Claude), 없으면 `MockAiProvider`(키·외부 네트워크·DB 없이 동작)로 뜹니다.
@@ -39,7 +39,7 @@ uvicorn app.main:app --reload --port 8000
   호출마다 `Claude <model> 토큰 input=… cache_write=… cache_read=…` 로그가 남는다. 둘째 호출부터 `cache_read` 가
   사전 크기만큼 찍혀야 정상이고, 계속 0 이면 접두사가 바뀌고 있는 것이다.
 - 한 호출 상한은 `AI_REQUEST_TIMEOUT_SECONDS`(기본 300초). 인테이크는 저장소를 여러 번 읽어 몇 분이 걸린다.
-  Spring 쪽 `careerfit.ai.read-timeout`(기본 330초)이 이보다 길어야 한다.
+  Spring 쪽 `careerlab.ai.read-timeout`(기본 330초)이 이보다 길어야 한다.
 - 실패(인증·한도·연결·거부·해석 실패)는 전부 503 `AI_PROVIDER_ERROR`다. 원인은 서버 로그에만 남고 키·URL·원문은 안 남긴다.
   Spring이 3회 재시도한 뒤 작업을 FAILED로 둔다.
 - 테스트: `python -m pytest -q` — `tests/test_claude_provider.py`는 SDK를 흉내 내서 요청 조립·응답 정리만 본다. 프롬프트 품질은
@@ -130,8 +130,8 @@ Spring 공개 내부 API의 X-Internal-Token과는 별개이며 Spring → Pytho
 배포 시 내부망 및 긴 토큰을 설정하세요. API 키/토큰/서명된 URL을 로그나 Git에 남기지 마세요.
 
 ```bash
-docker build -t careerfit-ai ./ai
-docker run --rm -p 127.0.0.1:8000:8000 --env-file ai/.env careerfit-ai
+docker build -t careerlab-ai ./ai
+docker run --rm -p 127.0.0.1:8000:8000 --env-file ai/.env careerlab-ai
 ```
 
 `.env`가 없는 Mock 데모에서는 `--env-file ai/.env`를 생략할 수 있습니다.

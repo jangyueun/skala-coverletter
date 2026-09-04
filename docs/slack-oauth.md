@@ -25,9 +25,9 @@
 ```java
 @SpringBootApplication
 @ConfigurationPropertiesScan          // ← 이 줄
-public class CareerfitApplication {
+public class CareerLabApplication {
     public static void main(String[] args) {
-        SpringApplication.run(CareerfitApplication.class, args);
+        SpringApplication.run(CareerLabApplication.class, args);
     }
 }
 ```

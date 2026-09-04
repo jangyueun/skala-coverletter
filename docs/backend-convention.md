@@ -16,7 +16,7 @@ Spring Boot(Java 21) 기준입니다. 지금 `backend/` 에 있는 `auth` · `us
 도메인별로 나누고, 도메인 안에서 계층별로 나눕니다.
 
 ```text
-com.team.careerfit
+com.team.careerlab
 ├── auth          로그인
 ├── user          사용자
 ├── coverletter   자기소개서

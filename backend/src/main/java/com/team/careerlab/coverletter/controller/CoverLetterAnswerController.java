@@ -1,0 +1,42 @@
+package com.team.careerlab.coverletter.controller;
+
+import com.team.careerlab.coverletter.dto.CoverLetterAnswerResponse;
+import com.team.careerlab.coverletter.dto.CoverLetterAnswerSaveRequest;
+import com.team.careerlab.coverletter.service.CoverLetterAnswerService;
+import com.team.careerlab.global.security.CurrentUser;
+import com.team.careerlab.user.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.validation.Valid;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+@RestController
+@RequestMapping("/api/questions/{questionId}/answer")
+public class CoverLetterAnswerController {
+
+    private final CurrentUser currentUser;
+    private final CoverLetterAnswerService answerService;
+
+    public CoverLetterAnswerController(CurrentUser currentUser, CoverLetterAnswerService answerService) {
+        this.currentUser = currentUser;
+        this.answerService = answerService;
+    }
+
+    @GetMapping
+    public ResponseEntity<CoverLetterAnswerResponse> get(@PathVariable Long questionId, HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(answerService.get(user.getId(), questionId));
+    }
+
+    @PutMapping
+    public ResponseEntity<CoverLetterAnswerResponse> save(@PathVariable Long questionId,
+            @Valid @RequestBody CoverLetterAnswerSaveRequest saveRequest, HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(answerService.save(user, questionId, saveRequest));
+    }
+}

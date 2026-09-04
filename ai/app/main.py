@@ -50,7 +50,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(
-    title="CareerFit AI Server",
+    title="Career Lab AI Server",
     version="0.2.0",
     lifespan=lifespan,
 )
