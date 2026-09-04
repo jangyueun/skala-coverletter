@@ -3,8 +3,8 @@
 **기준은 `frontend/src` 다.** 이 문서는 "지금 이렇게 생겼다" 가 아니라 "이렇게 재구성한다" 를 적는다.
 아래 계층대로 코드를 옮기고, 옮긴 뒤에는 이 문서가 곧 현재 상태다.
 
-같이 읽을 것 — [`slack-oauth.md`](./slack-oauth.md)(로그인 계약).
-AI 파이프라인은 `frontend/vite-plugins/aiDevServer.js` 의 주석이 설명한다.
+같이 읽을 것 — [`slack-oauth.md`](./slack-oauth.md)(로그인 계약), [`dev-environment.md`](./dev-environment.md)(세 서버 띄우기).
+AI 는 프론트가 직접 부르지 않는다 — Spring 에 작업을 만들고(202 + taskId) `GET /api/ai-tasks/{id}` 를 폴링한다. Spring 워커가 AI 서버(`ai/`)를 부른다.
 
 ---
 
@@ -71,8 +71,8 @@ api/
   index.js          VITE_API_MOCK=0 이면 real, 아니면 mock — 여기서만 갈라진다
   real/
     auth.js         me() · signIn() · signOut()          ← 실제 백엔드 있음
-    ai.js           draft(questionId, experienceIds) · intake(links, files)   ← 202 + taskId 를 받아 /ai-tasks 폴링까지 안는다. dev 는 vite 플러그인이 서빙
-    (postings·experiences·answers 는 백엔드가 생기면 여기 추가)
+    ai.js           draft(questionId, experienceIds) · intake(links, files)   ← 202 + taskId 를 받아 /ai-tasks 폴링까지 안는다
+    postings.js · experiences.js · answers.js   ← §6
   mock/
     _delay.js       지연 · VITE_API_MOCK_FAIL
     data.js         옛 mockData.js
@@ -163,7 +163,7 @@ async load() {
 | 백엔드 붙여서 확인 | `VITE_API_MOCK=0 npm run dev` — 인증·AI 가 real 로. vite 프록시가 `/api` → `:8080`. 같은 오리진이라 CORS·쿠키 문제 없음 |
 | 로딩 상태를 오래 보고 싶다 | `VITE_API_MOCK_DELAY=3000` |
 | 실패 화면을 보고 싶다 | `VITE_API_MOCK_FAIL=postings` — 그 API 만 500 을 준다 |
-| AI 추출·초안 | `.env` 에 `ANTHROPIC_API_KEY` — vite 플러그인이 `/api/experience-intakes` · `/api/ai-tasks` 를 dev 에서 서빙. 키 없으면 503 + 이유 |
+| AI 인테이크·초안 (real) | Spring + AI 서버(`ai/`, :8000)가 같이 떠 있어야 한다. 키는 `ai/.env` 의 `ANTHROPIC_API_KEY` — 없으면 AI 서버가 Mock 으로 답한다. 목 모드는 `api/mock/ai.js` 가 고정 응답 |
 | 같은 Wi-Fi 팀원에게 보여주기 | `host: true` 라 `npm run dev` 가 찍는 Network 주소 |
 | 세 서버를 한 번에, 팀 표준 버전으로 | 루트에서 `docker compose up --build` — 웹은 nginx 가 서빙하고 `/api` 를 프록시한다. 컨테이너의 웹은 늘 real 모드다. `docs/dev-environment.md` |
 
@@ -193,8 +193,9 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 
 ## 6. 백엔드가 붙은 뒤 (2026-09-04)
 
-`VITE_API_MOCK=0` 이면 인증·역량 사전·공고·경험·자소서 답변이 Spring(:8080)으로 간다. AI 두 개(인테이크·초안)만 아직 vite 플러그인이다 —
-Spring 에 `GET /api/ai-tasks` 폴링 API 와 MATCH·DRAFT·INTAKE 워커가 없어서다. 그게 생기면 `vite.config.js` 의 `aiDevServer()` 한 줄만 지운다.
+`VITE_API_MOCK=0` 이면 다섯 자원 전부 Spring(:8080)으로 간다 — 인증·역량 사전·공고·경험·자소서 답변·AI.
+AI(인테이크·초안)는 Spring 이 작업을 만들고 워커가 AI 서버(`ai/`, :8000)를 부른 뒤 `GET /api/ai-tasks/{id}` 로 결과를 준다.
+예전에 dev 에서 그 경로를 대신하던 vite 플러그인(aiDevServer)은 지웠다 — real 모드로 AI 를 쓰려면 AI 서버도 같이 띄운다.
 
 | 파일 | 실제 API | 목과 다른 점 |
 |---|---|---|

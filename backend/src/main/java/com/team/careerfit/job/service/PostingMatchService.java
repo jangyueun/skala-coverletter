@@ -1,6 +1,8 @@
 package com.team.careerfit.job.service;
 
 import com.team.careerfit.aitask.entity.AiTaskStatus;
+import com.team.careerfit.aitask.entity.AiTaskType;
+import com.team.careerfit.integration.ai.client.PromptVersionRegistry;
 import com.team.careerfit.job.dto.PostingMatchResponse;
 import com.team.careerfit.job.dto.PostingMatchResponse.Experience;
 import com.team.careerfit.job.dto.PostingMatchResponse.MatchStatus;
@@ -35,13 +37,14 @@ import tools.jackson.databind.ObjectMapper;
 public class PostingMatchService {
 
     private static final ZoneId KOREA = ZoneId.of("Asia/Seoul");
-    private static final String PROMPT_VERSION = "match/v1";
-
     private final PostingMatchQueryRepository matches;
+    private final PromptVersionRegistry promptVersions;
     private final ObjectMapper objectMapper;
 
-    public PostingMatchService(PostingMatchQueryRepository matches, ObjectMapper objectMapper) {
+    public PostingMatchService(PostingMatchQueryRepository matches, PromptVersionRegistry promptVersions,
+            ObjectMapper objectMapper) {
         this.matches = matches;
+        this.promptVersions = promptVersions;
         this.objectMapper = objectMapper;
     }
 
@@ -70,7 +73,8 @@ public class PostingMatchService {
             return empty(MatchStatus.FAILED, task.id(), requirements.size());
         }
 
-        String idempotencyKey = sha256("MATCH:" + userId + ":" + postingId + ":" + inputHash + ":" + PROMPT_VERSION);
+        String idempotencyKey = sha256("MATCH:" + userId + ":" + postingId + ":" + inputHash + ":"
+                + promptVersions.of(AiTaskType.MATCH));
         Long taskId = matches.createTask(
                 postingId,
                 userId,
@@ -164,16 +168,9 @@ public class PostingMatchService {
         }
     }
 
+    /** 워커({@code MatchTaskHandler})가 결과를 저장할 때 쓰는 것과 같은 식이어야 한다 — {@link MatchInputHash}. */
     private String inputHash(List<Requirement> requirements, List<ExperienceInput> experiences) {
-        StringBuilder input = new StringBuilder();
-        requirements.forEach(value -> input.append("R:")
-                .append(value.competencyId()).append(':')
-                .append(value.weight().stripTrailingZeros().toPlainString()).append(';'));
-        experiences.forEach(value -> input.append("E:")
-                .append(value.experienceId()).append(':')
-                .append(value.competencyId()).append(':')
-                .append(value.strength().stripTrailingZeros().toPlainString()).append(';'));
-        return sha256(input.toString());
+        return MatchInputHash.of(requirements, experiences);
     }
 
     private String requestPayload(

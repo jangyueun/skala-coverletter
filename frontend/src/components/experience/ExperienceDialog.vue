@@ -26,6 +26,8 @@ const blank = () => ({
 })
 const form = reactive(blank())
 const errors = ref([])
+/* 저장 요청이 서버에 가 있는 동안 true. 버튼을 두 번 누르면 POST 가 두 번 나가 경험이 둘 생겼다 — 첫 요청이 끝날 때까지 막는다. */
+const busy = ref(false)
 
 function open(id) {
   editId.value = id ?? null
@@ -52,6 +54,7 @@ const periodOk = computed(() => periodValid(fromMonth(form.startMonth), fromMont
 
 /* 서버에 await 한다. 성공해야 닫는다 — 실패하면 폼이 남고 이유가 errors 에 뜬다. */
 async function save() {
+  if (busy.value) return
   const errs = []
   if (!form.title.trim()) errs.push('제목은 필수입니다.')
   if (!form.result.trim()) errs.push('결과(R)는 필수입니다. 성과 없는 경험은 자소서에서 쓸 수 없습니다.')
@@ -69,12 +72,15 @@ async function save() {
     action: form.action.trim(), result: form.result.trim(),
     competencies: Object.entries(form.comp).map(([id, strength]) => ({ competencyId: Number(id), strength })),
   }
+  busy.value = true
   try {
     if (editId.value != null) await E.update(editId.value, body)
     else await E.create(body)
   } catch (e) {
     errors.value = [`저장에 실패했습니다 — ${e.body?.message || e.message}`]
     return
+  } finally {
+    busy.value = false
   }
   el.value.close()
 }
@@ -151,8 +157,8 @@ async function save() {
       <footer v-show="tab === 'manual'" class="ft">
         <div class="acts">
           <button type="button" class="btn btn--sm" @click="el.close()">취소</button>
-          <button type="button" class="btn btn--primary" @click="save()">
-            {{ editId != null ? '저장' : '등록' }}
+          <button type="button" class="btn btn--primary" :disabled="busy" @click="save()">
+            {{ busy ? '저장 중…' : editId != null ? '저장' : '등록' }}
           </button>
         </div>
       </footer>

@@ -26,9 +26,10 @@
 
 :root {
   /* ── 지면 ───────────────────────────────────────────────── */
-  --panel:        #FFFFFF;   /* 지면 */
+  --paper:        #F7F5F1;   /* 페이지 바탕 — 살짝 따뜻한 종이색. 흰 카드가 이 위에 뜬다 */
+  --panel:        #FFFFFF;   /* 지면 — 헤더 · 버튼 · 카드 */
   --panel-raised: #FFFFFF;   /* 올라온 면 — 채우기가 아니라 선으로 구분한다 */
-  --panel-sunken: #F4F4F4;   /* 검색 밴드 · 입력칸 · 가라앉은 자리 */
+  --panel-sunken: #EEEBE5;   /* 검색 밴드 · 입력칸 · 가라앉은 자리. 종이 위에서도 보이게 한 단 더 */
 
   /* ── 잉크 ───────────────────────────────────────────────── */
   --ink:    #131313;
@@ -49,6 +50,14 @@
   --ok:   #1D7A46;
   --gap:  #9A5A0B;
   --info: #2A5C8F;
+
+  /* ── 옅은 채움 — 위 색을 지면에 12~14% 섞은 것 ────────────
+     라이트·다크를 따로 적지 않는다. --accent 가 바뀌면 같이 바뀐다.
+     글자는 이 위에 --accent-deep / --ok / --gap 으로 올린다. */
+  --accent-soft: color-mix(in srgb, var(--accent) 12%, var(--panel));
+  --ok-soft:     color-mix(in srgb, var(--ok)     13%, var(--panel));
+  --gap-soft:    color-mix(in srgb, var(--gap)    14%, var(--panel));
+  --info-soft:   color-mix(in srgb, var(--info)   12%, var(--panel));
 
   /* ── 선 ───────────────────────────────────────────────────
      아주 얇고 옅다. 이 레이아웃은 선이 아니라 여백으로 나눈다. */
@@ -101,6 +110,7 @@
    ══════════════════════════════════════════════════════════════ */
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme='light']) {
+    --paper:        #0E0E0E;
     --panel:        #121212;
     --panel-raised: #171717;
     --panel-sunken: #1E1E1E;
@@ -119,6 +129,7 @@
   }
 }
 :root[data-theme='dark'] {
+  --paper:        #0E0E0E;
   --panel:        #121212;
   --panel-raised: #171717;
   --panel-sunken: #1E1E1E;

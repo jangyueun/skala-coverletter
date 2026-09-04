@@ -4,14 +4,14 @@
  *
  * 같은 입력으로 다시 부르면 서버가 200 + 기존 taskId 를 준다 — 그것도 그냥 폴링하면 된다.
  * 같은 대상에 다른 입력이 진행 중이면 409 *_ALREADY_RUNNING 이 ApiError 로 온다.
- * dev 에서는 vite-plugins/aiDevServer.js 가 같은 경로를 서빙한다. 배포는 Spring. 프런트는 안 바뀐다. */
+ * dev 도 배포도 Spring 이 서빙한다(워커가 AI 서버를 부른다). 초안은 몇십 초, 인테이크는 자료를 읽느라 몇 분이 걸릴 수 있다. */
 
 import { client, ApiError } from '../client.js'
 
 export const task = taskId => client.get(`/ai-tasks/${taskId}`)
 
-/** COMPLETED 면 작업을, FAILED 면 error 를 ApiError 로 던진다. 1초 간격, 최대 5분. */
-export async function waitFor(taskId, { interval = 1000, timeout = 5 * 60 * 1000 } = {}) {
+/** COMPLETED 면 작업을, FAILED 면 error 를 ApiError 로 던진다. 1초 간격, 최대 10분 — 인테이크가 자료를 읽는 시간까지 본다. */
+export async function waitFor(taskId, { interval = 1000, timeout = 10 * 60 * 1000 } = {}) {
   const until = Date.now() + timeout
   for (;;) {
     const t = await task(taskId)

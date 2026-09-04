@@ -12,6 +12,7 @@ import org.springframework.web.HttpRequestMethodNotSupportedException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 /**
@@ -74,6 +75,13 @@ public class GlobalExceptionHandler {
     public ResponseEntity<Map<String, String>> handle(NoResourceFoundException e) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
                 .body(Map.of("code", "NOT_FOUND", "message", "요청한 경로가 없습니다."));
+    }
+
+    /** {@code ?type=WHAT} 처럼 enum·숫자 파라미터를 못 읽는 경우. 요청 값 문제라 400 이다. */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    public ResponseEntity<Map<String, String>> handle(MethodArgumentTypeMismatchException e) {
+        return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                .body(Map.of("code", "VALIDATION_FAILED", "message", "요청 파라미터 " + e.getName() + " 의 값이 올바르지 않습니다."));
     }
 
     @ExceptionHandler(HttpRequestMethodNotSupportedException.class)

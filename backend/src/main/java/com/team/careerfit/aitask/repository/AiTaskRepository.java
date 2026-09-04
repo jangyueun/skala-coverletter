@@ -25,4 +25,7 @@ public interface AiTaskRepository extends JpaRepository<AiTask, Long> {
 
     /** 워커가 걷어갈 대상. 오래 기다린 것부터 처리한다. */
     List<AiTask> findByStatusOrderByCreatedAt(AiTaskStatus status);
+
+    /** GET /api/ai-tasks — 내 작업 전부, 최신순. 필터(type·status·since)는 서비스가 건다. */
+    List<AiTask> findByUserIdOrderByCreatedAtDesc(Long userId);
 }

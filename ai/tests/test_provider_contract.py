@@ -26,7 +26,8 @@ PAYLOADS = {
     },
     "draft": {
         "question": {"promptText": "지원 동기를 작성하세요.", "lengthLimit": 700},
-        "posting": {"company": "세움테크", "position": "백엔드", "requiredNames": ["API 설계·연동"]},
+        "posting": {"company": "세움테크", "position": "백엔드", "content": "[세움테크] REST API 설계 및 운영",
+                    "required": [{"name": "API 설계·연동", "weight": 0.9, "evidenceLine": "REST API 설계 및 운영"}]},
         "experiences": [{"title": "API 개발", "situation": "상황", "task": "목표", "action": "구현", "result": "배포 완료"}],
     },
 }

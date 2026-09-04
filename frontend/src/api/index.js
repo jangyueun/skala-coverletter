@@ -3,11 +3,9 @@
  * **기본은 전부 mock 이다.** 백엔드(:8080)는 Supabase 접속 정보(.env)가 있어야 뜨고, 그게 없는 컴에서
  * real 을 켜면 `npm run dev` 만 한 사람이 이유도 모른 채 401·연결 실패 화면을 본다.
  *
- * 백엔드를 띄운 사람만 VITE_API_MOCK=0 으로 real 을 켠다. 그때 —
- *   auth · postings · experiences · answers → real (vite 프록시가 /api 를 :8080 으로 넘긴다)
- *   ai                                     → real 이지만 dev 는 vite 플러그인(aiDevServer.js)이 서빙한다.
- *                                            Spring 에 GET /api/ai-tasks 와 MATCH·DRAFT·INTAKE 워커가 아직 없어서다.
- *                                            그게 생기면 vite.config.js 에서 aiDevServer() 한 줄만 지운다.
+ * 백엔드를 띄운 사람만 VITE_API_MOCK=0 으로 real 을 켠다. 그때 다섯 자원 전부 real 이다 —
+ * vite 프록시가 /api 를 :8080 으로 넘기고, AI(인테이크·초안)도 Spring 이 받아 워커가 AI 서버(ai/, :8000)를 부른다.
+ * 그래서 real 모드로 AI 를 쓰려면 Spring 과 AI 서버가 같이 떠 있어야 한다(docs/dev-environment.md).
  *
  * 목과 real 의 반환 모양은 같다(docs/api-spec-v6.md DTO). 실제 API 가 목과 다른 두 곳은 real 쪽이 맞춘다 —
  *   postings.list  목록 DTO 에 상세를 합친다(api/real/postings.js 주석)

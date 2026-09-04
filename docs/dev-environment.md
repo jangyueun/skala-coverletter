@@ -65,6 +65,11 @@ Supabase SQL Editor 에 붙여 넣으면 된다(사전은 팀이 합의한 뒤�
 
 ### 함정
 
+- **화면에 502 가 뜨면 api 컨테이너가 안 듣고 있는 것이다.** nginx 는 `/api` 를 `api:8080` 으로 넘기는데 거기 아무도 없으면 502 다.
+  `docker compose ps -a` 로 api 가 `Exited` 인지 보고 `docker compose logs api` 에서 이유를 읽는다. 흔한 것 —
+  `.env` 없이 로컬 DB 오버레이도 안 붙였다(`Could not resolve placeholder 'SUPABASE_DB_URL'`), Supabase 비밀번호·풀러 주소가
+  틀리거나 그 네트워크에서 5432 가 막혔다(`HikariPool ... Connection refused` · `password authentication failed`).
+  지금은 api 헬스체크를 통과해야 web 이 뜨므로, api 가 죽으면 `docker compose up` 자체가 `dependency failed to start` 로 멈춘다.
 - **포트가 로컬 개발과 같다**(5173 · 8080 · 8000). `npm run dev` 나 `bootRun` 을 띄워 둔 채로 compose 를 올리면
   그 서비스만 포트 충돌로 못 뜬다. 둘 다 켜야 하면 호스트 포트만 바꾼다 — `WEB_PORT=15173 API_PORT=18080 docker compose up`.
   로컬 Postgres 가 있는 컴을 위해 db 는 처음부터 15432 다.
@@ -84,8 +89,16 @@ HMR 과 디버거는 컨테이너 밖이 빠르다. 평소 개발은 지금처�
 ```bash
 cd frontend && npm run dev                  # 목 모드. 백엔드 붙일 땐 VITE_API_MOCK=0 (frontend/.env.example)
 cd backend && ./gradlew bootRun             # ../.env 필요
-cd ai && uvicorn app.main:app --reload      # Mock, 키 불필요
+cd ai && uvicorn app.main:app --reload      # ai/.env 에 키가 있으면 Claude, 없으면 Mock
 ```
+
+### AI 켜기
+
+키는 한 곳, `ai/.env` 의 `ANTHROPIC_API_KEY` 다(`ai/.env.example` 복사). 있으면 AI 서버가 Claude 로 답하고 없으면 Mock 이다 —
+시작 로그 `AI provider: Claude` / `Mock` 으로 확인한다. compose 는 `ai/.env` 를 자동으로 읽는다(`docker compose up --build ai`).
+프론트는 AI 를 직접 부르지 않는다. Spring 이 작업을 만들고 워커(5초 주기)가 AI 서버를 부른 뒤 `GET /api/ai-tasks/{id}` 로 준다 —
+그래서 real 모드로 인테이크·초안을 쓰려면 **Spring 과 AI 서버가 둘 다** 떠 있어야 한다. 매칭(카드의 %)은 AI 서버가 결정론 공식으로 계산하므로
+키 없이도 된다. 인테이크 첨부파일은 Supabase Storage 에 올라가므로 로컬 DB 오버레이(`SUPABASE_URL` 없음)에서는 링크만 된다.
 
 Docker 는 **통합 확인 · 시연 · 새 팀원 온보딩** 용이다. "내 컴에서 안 뜬다" 가 나오면 먼저 `docker compose up --build` 로
 띄워 본다 — 거기서 뜨면 로컬 도구 버전 문제고, 거기서도 안 뜨면 코드 문제다.
@@ -96,7 +109,7 @@ Docker 는 **통합 확인 · 시연 · 새 팀원 온보딩** 용이다. "내 �
 |---|---|---|
 | `web` | `frontend/Dockerfile` | `npm ci` → `npm run build`(vitest + vite build) → nginx 가 `dist/` 서빙, `/api` 는 `api:8080` 으로 프록시(`frontend/nginx.conf`) |
 | `api` | `backend/Dockerfile` | `./gradlew bootJar` → JRE 21 alpine 에서 `java -jar`. `SPRING_PROFILES_ACTIVE=docker` 라 `application.yml` 의 `../.env` 강제 import 가 꺼지고 값은 compose `env_file` 로 받는다. AI 서버 주소는 `http://ai:8000` |
-| `ai` | `ai/Dockerfile` | `pip install .` → uvicorn. `ai/.env` 는 있으면 읽고 없으면 Mock 그대로 |
+| `ai` | `ai/Dockerfile` | `pip install .` → uvicorn. `ai/.env` 의 `ANTHROPIC_API_KEY` 가 있으면 Claude, 없으면 Mock |
 | `db` (오버레이) | `postgres:17-alpine` | 헬스체크 뒤에 api 가 뜬다. 데이터는 `pgdata` 볼륨 |
 
 비밀값은 파일째 이미지에 들어가지 않는다 — `.dockerignore` 가 `.env*` 를 빼고, compose 가 실행 시점에 환경변수로 넣는다.

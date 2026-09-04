@@ -25,6 +25,8 @@ const MINE_FALLBACK = ['task', 'result']
    **남의 저장소를 실제로 web_fetch 한다** — 모르는 사람 코드로 후보가 만들어지고
    토큰과 fetch 횟수도 그리로 나간다. 예시는 placeholder 로 보여준다. */
 const links = ref('')
+/* 등록 요청이 나가 있는 동안 true. 스토어의 saving 은 건별이라 여러 건을 동시에 보낼 때 먼저 끝난 건이 false 로 되돌린다. */
+const committing = ref(false)
 const LINK_PLACEHOLDER = `https://github.com/내계정/프로젝트
 https://내도메인.dev/portfolio`
 
@@ -226,7 +228,7 @@ const matchDelta = computed(() => {
 
 async function commit() {
   const ready = readyKeys.value
-  if (!ready.length) return
+  if (!ready.length || committing.value) return
   // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
   if (skipped.value && armed.value !== ready.length) {
     armed.value = ready.length
@@ -234,8 +236,10 @@ async function commit() {
   }
   /* 한 건이라도 실패하면 등록된 것만 남고 패널은 그대로다 — 다시 누르면 된다.
      낙관적으로 먼저 지우면 실패한 건이 화면에서만 사라진다. */
+  committing.value = true
   try { await Promise.all(ready.map(k => E.create(buildExp(k)))) }
   catch { return }
+  finally { committing.value = false }
   armed.value = null
   emit('done', ready.length)
   reset()
@@ -465,8 +469,9 @@ const onEdit = () => { armed.value = null }
           <span v-if="!skipped && !matchDelta">되물은 칸을 채우면 등록 대상이 됩니다.</span>
         </template>
       </p>
-      <button type="button" class="btn btn--primary" :disabled="!readyKeys.length" @click="commit">
-        {{ armed !== null ? `${readyKeys.length}건만 등록 · 한 번 더`
+      <button type="button" class="btn btn--primary" :disabled="!readyKeys.length || committing" @click="commit">
+        {{ committing ? '등록 중…'
+           : armed !== null ? `${readyKeys.length}건만 등록 · 한 번 더`
            : readyKeys.length ? `${readyKeys.length}건 등록` : '등록할 건 없음' }}
       </button>
     </div>

@@ -44,7 +44,8 @@ public class AiProviderClient {
                         .version(HttpClient.Version.HTTP_1_1)
                         .connectTimeout(Duration.ofSeconds(5))
                         .build());
-        requestFactory.setReadTimeout(Duration.ofSeconds(20));
+        // 짧게 두면 인테이크·초안이 늘 끊긴다. 워커가 기다리는 것이라 길어도 화면은 안 멈춘다.
+        requestFactory.setReadTimeout(properties.readTimeout());
         // RestClient.builder()의 기본 컨버터 자동 감지가 Jackson 3(JsonMapper)를 못 잡는 경우가 있어 명시한다.
         this.restClient = RestClient.builder()
                 .requestFactory(requestFactory)

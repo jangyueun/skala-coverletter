@@ -2,9 +2,10 @@
 
 from app.schemas.provider import (
     Candidate, DraftRequest, DraftResponse, IntakeQuestion, IntakeRequest,
-    IntakeResponse, MatchRequest, MatchResponse, MatchRow, PostingAnalysisRequest,
+    IntakeResponse, MatchRequest, MatchResponse, PostingAnalysisRequest,
     PostingAnalysisResponse, PromptVersions, RequiredCompetency,
 )
+from app.services.matching import compute_match
 
 
 class MockAiProvider:
@@ -50,23 +51,7 @@ class MockAiProvider:
         return IntakeResponse(candidates=[candidate], **self.metadata("experience_intake"))
 
     async def match(self, request: MatchRequest) -> MatchResponse:
-        rows = []
-        for requirement in request.posting.required:
-            evidence = [
-                (experience.id, competency.strength)
-                for experience in request.experiences
-                for competency in experience.competencies
-                if competency.competency_id == requirement.competency_id
-            ]
-            score = min(1.0, sum(strength for _, strength in evidence))
-            rows.append(MatchRow(
-                competency_id=requirement.competency_id, weight=requirement.weight,
-                score=score, is_gap=not evidence or score < 0.45,
-                experience_ids=[experience_id for experience_id, _ in evidence],
-            ))
-        total_weight = sum(row.weight for row in rows)
-        overall = min(1.0, sum(row.weight * row.score for row in rows) / total_weight) if total_weight else 0.0
-        verdict = "RECOMMEND" if overall >= 0.85 else "CONDITIONAL" if overall >= 0.62 else "HOLD"
+        overall, verdict, rows = compute_match(request)
         return MatchResponse(overall=overall, verdict=verdict, rows=rows, **self.metadata("match"))
 
     async def draft(self, request: DraftRequest) -> DraftResponse:
