@@ -13,8 +13,12 @@ services:
     build: ./frontend
     ports:
       - "${WEB_PORT:-5173}:80"
+    # api 가 실제로 요청을 받을 때(healthcheck 통과)까지 web 을 띄우지 않는다.
+    # 컨테이너가 "떴다"와 Spring 이 "듣는다"는 다르다 — 그 사이에 브라우저를 열면 nginx 가 502 를 준다.
+    # api 가 죽으면(예: .env 도 로컬 DB 오버레이도 없음) compose 가 "dependency failed to start" 로 멈춘다 — 502 로 숨지 않는다.
     depends_on:
-      - api
+      api:
+        condition: service_healthy
 
   api:
     build: ./backend
@@ -30,6 +34,14 @@ services:
       AI_SERVER_BASE_URL: http://ai:8000
     ports:
       - "${API_PORT:-8080}:8080"
+    # /api/auth/me 는 로그아웃 상태에서도 200(null)이다 — Spring 이 진짜 듣고 있는지 보는 가장 싼 요청.
+    # start_period 는 느린 컴에서 Spring 이 뜨는 시간 여유(여기서는 3초, 첫 실행 Flyway 까지 넉넉히).
+    healthcheck:
+      test: ["CMD", "wget", "-qO", "/dev/null", "http://localhost:8080/api/auth/me"]
+      interval: 3s
+      timeout: 3s
+      retries: 40
+      start_period: 90s
     depends_on:
       - ai
 
