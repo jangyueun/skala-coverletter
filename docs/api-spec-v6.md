@@ -92,6 +92,11 @@ v5 → v6 (회의 결정 반영)
 | `GET /api/ai-tasks/{taskId}` | Path | `{"taskId":821,"type":"DRAFT","status":"COMPLETED","createdAt":"...","completedAt":"...","attempts":1,"model":"claude-opus-5","promptVersion":"draft/v1","result":{"draft":"...","charCount":698},"error":null}` · FAILED면 `"error":{"code":"AI_PROVIDER_ERROR","message":"..."}` · type별 result: DRAFT `{draft, charCount}` · EXPERIENCE_INTAKE `{candidates[]}` · MATCH `{postingId, score, verdict}` · POSTING_ANALYSIS `{postingId, requiredCount}` | 200 · 401 · 403 · 404 `TASK_NOT_FOUND` |
 | `GET /api/ai-tasks` | Query `type?`, `status?` 반복, `since?` | `{"counts":{"pending":2,"running":1,"completed":4,"failed":0},"items":[{"taskId":813,"type":"MATCH","status":"RUNNING","postingId":9,"createdAt":"..."}]}` | 200 · 401 |
 
+구현 메모 (2026-09-04) — 워커(`AiTaskWorker`, 5초 주기)가 타입별 처리기로 완료한다: DRAFT `DraftTaskHandler` · EXPERIENCE_INTAKE
+`ExperienceIntakeTaskHandler` · MATCH `MatchTaskHandler`(요구 역량이 없는 공고는 `job_matches` 를 쓰지 않고 result 의 `score`·`verdict` 가 `null`) ·
+POSTING_ANALYSIS `PostingAnalysisTaskHandler`. 멱등 키에는 AI 서버의 promptVersion 이 들어간다(`PromptVersionRegistry`). 목록의 `attempts`
+는 재시도 수 + 1 이다.
+
 ## 7. 내부 (1개)
 
 | API | Request | Response | 상태 |
@@ -103,6 +108,8 @@ v5 → v6 (회의 결정 반영)
 ## 8. AI 제공자 계약 (Spring → Python AI 서버, 현재는 Mock)
 
 AI 서버는 상태를 갖지 않는다. 요청을 받아 LLM을 호출하고 결과를 돌려줄 뿐이며, 작업 상태·재시도·결과 저장은 Spring의 `ai_tasks`가 맡는다. 모든 응답에 `promptVersion`·`model`을 싣는다. 실패는 `attempts`에 기록하고 최대 3회 지수 백오프 재시도, 소진 시 FAILED.
+
+구현 (2026-09-04) — `ai/.env` 의 `ANTHROPIC_API_KEY` 가 있으면 `ClaudeAiProvider`, 없으면 `MockAiProvider`. 공고 분석·인테이크·초안은 Claude(구조화 출력, 인테이크는 `web_fetch` 로 링크·파일 URL 을 직접 읽음), **매칭은 LLM 없이 결정론 공식**이다(프론트 카드와 같은 식, `ai/app/services/matching.py`). 프롬프트와 버전은 `ai/app/services/prompts.py` — 문장을 고치면 버전을 올린다. 한 호출 상한은 AI 서버 300초 · Spring 330초.
 
 | 계약 | Request | Response | 상태 |
 |---|---|---|---|

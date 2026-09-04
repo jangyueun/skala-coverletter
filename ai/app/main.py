@@ -1,3 +1,4 @@
+import logging
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -6,24 +7,42 @@ from fastapi.responses import JSONResponse
 
 from app.api.extract import router as extract_router
 from app.api.provider import router as provider_router
+from app.core.config import settings
 from app.services.mock_provider import MockAiProvider
 from app.services.provider import ProviderError
+
+logger = logging.getLogger("app")
+
+
+def build_provider():
+    """키가 있으면 Claude, 없으면 Mock. 키 유무 하나로 갈린다 — 팀원이 키 없이 띄워도 계약은 그대로 돈다."""
+    if settings.anthropic_api_key:
+        # 여기서 import 하는 이유: Mock 경로는 SDK 를 건드리지 않아야 한다(tests/test_provider_contract.py 가 지킨다).
+        from app.services.claude_provider import ClaudeAiProvider
+
+        logger.info("AI provider: Claude (%s)", settings.model)
+        return ClaudeAiProvider(settings)
+    logger.warning("AI provider: Mock — ANTHROPIC_API_KEY 가 없어 실제 AI 를 부르지 않습니다")
+    return MockAiProvider()
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    app.state.ai_provider = MockAiProvider()
+    app.state.ai_provider = build_provider()
     app.state.extraction_client = None
     try:
         yield
     finally:
         if app.state.extraction_client is not None:
             await app.state.extraction_client.close()
+        close = getattr(app.state.ai_provider, "close", None)
+        if close is not None:
+            await close()
 
 
 app = FastAPI(
     title="CareerFit AI Server",
-    version="0.1.0",
+    version="0.2.0",
     lifespan=lifespan,
 )
 app.include_router(extract_router)
@@ -47,4 +66,5 @@ async def validation_error(request: Request, error: RequestValidationError) -> J
 
 @app.get("/health")
 async def health() -> dict[str, str]:
+    # 어느 제공자인지는 시작 로그("AI provider: ...")에 남는다. 응답 모양은 계약대로 고정한다.
     return {"status": "ok"}

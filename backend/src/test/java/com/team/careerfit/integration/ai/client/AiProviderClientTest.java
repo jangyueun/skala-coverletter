@@ -13,7 +13,7 @@ class AiProviderClientTest {
     @Test
     void 연결에_실패하면_AiProviderException으로_감싼다() {
         AiProviderClient client = new AiProviderClient(
-                new AiProviderProperties("http://localhost:59999", null));
+                new AiProviderProperties("http://localhost:59999", null, null));
 
         assertThatThrownBy(client::promptVersions)
                 .isInstanceOf(AiProviderException.class)

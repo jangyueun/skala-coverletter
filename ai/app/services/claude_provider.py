@@ -1,0 +1,325 @@
+"""Claude 로 8절 계약을 실제로 수행하는 제공자. ANTHROPIC_API_KEY 가 있을 때만 main.py 가 이걸 고른다.
+
+세 가지가 LLM 을 부른다 — 공고 분석 · 경험 인테이크(web_fetch 로 링크·파일을 읽는다) · 자소서 초안.
+매칭은 결정론 공식(services/matching.py)이라 Claude 를 부르지 않는다.
+
+출력은 전부 구조화 출력(output_config.format = json_schema)으로 받는다 — 파싱 실패를 걱정할 필요가 없고,
+모델이 스키마 밖의 필드를 만들 수 없다. 그래도 사전 밖 competency_id 같은 **값**은 여기서 다시 거른다.
+프롬프트로 지시했다고 검증을 생략하면 지어낸 id 가 매칭 점수로 흘러든다.
+
+실패는 전부 ProviderError 하나로 — API 레이어가 503 으로 바꾸고 Spring 이 재시도한다. 키·URL·원문은 로그에 안 남긴다.
+"""
+
+import json
+import logging
+import re
+from datetime import date
+from typing import Literal
+
+import anthropic
+from anthropic import AsyncAnthropic
+from pydantic import BaseModel, ConfigDict, ValidationError
+
+from app.core.config import Settings
+from app.schemas.provider import (
+    Candidate, Category, Competency, DraftRequest, DraftResponse, IntakeQuestion,
+    IntakeRequest, IntakeResponse, MatchRequest, MatchResponse, PostingAnalysisRequest,
+    PostingAnalysisResponse, PromptVersions, RequiredCompetency,
+)
+from app.services import prompts
+from app.services.matching import compute_match
+from app.services.provider import ProviderError
+
+logger = logging.getLogger(__name__)
+
+MAX_OUTPUT_TOKENS = 16000
+# web_fetch 는 서버 도구라 한 요청 안에서 여러 턴을 돈다. 서버 쪽 반복 한도에 걸리면 pause_turn 으로 돌아오고,
+# 지금까지의 응답을 그대로 붙여 다시 부르면 이어서 한다. 무한히 이어 가지 않게 상한을 둔다.
+MAX_PAUSE_TURNS = 8
+
+
+# ── 모델이 돌려줘야 하는 모양. 계약 스키마와 따로 두는 이유 — 모델에게는 우리가 채울 필드(duplicate_of_experience_id)나
+#    응답에 못 싣는 필드(unreadable)를 다르게 줘야 한다. extra="forbid" 가 additionalProperties:false 를 만든다.
+
+class _Out(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+
+class _Required(_Out):
+    competency_id: int
+    weight: float
+    evidence: str
+
+
+class _AnalysisOut(_Out):
+    required: list[_Required]
+
+
+class _Question(_Out):
+    field: Literal["situation", "task", "action", "result"]
+    q: str
+    why: str
+
+
+class _CandidateOut(_Out):
+    key: str
+    title: str
+    start_date: str | None
+    end_date: str | None
+    category: Category
+    situation: str
+    action: str
+    questions: list[_Question]
+    suggested_competency_ids: list[int]
+
+
+class _Unreadable(_Out):
+    source: str
+    reason: str
+
+
+class _IntakeOut(_Out):
+    candidates: list[_CandidateOut]
+    unreadable: list[_Unreadable]
+
+
+class _DraftOut(_Out):
+    draft: str
+
+
+def _schema(model: type[BaseModel]) -> dict:
+    return {"type": "json_schema", "schema": model.model_json_schema()}
+
+
+def _dictionary(competencies: list[Competency]) -> str:
+    return "\n".join(
+        f"{c.id}. {c.name} [{c.category}]" + (f" — {', '.join(c.aliases[:8])}" if c.aliases else "")
+        for c in competencies
+    )
+
+
+def _normalize_title(title: str) -> str:
+    return re.sub(r"[\s\W_]+", "", title).casefold()
+
+
+def _month(value: str | None) -> date | None:
+    """모델이 준 'YYYY-MM-01' 만 받는다. 다른 형식은 확인 안 된 것으로 보고 null."""
+    if not value:
+        return None
+    try:
+        parsed = date.fromisoformat(value)
+    except ValueError:
+        return None
+    return parsed.replace(day=1)
+
+
+class ClaudeAiProvider:
+    """client 를 주입받는 이유는 테스트다 — 실제 SDK 없이 messages.create 만 흉내 낸다."""
+
+    def __init__(self, config: Settings, client: AsyncAnthropic | None = None):
+        self.model = config.model
+        self._client = client or AsyncAnthropic(
+            api_key=config.anthropic_api_key,
+            timeout=config.request_timeout_seconds,
+        )
+
+    async def close(self) -> None:
+        await self._client.close()
+
+    def versions(self) -> PromptVersions:
+        return PromptVersions(
+            posting_analysis=prompts.POSTING_ANALYSIS.version,
+            experience_intake=prompts.EXPERIENCE_INTAKE.version,
+            match=prompts.MATCH_VERSION,
+            draft=prompts.DRAFT.version,
+        )
+
+    # ── 공고 분석 ───────────────────────────────────────────────
+
+    async def posting_analysis(self, request: PostingAnalysisRequest) -> PostingAnalysisResponse:
+        user = f"""# 역량 사전 (이 안에서만 고른다)
+{_dictionary(request.competencies)}
+
+# 채용공고 원문
+{request.content}"""
+        message = await self._create(system=prompts.POSTING_ANALYSIS.system, content=user, schema=_AnalysisOut)
+        parsed = self._parse(message, _AnalysisOut)
+
+        known = {c.id for c in request.competencies}
+        seen: set[int] = set()
+        required = []
+        for item in parsed.required:
+            if item.competency_id not in known or item.competency_id in seen or not item.evidence.strip():
+                continue
+            seen.add(item.competency_id)
+            required.append(RequiredCompetency(
+                competency_id=item.competency_id,
+                weight=min(1.0, max(0.0, item.weight)),
+                evidence=item.evidence.strip(),
+            ))
+        dropped = len(parsed.required) - len(required)
+        if dropped:
+            logger.info("posting_analysis: 사전 밖·중복·근거 없는 항목 %d건 제외", dropped)
+        return PostingAnalysisResponse(
+            required=required, prompt_version=prompts.POSTING_ANALYSIS.label, model=message.model or self.model,
+        )
+
+    # ── 경험 인테이크 ───────────────────────────────────────────
+
+    async def experience_intake(self, request: IntakeRequest) -> IntakeResponse:
+        sources = [str(url) for url in [*request.links, *request.file_urls]]
+        existing = "\n".join(
+            f"- #{e.id} {e.title} [{e.category}] {e.start_date or '?'}~{e.end_date or ''}"
+            for e in request.existing_experiences
+        ) or "(없음)"
+        user = f"""# 역량 사전 (suggested_competency_ids 는 이 안에서만)
+{_dictionary(request.competencies)}
+
+# 이미 등록된 경험 (같은 프로젝트면 후보로 내지 않는다)
+{existing}
+
+# 읽을 자료 — 전부 web_fetch 로 직접 읽어라
+{chr(10).join(f'- {s}' for s in sources)}
+
+위 자료에서 경험 후보를 뽑아라."""
+        tools = [{
+            "type": "web_fetch_20260209",
+            "name": "web_fetch",
+            # 실패한 fetch 도 이 수에 든다. 저장소 하나를 주면 안의 파일로 더 들어가므로 링크 수보다 넉넉히.
+            "max_uses": min(24, len(sources) * 4 + 4),
+            # 500kB PDF 하나가 12만 토큰이다. 상한을 안 두면 포트폴리오 한 건이 컨텍스트를 통째로 먹는다.
+            "max_content_tokens": 40000,
+        }]
+        message = await self._create(
+            system=prompts.EXPERIENCE_INTAKE.system, content=user, schema=_IntakeOut, tools=tools,
+        )
+        parsed = self._parse(message, _IntakeOut)
+
+        known = {c.id for c in request.competencies}
+        by_title = {_normalize_title(e.title): e.id for e in request.existing_experiences}
+        candidates = []
+        used_keys: set[str] = set()
+        dropped_ids = 0
+        for index, c in enumerate(parsed.candidates):
+            ids = [i for i in c.suggested_competency_ids if i in known]
+            dropped_ids += len(c.suggested_competency_ids) - len(ids)
+            key = re.sub(r"[^a-z0-9-]+", "-", c.key.casefold()).strip("-") or f"candidate-{index + 1}"
+            while key in used_keys:
+                key = f"{key}-{index + 1}"
+            used_keys.add(key)
+            start, end = _month(c.start_date), _month(c.end_date)
+            if start and end and end < start:
+                end = None
+            candidates.append(Candidate(
+                key=key, title=c.title.strip() or f"경험 후보 {index + 1}", category=c.category,
+                start_date=start, end_date=end,
+                situation=c.situation.strip(), action=c.action.strip(),
+                questions=[IntakeQuestion(field=q.field, q=q.q, why=q.why) for q in c.questions],
+                suggested_competency_ids=list(dict.fromkeys(ids)),
+                # 제목이 같은 등록 경험이 있으면 그 id — 프론트가 "이미 등록됨" 으로 잠근다.
+                duplicate_of_experience_id=by_title.get(_normalize_title(c.title)),
+            ))
+        if dropped_ids:
+            logger.info("experience_intake: 사전 밖 competency_id %d건 제외", dropped_ids)
+        if parsed.unreadable:
+            # 계약 응답에는 자리가 없다(§8). 몇 건인지만 남긴다 — URL 은 남기지 않는다.
+            logger.info("experience_intake: 읽지 못한 자료 %d건", len(parsed.unreadable))
+        return IntakeResponse(
+            candidates=candidates, prompt_version=prompts.EXPERIENCE_INTAKE.label, model=message.model or self.model,
+        )
+
+    # ── 매칭 (결정론) ───────────────────────────────────────────
+
+    async def match(self, request: MatchRequest) -> MatchResponse:
+        overall, verdict, rows = compute_match(request)
+        return MatchResponse(
+            overall=overall, verdict=verdict, rows=rows,
+            prompt_version=f"match/{prompts.MATCH_VERSION}", model="rule-based",
+        )
+
+    # ── 자소서 초안 ─────────────────────────────────────────────
+
+    async def draft(self, request: DraftRequest) -> DraftResponse:
+        limit = request.question.length_limit
+        experiences = "\n\n".join(
+            f"""## {e.title}
+- S(상황): {e.situation or '(비어 있음)'}
+- T(과제): {e.task or '(비어 있음)'}
+- A(행동): {e.action or '(비어 있음)'}
+- R(결과): {e.result or '(비어 있음)'}"""
+            for e in request.experiences
+        )
+        user = f"""# 지원 공고
+{request.posting.company} · {request.posting.position}
+요구 역량: {', '.join(request.posting.required_names) or '(명시 없음)'}
+
+# 문항
+{request.question.prompt_text}
+글자 수 제한: {f'{limit}자 (공백 포함)' if limit else '없음'}
+
+# 근거 경험 (이것만 재료로 쓴다)
+{experiences}
+
+위 문항에 대한 자기소개서 초안을 써라."""
+        message = await self._create(system=prompts.DRAFT.system, content=user, schema=_DraftOut)
+        parsed = self._parse(message, _DraftOut)
+
+        draft = parsed.draft.strip()
+        if limit is not None and len(draft) > limit:
+            # 프롬프트로 부탁해도 몇 자 넘길 때가 있다. 계약(charCount ≤ lengthLimit 은 화면 규칙)을 여기서 지킨다.
+            draft = draft[:limit].rstrip()
+        return DraftResponse(
+            draft=draft, char_count=len(draft), prompt_version=prompts.DRAFT.label, model=message.model or self.model,
+        )
+
+    # ── 공통 ───────────────────────────────────────────────────
+
+    async def _create(self, *, system: str, content: str, schema: type[BaseModel], tools: list | None = None):
+        """구조화 출력으로 한 번 부른다. 서버 도구가 pause_turn 을 주면 응답을 그대로 붙여 이어 간다."""
+        messages: list[dict] = [{"role": "user", "content": content}]
+        kwargs: dict = {
+            "model": self.model,
+            "max_tokens": MAX_OUTPUT_TOKENS,
+            "system": system,
+            # Opus 5 는 기본이 adaptive 지만, 모델을 바꿔도 같은 동작이 나게 명시한다.
+            "thinking": {"type": "adaptive"},
+            "output_config": {"format": _schema(schema)},
+        }
+        if tools:
+            kwargs["tools"] = tools
+        try:
+            for _ in range(MAX_PAUSE_TURNS):
+                message = await self._client.messages.create(messages=messages, **kwargs)
+                if message.stop_reason != "pause_turn":
+                    return message
+                # 내용을 요약해서 넣으면 도구 결과가 깨진다 — 응답 블록을 그대로 붙인다.
+                messages = [messages[0], {"role": "assistant", "content": message.content}]
+            logger.warning("Claude 호출이 pause_turn 을 %d번 넘겨 중단", MAX_PAUSE_TURNS)
+            raise ProviderError
+        except anthropic.AuthenticationError:
+            logger.error("Claude 인증 실패 — ANTHROPIC_API_KEY 를 확인하세요")
+            raise ProviderError from None
+        except anthropic.RateLimitError:
+            logger.warning("Claude 요청 한도 초과(429)")
+            raise ProviderError from None
+        except anthropic.APIStatusError as error:
+            logger.warning("Claude 응답 오류 status=%s type=%s", error.status_code, getattr(error, "type", None))
+            raise ProviderError from None
+        except anthropic.APIConnectionError:
+            logger.warning("Claude 에 연결하지 못함(타임아웃 포함)")
+            raise ProviderError from None
+
+    @staticmethod
+    def _parse(message, schema: type[BaseModel]):
+        if message.stop_reason == "refusal":
+            logger.warning("Claude 가 요청을 거부함(refusal)")
+            raise ProviderError
+        text = next((block.text for block in message.content if block.type == "text"), None)
+        if text is None:
+            logger.warning("Claude 응답에 text 블록이 없음 stop_reason=%s", message.stop_reason)
+            raise ProviderError
+        try:
+            return schema.model_validate(json.loads(text))
+        except (json.JSONDecodeError, ValidationError) as error:
+            logger.warning("Claude 응답 해석 실패: %s", type(error).__name__)
+            raise ProviderError from None

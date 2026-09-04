@@ -1,32 +1,44 @@
 package com.team.careerfit.aitask.service;
 
+import com.team.careerfit.aitask.dto.AiTaskListResponse;
+import com.team.careerfit.aitask.dto.AiTaskResponse;
 import com.team.careerfit.aitask.entity.AiTask;
 import com.team.careerfit.aitask.entity.AiTaskStatus;
 import com.team.careerfit.aitask.entity.AiTaskType;
 import com.team.careerfit.aitask.exception.AiTaskException;
 import com.team.careerfit.aitask.repository.AiTaskRepository;
+import com.team.careerfit.integration.ai.client.PromptVersionRegistry;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import tools.jackson.databind.ObjectMapper;
 
 /**
- * AI 작업 생성. <b>이번 범위는 PENDING 작업을 만들고 taskId 를 돌려주는 것까지다.</b>
- * MockAiClient 로 실제 완료 처리를 하는 워커는 별도 작업(AI 작업 섹션의 폴링 API들)에서 붙인다.
+ * AI 작업 생성과 조회.
  *
- * <p>{@code idempotencyKey} 계산에 {@code promptVersion} 을 아직 넣지 않는다. AI 서버의
- * {@code GET /ai/prompts/versions} 연동 전이라 값을 구할 수 없다 — 연동이 붙으면 다시 계산해야 한다.
+ * <p>생성은 PENDING 행을 만들고 taskId 를 돌려주는 것까지다. 실제 처리는 {@code AiTaskWorker} 가 타입별
+ * {@code AiTaskHandler} 로 한다. 조회({@code GET /api/ai-tasks/**})는 만든 사용자만 볼 수 있다.
+ *
+ * <p>멱등 키에는 {@link PromptVersionRegistry} 의 프롬프트 버전이 들어간다(명세 §8) — 프롬프트를 고치면 같은 입력이라도
+ * 새 작업이 만들어진다.
  */
 @Service
 public class AiTaskService {
 
     private final AiTaskRepository aiTasks;
+    private final PromptVersionRegistry promptVersions;
+    private final ObjectMapper objectMapper;
 
-    public AiTaskService(AiTaskRepository aiTasks) {
+    public AiTaskService(AiTaskRepository aiTasks, PromptVersionRegistry promptVersions, ObjectMapper objectMapper) {
         this.aiTasks = aiTasks;
+        this.promptVersions = promptVersions;
+        this.objectMapper = objectMapper;
     }
 
     /**
@@ -36,7 +48,8 @@ public class AiTaskService {
     @Transactional
     public AiTask createMatchTask(Long userId, Long jobPostingId, String requestPayload) {
         String inputHash = sha256(requestPayload);
-        String idempotencyKey = sha256("MATCH|" + userId + "|" + jobPostingId + "|" + inputHash);
+        String idempotencyKey = sha256("MATCH|" + userId + "|" + jobPostingId + "|" + inputHash + "|"
+                + promptVersions.of(AiTaskType.MATCH));
         return aiTasks.findByIdempotencyKey(idempotencyKey)
                 .orElseGet(() -> aiTasks.save(
                         AiTask.match(userId, jobPostingId, idempotencyKey, inputHash, requestPayload)));
@@ -64,7 +77,8 @@ public class AiTaskService {
             return new Reservation(task.getId(), false);
         }
 
-        String idempotencyKey = sha256("EXPERIENCE_INTAKE|" + userId + "|" + inputHash);
+        String idempotencyKey = sha256("EXPERIENCE_INTAKE|" + userId + "|" + inputHash + "|"
+                + promptVersions.of(AiTaskType.EXPERIENCE_INTAKE));
         AiTask task = aiTasks.save(AiTask.experienceIntake(userId, idempotencyKey, inputHash, initialPayload));
         return new Reservation(task.getId(), true);
     }
@@ -95,9 +109,35 @@ public class AiTaskService {
             return new Reservation(task.getId(), false);
         }
 
-        String idempotencyKey = sha256("DRAFT|" + userId + "|" + questionId + "|" + inputHash);
+        String idempotencyKey = sha256("DRAFT|" + userId + "|" + questionId + "|" + inputHash + "|"
+                + promptVersions.of(AiTaskType.DRAFT));
         AiTask task = aiTasks.save(AiTask.draft(userId, questionId, idempotencyKey, inputHash, requestPayload));
         return new Reservation(task.getId(), true);
+    }
+
+    /**
+     * 폴링 응답. 만든 사용자만 본다 — 공고 분석처럼 사용자가 없는 작업은 아무도 못 본다.
+     *
+     * @throws AiTaskException 없으면 {@code TASK_NOT_FOUND}, 남의 것이면 {@code FORBIDDEN}
+     */
+    @Transactional(readOnly = true)
+    public AiTaskResponse find(Long userId, Long taskId) {
+        AiTask task = aiTasks.findById(taskId).orElseThrow(AiTaskException::taskNotFound);
+        if (!task.isOwnedBy(userId)) {
+            throw AiTaskException.forbidden();
+        }
+        return AiTaskResponse.from(task, objectMapper);
+    }
+
+    /** 내 작업 현황. 필터는 전부 선택이다 — 없으면 전부. */
+    @Transactional(readOnly = true)
+    public AiTaskListResponse list(Long userId, AiTaskType type, Set<AiTaskStatus> statuses, Instant since) {
+        List<AiTask> tasks = aiTasks.findByUserIdOrderByCreatedAtDesc(userId).stream()
+                .filter(task -> type == null || task.getTaskType() == type)
+                .filter(task -> statuses == null || statuses.isEmpty() || statuses.contains(task.getStatus()))
+                .filter(task -> since == null || !task.getCreatedAt().isBefore(since))
+                .toList();
+        return AiTaskListResponse.of(tasks);
     }
 
     public record Reservation(Long taskId, boolean created) {

@@ -1,8 +1,35 @@
 # CareerFit AI 제공자 서버
 
 `docs/api-spec-v6.md` **8. AI 제공자 계약**을 구현한 stateless FastAPI 서버입니다.
-현재 `/ai/*`는 `MockAiProvider`를 사용하며 API 키, 외부 네트워크, DB 없이 동작합니다.
-프론트는 이 서버를 직접 호출하지 않습니다. Spring 워커가 호출합니다.
+`ANTHROPIC_API_KEY`가 있으면 `ClaudeAiProvider`(실제 Claude), 없으면 `MockAiProvider`(키·외부 네트워크·DB 없이 동작)로 뜹니다.
+어느 쪽인지는 시작 로그 `AI provider: ...`에 찍힙니다. 프론트는 이 서버를 직접 호출하지 않습니다. Spring 워커가 호출합니다.
+
+## Claude 로 돌리기
+
+```bash
+cp .env.example .env      # ANTHROPIC_API_KEY 를 채운다
+uvicorn app.main:app --reload --port 8000
+# 또는 루트에서 docker compose up --build ai   (compose 가 ai/.env 를 읽는다)
+```
+
+| 계약 | 방식 | 프롬프트 |
+| --- | --- | --- |
+| `POST /ai/posting-analysis` | Claude, 구조화 출력 | `app/services/prompts.py` `POSTING_ANALYSIS` |
+| `POST /ai/experience-intake` | Claude + `web_fetch`(링크·파일 URL 을 모델이 직접 읽음), pause_turn 이어가기 | `EXPERIENCE_INTAKE` |
+| `POST /ai/match` | **LLM 없음** — 결정론 공식(`app/services/matching.py`), 프론트 카드와 같은 식 | 버전만 관리 |
+| `POST /ai/draft` | Claude, 구조화 출력, lengthLimit 안으로 자름 | `DRAFT` |
+
+- **프롬프트 버저닝** — 프롬프트 문장을 고치면 `prompts.py`의 그 항목 `version`을 올린다. 응답 `promptVersion`과
+  `GET /ai/prompts/versions`가 거기서 나가고, Spring은 그 값을 `ai_tasks.prompt_version`에 저장하고 멱등 키에 넣는다.
+  버전을 안 올리면 같은 입력의 작업이 옛 프롬프트 결과를 재사용한다.
+- 모델 출력은 스키마(json_schema)로 받지만 **값**은 다시 거른다 — 사전 밖 `competency_id`, 중복, 근거 없는 항목, 시작보다
+  앞선 종료일, 제한을 넘는 초안 길이. 프롬프트로 지시했다고 검증을 생략하면 지어낸 id가 매칭 점수로 흘러든다.
+- 한 호출 상한은 `AI_REQUEST_TIMEOUT_SECONDS`(기본 300초). 인테이크는 저장소를 여러 번 읽어 몇 분이 걸린다.
+  Spring 쪽 `careerfit.ai.read-timeout`(기본 330초)이 이보다 길어야 한다.
+- 실패(인증·한도·연결·거부·해석 실패)는 전부 503 `AI_PROVIDER_ERROR`다. 원인은 서버 로그에만 남고 키·URL·원문은 안 남긴다.
+  Spring이 3회 재시도한 뒤 작업을 FAILED로 둔다.
+- 테스트: `python -m pytest -q` — `tests/test_claude_provider.py`는 SDK를 흉내 내서 요청 조립·응답 정리만 본다. 프롬프트 품질은
+  사람이 결과를 읽어야 한다.
 
 ## Mock 서버 실행 (현재 과제)
 
@@ -74,13 +101,12 @@ Python은 AI_REQUEST_TIMEOUT_SECONDS(기본 30초)만큼 단일 호출을 기다
 links/fileUrls만 담습니다. **워커가 문항/공고/경험 전문과 역량 사전을 조회해 8절의
 전체 요청으로 조립해야 합니다.** 이 변경은 Python 계약만 구현하며 워커와 FE는 수정하지 않습니다.
 
-## 실제 AI로 교체할 때
+## 다른 제공자로 바꿀 때
 
-`app/services/provider.py`의 AiProvider를 구현하고 main.py의 제공자 생성 지점을 교체합니다.
-버전 목록과 응답 promptVersion은 같은 제공자에서 결정해야 합니다. 현재 Mock과 동일한
-스키마를 지키면 Spring/프론트의 응답 계약은 바뀌지 않습니다. 실제 구현 시 URL 다운로드는
-별도로 크기/리다이렉트/내부 IP 접근을 제한하고, LLM 출력을 스키마 및 근거로 검증해야 합니다.
-단순히 ANTHROPIC_API_KEY를 설정해도 **새 `/ai/*`는 계속 Mock**입니다.
+`app/services/provider.py`의 AiProvider를 구현하고 `main.py`의 `build_provider()`에서 고릅니다.
+버전 목록과 응답 promptVersion은 같은 제공자에서 결정해야 합니다. Mock과 동일한 스키마를 지키면
+Spring/프론트의 응답 계약은 바뀌지 않습니다. 인테이크의 URL 읽기는 Claude의 `web_fetch`(서버 도구)가 맡아
+우리 서버가 직접 다운로드하지 않습니다 — 직접 받게 바꾸면 크기/리다이렉트/내부 IP 접근을 따로 제한해야 합니다.
 
 ## 인증 및 Docker
 

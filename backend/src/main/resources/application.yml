@@ -43,6 +43,9 @@ careerfit:
     base-url: ${AI_SERVER_BASE_URL:http://localhost:8000}
     # Python 쪽 AI_INTERNAL_TOKEN과 같은 값. 비어 있으면 로컬 개발용 — Authorization 헤더를 안 붙인다.
     internal-token: ${AI_INTERNAL_TOKEN:}
+    # 한 호출을 기다리는 상한. 인테이크는 AI 서버가 자료를 여러 번 읽어 몇 분이 걸릴 수 있다 — Python 의
+    # AI_REQUEST_TIMEOUT_SECONDS(기본 300초)보다 길게.
+    read-timeout: ${AI_READ_TIMEOUT:330s}
   storage:
     # DB 접속용 SUPABASE_DB_URL(풀러 JDBC 주소)과는 다르다 — 프로젝트 REST URL이다. 예: https://xxxx.supabase.co
     url: ${SUPABASE_URL:}
