@@ -24,6 +24,14 @@ uvicorn app.main:app --reload --port 8000
   버전을 안 올리면 같은 입력의 작업이 옛 프롬프트 결과를 재사용한다.
 - 모델 출력은 스키마(json_schema)로 받지만 **값**은 다시 거른다 — 사전 밖 `competency_id`, 중복, 근거 없는 항목, 시작보다
   앞선 종료일, 제한을 넘는 초안 길이. 프롬프트로 지시했다고 검증을 생략하면 지어낸 id가 매칭 점수로 흘러든다.
+- **기능별 모델** — 공고 분석·인테이크는 `claude-sonnet-5`, 초안은 `AI_MODEL`(기본 `claude-opus-5`)이다.
+  `AI_MODEL_POSTING_ANALYSIS` · `AI_MODEL_EXPERIENCE_INTAKE` · `AI_MODEL_DRAFT` 로 따로 바꾸고, `AI_EFFORT_*` 로 생각 깊이를
+  조절한다(`app/core/config.py`). 응답 `model` 은 실제로 답한 모델이라 작업마다 다를 수 있다.
+- **프롬프트 캐시** — 시스템 프롬프트와 역량 사전(51개 · 약 5,700 토큰)은 호출마다 같아서 `system` 블록에 두고 마지막
+  블록에 `cache_control` 을 단다. 공고 원문·경험처럼 매번 다른 것만 `messages` 로 간다. 사전은 id 순으로 고정한다 —
+  캐시는 바이트 단위 접두사 일치라 순서가 흔들리면 매번 새로 쓴다. TTL 은 `AI_CACHE_TTL`(기본 `1h`).
+  호출마다 `Claude <model> 토큰 input=… cache_write=… cache_read=…` 로그가 남는다. 둘째 호출부터 `cache_read` 가
+  사전 크기만큼 찍혀야 정상이고, 계속 0 이면 접두사가 바뀌고 있는 것이다.
 - 한 호출 상한은 `AI_REQUEST_TIMEOUT_SECONDS`(기본 300초). 인테이크는 저장소를 여러 번 읽어 몇 분이 걸린다.
   Spring 쪽 `careerfit.ai.read-timeout`(기본 330초)이 이보다 길어야 한다.
 - 실패(인증·한도·연결·거부·해석 실패)는 전부 503 `AI_PROVIDER_ERROR`다. 원인은 서버 로그에만 남고 키·URL·원문은 안 남긴다.

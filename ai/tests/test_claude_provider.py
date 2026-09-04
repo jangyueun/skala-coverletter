@@ -80,7 +80,8 @@ def test_posting_analysis_drops_unknown_duplicate_and_blank_evidence():
     call = fake.calls[0]
     assert call["output_config"]["format"]["type"] == "json_schema"
     assert call["thinking"] == {"type": "adaptive"}
-    assert "3. API 설계·연동 [ROLE]" in call["messages"][0]["content"]
+    assert "3. API 설계·연동 [ROLE]" in call["system"][-1]["text"]         # 사전은 system(캐시 대상)에
+    assert "REST API 설계 및 운영" in call["messages"][0]["content"]        # 공고 원문은 messages 에
     assert "tools" not in call
 
 
@@ -219,3 +220,57 @@ def test_pause_turn_forever_becomes_provider_error():
     with pytest.raises(ProviderError):
         run(p.experience_intake(request))
     assert len(fake.calls) == 8
+
+
+def test_each_feature_sends_its_own_model_and_effort():
+    """기능별 모델·effort 가 요청에 그대로 실린다 — 공고 분석·인테이크는 가벼운 모델, 초안은 기본 모델."""
+    settings = replace(
+        Settings(), anthropic_api_key="k", model="claude-opus-5",
+        model_posting_analysis="m-analysis", effort_posting_analysis="low",
+        model_experience_intake="m-intake", effort_experience_intake="medium",
+        model_draft="m-draft", effort_draft="max",
+    )
+    fake = FakeMessages(
+        message({"required": []}, model="m-analysis"),
+        message({"candidates": [], "unreadable": []}, model="m-intake"),
+        message({"draft": "초안"}, model="m-draft"),
+    )
+    p = ClaudeAiProvider(settings, client=SimpleNamespace(messages=fake, close=_noop))
+
+    analysis = run(p.posting_analysis(PostingAnalysisRequest.model_validate({
+        "postingId": 1, "content": "x", "competencies": DICTIONARY,
+    })))
+    intake = run(p.experience_intake(IntakeRequest.model_validate({
+        "links": ["https://github.com/me/repo"], "fileUrls": [], "existingExperiences": [], "competencies": DICTIONARY,
+    })))
+    draft = run(p.draft(draft_request(None)))
+
+    assert [(c["model"], c["output_config"]["effort"]) for c in fake.calls] == [
+        ("m-analysis", "low"), ("m-intake", "medium"), ("m-draft", "max"),
+    ]
+    assert (analysis.model, intake.model, draft.model) == ("m-analysis", "m-intake", "m-draft")
+
+
+def test_system_blocks_are_stable_and_cache_marked():
+    """프롬프트와 사전은 system 블록이고 마지막 블록에 cache_control 이 붙는다. 사전은 입력 순서와 무관하게 id 순."""
+    p, fake = provider(message({"required": []}), message({"candidates": [], "unreadable": []}), message({"draft": "x"}))
+    reversed_dictionary = list(reversed(DICTIONARY))
+    run(p.posting_analysis(PostingAnalysisRequest.model_validate({
+        "postingId": 1, "content": "x", "competencies": reversed_dictionary,
+    })))
+    run(p.experience_intake(IntakeRequest.model_validate({
+        "links": ["https://github.com/me/repo"], "fileUrls": [], "existingExperiences": [],
+        "competencies": reversed_dictionary,
+    })))
+    run(p.draft(draft_request(None)))
+
+    analysis, intake, draft = (c["system"] for c in fake.calls)
+    for system in (analysis, intake):
+        assert [b["type"] for b in system] == ["text", "text"]
+        assert "cache_control" not in system[0]
+        assert system[-1]["cache_control"] == {"type": "ephemeral", "ttl": "1h"}
+        assert system[-1]["text"].index("3. API 설계·연동") < system[-1]["text"].index("20. Spring Boot")
+    assert analysis[0]["text"].startswith("너는 채용공고에서")
+    assert intake[0]["text"].startswith("너는 지원자가 준 자료")
+    assert len(draft) == 1 and draft[0]["cache_control"]["type"] == "ephemeral"
+    assert "역량 사전" not in fake.calls[0]["messages"][0]["content"]

@@ -22,7 +22,12 @@ def build_provider():
         # 여기서 import 하는 이유: Mock 경로는 SDK 를 건드리지 않아야 한다(tests/test_provider_contract.py 가 지킨다).
         from app.services.claude_provider import ClaudeAiProvider
 
-        logger.info("AI provider: Claude (%s)", settings.model)
+        logger.info(
+            "AI provider: Claude (공고 분석 %s/%s · 인테이크 %s/%s · 초안 %s/%s)",
+            settings.model_posting_analysis, settings.effort_posting_analysis,
+            settings.model_experience_intake, settings.effort_experience_intake,
+            settings.model_draft, settings.effort_draft,
+        )
         return ClaudeAiProvider(settings)
     logger.warning("AI provider: Mock — ANTHROPIC_API_KEY 가 없어 실제 AI 를 부르지 않습니다")
     return MockAiProvider()

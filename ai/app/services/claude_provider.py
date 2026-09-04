@@ -92,9 +92,10 @@ def _schema(model: type[BaseModel]) -> dict:
 
 
 def _dictionary(competencies: list[Competency]) -> str:
+    """id 순으로 고정한다. 캐시는 바이트 단위 접두사 일치라, Spring 이 주는 순서가 흔들리면 매번 새로 쓴다."""
     return "\n".join(
         f"{c.id}. {c.name} [{c.category}]" + (f" — {', '.join(c.aliases[:8])}" if c.aliases else "")
-        for c in competencies
+        for c in sorted(competencies, key=lambda c: c.id)
     )
 
 
@@ -135,6 +136,7 @@ class ClaudeAiProvider:
 
     def __init__(self, config: Settings, client: AsyncAnthropic | None = None):
         self.model = config.model
+        self._config = config
         self._client = client or AsyncAnthropic(
             api_key=config.anthropic_api_key,
             timeout=config.request_timeout_seconds,
@@ -154,12 +156,16 @@ class ClaudeAiProvider:
     # ── 공고 분석 ───────────────────────────────────────────────
 
     async def posting_analysis(self, request: PostingAnalysisRequest) -> PostingAnalysisResponse:
-        user = f"""# 역량 사전 (이 안에서만 고른다)
-{_dictionary(request.competencies)}
-
-# 채용공고 원문
+        system = self._system(
+            prompts.POSTING_ANALYSIS.system,
+            f"# 역량 사전 (이 안에서만 고른다)\n{_dictionary(request.competencies)}",
+        )
+        user = f"""# 채용공고 원문
 {request.content}"""
-        message = await self._create(system=prompts.POSTING_ANALYSIS.system, content=user, schema=_AnalysisOut)
+        message = await self._create(
+            model=self._config.model_posting_analysis, effort=self._config.effort_posting_analysis,
+            system=system, content=user, schema=_AnalysisOut,
+        )
         parsed = self._parse(message, _AnalysisOut)
 
         known = {c.id for c in request.competencies}
@@ -178,7 +184,8 @@ class ClaudeAiProvider:
         if dropped:
             logger.info("posting_analysis: 사전 밖·중복·근거 없는 항목 %d건 제외", dropped)
         return PostingAnalysisResponse(
-            required=required, prompt_version=prompts.POSTING_ANALYSIS.label, model=message.model or self.model,
+            required=required, prompt_version=prompts.POSTING_ANALYSIS.label,
+            model=message.model or self._config.model_posting_analysis,
         )
 
     # ── 경험 인테이크 ───────────────────────────────────────────
@@ -189,10 +196,11 @@ class ClaudeAiProvider:
             f"- #{e.id} {e.title} [{e.category}] {e.start_date or '?'}~{e.end_date or ''}"
             for e in request.existing_experiences
         ) or "(없음)"
-        user = f"""# 역량 사전 (suggested_competency_ids 는 이 안에서만)
-{_dictionary(request.competencies)}
-
-# 이미 등록된 경험 (같은 프로젝트면 후보로 내지 않는다)
+        system = self._system(
+            prompts.EXPERIENCE_INTAKE.system,
+            f"# 역량 사전 (suggested_competency_ids 는 이 안에서만)\n{_dictionary(request.competencies)}",
+        )
+        user = f"""# 이미 등록된 경험 (같은 프로젝트면 후보로 내지 않는다)
 {existing}
 
 # 읽을 자료 — 전부 web_fetch 로 직접 읽어라
@@ -208,7 +216,8 @@ class ClaudeAiProvider:
             "max_content_tokens": 40000,
         }]
         message = await self._create(
-            system=prompts.EXPERIENCE_INTAKE.system, content=user, schema=_IntakeOut, tools=tools,
+            model=self._config.model_experience_intake, effort=self._config.effort_experience_intake,
+            system=system, content=user, schema=_IntakeOut, tools=tools,
         )
         parsed = self._parse(message, _IntakeOut)
 
@@ -242,7 +251,8 @@ class ClaudeAiProvider:
             # 계약 응답에는 자리가 없다(§8). 몇 건인지만 남긴다 — URL 은 남기지 않는다.
             logger.info("experience_intake: 읽지 못한 자료 %d건", len(parsed.unreadable))
         return IntakeResponse(
-            candidates=candidates, prompt_version=prompts.EXPERIENCE_INTAKE.label, model=message.model or self.model,
+            candidates=candidates, prompt_version=prompts.EXPERIENCE_INTAKE.label,
+            model=message.model or self._config.model_experience_intake,
         )
 
     # ── 매칭 (결정론) ───────────────────────────────────────────
@@ -289,32 +299,51 @@ class ClaudeAiProvider:
 {experiences}
 
 위 문항에 대한 자기소개서 초안을 써라."""
-        message = await self._create(system=prompts.DRAFT.system, content=user, schema=_DraftOut)
+        message = await self._create(
+            model=self._config.model_draft, effort=self._config.effort_draft,
+            system=self._system(prompts.DRAFT.system), content=user, schema=_DraftOut,
+        )
         parsed = self._parse(message, _DraftOut)
 
         draft = _fit(parsed.draft.strip(), limit)
         return DraftResponse(
-            draft=draft, char_count=len(draft), prompt_version=prompts.DRAFT.label, model=message.model or self.model,
+            draft=draft, char_count=len(draft), prompt_version=prompts.DRAFT.label,
+            model=message.model or self._config.model_draft,
         )
 
     # ── 공통 ───────────────────────────────────────────────────
 
-    async def _create(self, *, system: str, content: str, schema: type[BaseModel], tools: list | None = None):
-        """구조화 출력으로 한 번 부른다. 서버 도구가 pause_turn 을 주면 응답을 그대로 붙여 이어 간다."""
+    def _system(self, *texts: str) -> list[dict]:
+        """호출마다 같은 것(프롬프트 · 역량 사전)을 system 블록으로 두고 마지막 블록에 캐시 표시를 단다.
+
+        캐시는 tools → system → messages 순서의 접두사가 바이트까지 같아야 맞는다. 그래서 사전은 사용자 메시지가 아니라
+        여기 있고, 공고 원문·경험처럼 호출마다 다른 것은 messages 로 간다. 접두사가 모델별 최소 길이(Opus 5 는 512,
+        Sonnet 5 는 1024 토큰)보다 짧으면 조용히 캐시되지 않는다 — 오류는 아니다. 실제로 맞는지는 로그의 cache_read 로 본다."""
+        blocks = [{"type": "text", "text": text} for text in texts]
+        blocks[-1]["cache_control"] = {"type": "ephemeral", "ttl": self._config.cache_ttl}
+        return blocks
+
+    async def _create(
+        self, *, model: str, effort: str, system: list[dict], content: str, schema: type[BaseModel],
+        tools: list | None = None,
+    ):
+        """구조화 출력으로 한 번 부른다. 서버 도구가 pause_turn 을 주면 응답을 그대로 붙여 이어 간다.
+        model·effort 는 기능마다 다르다(core/config.py) — 여기서는 받은 값을 그대로 쓴다."""
         messages: list[dict] = [{"role": "user", "content": content}]
         kwargs: dict = {
-            "model": self.model,
+            "model": model,
             "max_tokens": MAX_OUTPUT_TOKENS,
             "system": system,
             # Opus 5 는 기본이 adaptive 지만, 모델을 바꿔도 같은 동작이 나게 명시한다.
             "thinking": {"type": "adaptive"},
-            "output_config": {"format": _schema(schema)},
+            "output_config": {"format": _schema(schema), "effort": effort},
         }
         if tools:
             kwargs["tools"] = tools
         try:
             for _ in range(MAX_PAUSE_TURNS):
                 message = await self._client.messages.create(messages=messages, **kwargs)
+                self._log_usage(model, message)
                 if message.stop_reason != "pause_turn":
                     return message
                 # 내용을 요약해서 넣으면 도구 결과가 깨진다 — 응답 블록을 그대로 붙인다.
@@ -333,6 +362,19 @@ class ClaudeAiProvider:
         except anthropic.APIConnectionError:
             logger.warning("Claude 에 연결하지 못함(타임아웃 포함)")
             raise ProviderError from None
+
+    @staticmethod
+    def _log_usage(model: str, message) -> None:
+        """호출 한 번의 토큰. cache_read 가 0 이면 캐시가 안 맞은 것 — 사전 순서가 흔들렸거나 접두사가 너무 짧다."""
+        usage = getattr(message, "usage", None)
+        if usage is None:
+            return
+        logger.info(
+            "Claude %s 토큰 input=%s cache_write=%s cache_read=%s output=%s stop=%s",
+            model, getattr(usage, "input_tokens", None),
+            getattr(usage, "cache_creation_input_tokens", None), getattr(usage, "cache_read_input_tokens", None),
+            getattr(usage, "output_tokens", None), message.stop_reason,
+        )
 
     @staticmethod
     def _parse(message, schema: type[BaseModel]):
