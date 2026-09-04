@@ -109,6 +109,7 @@ class AiTaskServiceTest {
     void 진행_중인_인테이크가_없으면_새로_만든다() {
         when(aiTasks.findFirstByTaskTypeAndUserIdAndStatusIn(AiTaskType.EXPERIENCE_INTAKE, 7L,
                 List.of(AiTaskStatus.PENDING, AiTaskStatus.RUNNING))).thenReturn(Optional.empty());
+        when(aiTasks.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
         when(aiTasks.save(any(AiTask.class))).thenAnswer(invocation -> {
             AiTask task = invocation.getArgument(0);
             setId(task, 790L);
@@ -119,6 +120,43 @@ class AiTaskServiceTest {
 
         assertThat(reservation.taskId()).isEqualTo(790L);
         assertThat(reservation.created()).isTrue();
+    }
+
+    @Test
+    void 같은_입력의_인테이크가_이미_완료됐으면_그_작업을_재사용한다() {
+        // 진행 중은 아니지만 같은 멱등 키의 완료된 작업이 있다 — 예전엔 여기서 save 가 유일 제약에 걸려 500 이었다.
+        when(aiTasks.findFirstByTaskTypeAndUserIdAndStatusIn(AiTaskType.EXPERIENCE_INTAKE, 7L,
+                List.of(AiTaskStatus.PENDING, AiTaskStatus.RUNNING))).thenReturn(Optional.empty());
+        AiTask done = AiTask.experienceIntake(7L, "key", "hash-a", "{}");
+        setId(done, 790L);
+        done.start();
+        done.complete("mock", "experience_intake/v2", "{\"candidates\":[]}", "[]");
+        when(aiTasks.findByIdempotencyKey(anyString())).thenReturn(Optional.of(done));
+
+        AiTaskService.Reservation reservation = service.reserveIntakeTask(7L, "hash-a", "{}");
+
+        assertThat(reservation.taskId()).isEqualTo(790L);
+        assertThat(reservation.created()).isFalse();
+        verify(aiTasks, never()).save(any());
+    }
+
+    @Test
+    void 같은_입력의_인테이크가_실패했으면_되살려_다시_돌린다() {
+        when(aiTasks.findFirstByTaskTypeAndUserIdAndStatusIn(AiTaskType.EXPERIENCE_INTAKE, 7L,
+                List.of(AiTaskStatus.PENDING, AiTaskStatus.RUNNING))).thenReturn(Optional.empty());
+        AiTask failed = AiTask.experienceIntake(7L, "key", "hash-a", "{}");
+        setId(failed, 790L);
+        failed.start();
+        failed.fail("AI_PROVIDER_ERROR", "AI 제공자 호출에 반복 실패했습니다.", "[]");
+        when(aiTasks.findByIdempotencyKey(anyString())).thenReturn(Optional.of(failed));
+
+        AiTaskService.Reservation reservation = service.reserveIntakeTask(7L, "hash-a", "{}");
+
+        assertThat(reservation.taskId()).isEqualTo(790L);
+        assertThat(reservation.created()).isTrue();               // 워커가 다시 집어가게
+        assertThat(failed.getStatus()).isEqualTo(AiTaskStatus.PENDING);
+        assertThat(failed.getErrorCode()).isNull();
+        verify(aiTasks, never()).save(any());                     // 새 행이 아니라 이 행을 되살린다
     }
 
     @Test
@@ -153,6 +191,7 @@ class AiTaskServiceTest {
     void 진행_중인_초안이_없으면_새로_만든다() {
         when(aiTasks.findFirstByTaskTypeAndUserIdAndQuestionIdAndStatusIn(AiTaskType.DRAFT, 7L, 31L,
                 List.of(AiTaskStatus.PENDING, AiTaskStatus.RUNNING))).thenReturn(Optional.empty());
+        when(aiTasks.findByIdempotencyKey(anyString())).thenReturn(Optional.empty());
         when(aiTasks.save(any(AiTask.class))).thenAnswer(invocation -> {
             AiTask task = invocation.getArgument(0);
             setId(task, 821L);

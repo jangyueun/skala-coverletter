@@ -191,6 +191,23 @@ public class AiTask {
         this.completedAt = Instant.now();
     }
 
+    /**
+     * 같은 입력의 실패한 작업을 다시 큐에 넣는다. 멱등 키가 유일 제약이라 새 행을 만들 수 없어서(같은 입력이면 같은 키)
+     * 이 행을 PENDING 으로 되돌린다 — 워커가 다시 집어간다. 인테이크가 503·타임아웃으로 실패한 뒤 같은 자료로 재시도하는 길이다.
+     */
+    public void reopen() {
+        this.status = AiTaskStatus.PENDING;
+        this.errorCode = null;
+        this.errorMessage = null;
+        this.resultPayload = null;
+        this.model = null;
+        this.promptVersion = null;
+        this.attempts = "[]";
+        this.retryCount = 0;
+        this.startedAt = null;
+        this.completedAt = null;
+    }
+
     /** 분석 작업은 사용자가 없어 누구나 못 본다. 나머지는 만든 사용자만 본다. */
     public boolean isOwnedBy(Long userId) {
         return this.userId != null && this.userId.equals(userId);

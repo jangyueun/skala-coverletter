@@ -79,8 +79,8 @@ public class AiTaskService {
 
         String idempotencyKey = sha256("EXPERIENCE_INTAKE|" + userId + "|" + inputHash + "|"
                 + promptVersions.of(AiTaskType.EXPERIENCE_INTAKE));
-        AiTask task = aiTasks.save(AiTask.experienceIntake(userId, idempotencyKey, inputHash, initialPayload));
-        return new Reservation(task.getId(), true);
+        return reserveByKey(idempotencyKey,
+                () -> AiTask.experienceIntake(userId, idempotencyKey, inputHash, initialPayload));
     }
 
     /** 파일 업로드가 끝난 뒤 요청 스냅샷을 fileUrls 까지 포함한 값으로 다시 채운다. */
@@ -111,8 +111,30 @@ public class AiTaskService {
 
         String idempotencyKey = sha256("DRAFT|" + userId + "|" + questionId + "|" + inputHash + "|"
                 + promptVersions.of(AiTaskType.DRAFT));
-        AiTask task = aiTasks.save(AiTask.draft(userId, questionId, idempotencyKey, inputHash, requestPayload));
-        return new Reservation(task.getId(), true);
+        return reserveByKey(idempotencyKey,
+                () -> AiTask.draft(userId, questionId, idempotencyKey, inputHash, requestPayload));
+    }
+
+    /**
+     * 멱등 키로 기존 작업을 찾아 재사용하고, 없으면 만든다. 진행 중(PENDING·RUNNING)은 위에서 걸러진 뒤라
+     * 여기 걸리는 건 끝난 작업뿐이다 —
+     *   COMPLETED  → 그대로 재사용(같은 입력이면 같은 결과다). 프런트는 폴링해서 캐시된 결과를 바로 받는다.
+     *   FAILED     → 되살려 다시 큐에 넣는다({@link AiTask#reopen}). 같은 자료로 재시도하는 길.
+     *
+     * <p>예전엔 이 확인 없이 {@code save()} 만 해서, 같은 입력을 두 번째 돌리면 유일 제약(uk_ai_tasks_idempotency_key)에
+     * 걸려 500 이 났다. 완료된 인테이크·초안을 같은 입력으로 다시 요청할 때마다 터졌다.
+     */
+    private Reservation reserveByKey(String idempotencyKey, java.util.function.Supplier<AiTask> factory) {
+        Optional<AiTask> existing = aiTasks.findByIdempotencyKey(idempotencyKey);
+        if (existing.isPresent()) {
+            AiTask task = existing.get();
+            if (task.getStatus() == AiTaskStatus.FAILED) {
+                task.reopen();
+                return new Reservation(task.getId(), true);
+            }
+            return new Reservation(task.getId(), false);
+        }
+        return new Reservation(aiTasks.save(factory.get()).getId(), true);
     }
 
     /**
