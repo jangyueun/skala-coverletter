@@ -228,10 +228,11 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 /* 필터 칩 — 눌린 채로 두는 것이 "지금 이걸로 좁혔다" 표시다 */
 .chip { cursor: pointer; font: inherit; font-size: var(--fs-2xs); font-weight: 600; }
 .chip:hover { border-color: var(--line-strong); color: var(--ink); }
+/* 고른 칩은 옅은 주황 위에 진한 주황 글자. 꽉 채운 주황은 D-day 의 몫이다. */
 .chip[aria-pressed='true'] {
-  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep);
 }
-.chip[aria-pressed='true'] .n { color: var(--accent-ink); opacity: .7; }
+.chip[aria-pressed='true'] .n { color: var(--accent-deep); opacity: .75; }
 .n { margin-left: 6px; color: var(--muted); font-weight: 700; }
 
 .grid { display: grid; gap: 12px; margin: 18px 0 0; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); }

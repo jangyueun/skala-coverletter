@@ -531,7 +531,7 @@ const onEdit = () => { armed.value = null }
 .rerr { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-family: var(--mono); }
 
 /* 읽지 못한 자료는 조용히 빠뜨리지 않는다 — 사용자는 자기가 준 것이 반영됐는지 알아야 한다. */
-.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); }
+.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); background: var(--gap-soft); }
 .ut { margin: 0 0 5px; font-size: var(--fs-2xs); font-weight: 700; color: var(--gap); }
 .ul { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
 .ul b { color: var(--ink-2); font-weight: 600; }

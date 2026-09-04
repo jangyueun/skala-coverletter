@@ -178,6 +178,9 @@ async function save() {
 .dlg {
   padding: 0; border: none; background: transparent;
   max-width: 1000px; width: calc(100% - 32px);
+  /* 브라우저 기본값이 dialog 안의 글자를 검정(CanvasText)으로 되돌린다.
+     다크에서 제목이 검정으로 남던 이유다. 잉크를 다시 물려준다. */
+  color: var(--ink);
 }
 .dlg::backdrop { background: rgba(10, 12, 11, 0.55); backdrop-filter: blur(2px); }
 .inner {
@@ -238,7 +241,7 @@ async function save() {
 .errs { display: flex; flex-direction: column; gap: 5px; }
 .err {
   margin: 0; padding: 8px 11px; font-size: var(--fs-xs); font-weight: 600;
-  color: var(--gap); background: var(--panel); border-left: 3px solid var(--gap);
+  color: var(--gap); background: var(--gap-soft); border-left: 3px solid var(--gap);
 }
 
 .ft {
