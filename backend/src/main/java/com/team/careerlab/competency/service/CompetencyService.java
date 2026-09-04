@@ -12,7 +12,6 @@ import org.springframework.stereotype.Service;
 public class CompetencyService {
 
     private final CompetencyQueryRepository competencies;
-    private volatile List<CompetencyResponse> cached;
 
     public CompetencyService(CompetencyQueryRepository competencies) {
         this.competencies = competencies;
@@ -30,17 +29,7 @@ public class CompetencyService {
     }
 
     private List<CompetencyResponse> dictionary() {
-        List<CompetencyResponse> result = cached;
-        if (result == null) {
-            synchronized (this) {
-                result = cached;
-                if (result == null) {
-                    result = List.copyOf(competencies.findAll());
-                    cached = result;
-                }
-            }
-        }
-        return result;
+        return competencies.findAll();
     }
 
     private CompetencyCategory parseCategory(String value) {
