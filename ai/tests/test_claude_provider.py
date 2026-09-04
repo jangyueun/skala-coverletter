@@ -127,19 +127,39 @@ def test_intake_resumes_pause_turn_and_normalizes_candidates():
     assert response.prompt_version == "experience_intake/v1"
 
 
-def test_draft_trims_to_limit_and_counts_chars():
-    p, fake = provider(message({"draft": "  " + "가" * 120 + "  "}))
-    request = DraftRequest.model_validate({
-        "question": {"promptText": "지원 동기", "lengthLimit": 100},
+def draft_request(limit):
+    return DraftRequest.model_validate({
+        "question": {"promptText": "지원 동기", "lengthLimit": limit},
         "posting": {"company": "세움테크", "position": "백엔드", "requiredNames": ["API 설계·연동"]},
         "experiences": [{"title": "API 개발", "situation": "", "task": "목표", "action": "구현", "result": "배포"}],
     })
-    response = run(p.draft(request))
+
+
+def test_draft_over_limit_is_cut_at_a_sentence_boundary():
+    text = "첫 문장입니다. 둘째 문장입니다! 셋째 문장은 제한을 넘깁니다."     # 36자, 제한 25 → 둘째 문장 끝(18자)에서 자른다
+    p, fake = provider(message({"draft": "  " + text + "  "}))
+    response = run(p.draft(draft_request(25)))
+
+    assert response.draft == "첫 문장입니다. 둘째 문장입니다!"
+    assert response.char_count == len(response.draft) <= 25
+    assert response.prompt_version == "draft/v1"
+    assert "글자 수 제한: 25자" in fake.calls[0]["messages"][0]["content"]
+    assert "API 설계·연동" in fake.calls[0]["messages"][0]["content"]
+
+
+def test_draft_falls_back_to_hard_cut_when_no_sentence_end_fits():
+    p, _ = provider(message({"draft": "가" * 120 + ". 끝"}))       # 제한 안에 문장 끝이 없다
+    response = run(p.draft(draft_request(100)))
 
     assert response.char_count == 100 == len(response.draft)
-    assert response.prompt_version == "draft/v1"
-    assert "글자 수 제한: 100자" in fake.calls[0]["messages"][0]["content"]
-    assert "API 설계·연동" in fake.calls[0]["messages"][0]["content"]
+
+
+def test_draft_within_limit_is_untouched():
+    p, _ = provider(message({"draft": "짧은 초안입니다."}))
+    response = run(p.draft(draft_request(700)))
+
+    assert response.draft == "짧은 초안입니다."
+    assert response.char_count == 9
 
 
 def test_match_is_deterministic_and_equal_to_mock():

@@ -11,12 +11,14 @@ from app.core.config import settings
 from app.services.mock_provider import MockAiProvider
 from app.services.provider import ProviderError
 
-logger = logging.getLogger("app")
+# uvicorn 이 INFO 까지 찍어 주는 로거를 빌린다. 앱 로거는 기본이 WARNING 이라 "Claude 로 떴다" 가 안 보였다.
+logger = logging.getLogger("uvicorn.error")
 
 
 def build_provider():
-    """키가 있으면 Claude, 없으면 Mock. 키 유무 하나로 갈린다 — 팀원이 키 없이 띄워도 계약은 그대로 돈다."""
-    if settings.anthropic_api_key:
+    """키가 있으면 Claude, 없으면 Mock. 키 유무 하나로 갈린다 — 팀원이 키 없이 띄워도 계약은 그대로 돈다.
+    AI_FORCE_MOCK=1 이면 키가 있어도 Mock — 테스트가 실제 API 를 부르지 않게 하는 안전장치다."""
+    if settings.anthropic_api_key and not settings.force_mock:
         # 여기서 import 하는 이유: Mock 경로는 SDK 를 건드리지 않아야 한다(tests/test_provider_contract.py 가 지킨다).
         from app.services.claude_provider import ClaudeAiProvider
 

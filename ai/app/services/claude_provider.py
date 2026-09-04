@@ -102,6 +102,23 @@ def _normalize_title(title: str) -> str:
     return re.sub(r"[\s\W_]+", "", title).casefold()
 
 
+_SENTENCE_END = re.compile(r"[.!?。](?=\s|$)")
+
+
+def _fit(draft: str, limit: int | None) -> str:
+    """제한을 넘긴 초안을 **문장 경계**에서 자른다. 글자 수로 뚝 자르면 "…여러 시스템이 연" 처럼 말이 끊긴다.
+
+    프롬프트로 제한을 지키라고 해도 몇십 자 넘길 때가 있다. 제한 안의 마지막 문장 끝에서 자르되, 그게 제한의 70%
+    밑으로 내려가면(문장이 아주 길 때) 그냥 글자 수로 자른다 — 너무 짧은 초안보다는 끊긴 한 문장이 낫다."""
+    if limit is None or len(draft) <= limit:
+        return draft
+    head = draft[:limit]
+    ends = [m.end() for m in _SENTENCE_END.finditer(head)]
+    if ends and ends[-1] >= limit * 0.7:
+        return head[:ends[-1]].rstrip()
+    return head.rstrip()
+
+
 def _month(value: str | None) -> date | None:
     """모델이 준 'YYYY-MM-01' 만 받는다. 다른 형식은 확인 안 된 것으로 보고 null."""
     if not value:
@@ -264,10 +281,7 @@ class ClaudeAiProvider:
         message = await self._create(system=prompts.DRAFT.system, content=user, schema=_DraftOut)
         parsed = self._parse(message, _DraftOut)
 
-        draft = parsed.draft.strip()
-        if limit is not None and len(draft) > limit:
-            # 프롬프트로 부탁해도 몇 자 넘길 때가 있다. 계약(charCount ≤ lengthLimit 은 화면 규칙)을 여기서 지킨다.
-            draft = draft[:limit].rstrip()
+        draft = _fit(parsed.draft.strip(), limit)
         return DraftResponse(
             draft=draft, char_count=len(draft), prompt_version=prompts.DRAFT.label, model=message.model or self.model,
         )
