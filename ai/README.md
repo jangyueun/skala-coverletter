@@ -17,7 +17,7 @@ uvicorn app.main:app --reload --port 8000
 | `POST /ai/posting-analysis` | Claude, 구조화 출력 | `app/services/prompts.py` `POSTING_ANALYSIS` |
 | `POST /ai/experience-intake` | Claude + `web_fetch`(링크·파일 URL 을 모델이 직접 읽음), pause_turn 이어가기 | `EXPERIENCE_INTAKE` |
 | `POST /ai/match` | **LLM 없음** — 결정론 공식(`app/services/matching.py`), 프론트 카드와 같은 식 | 버전만 관리 |
-| `POST /ai/draft` | Claude, 구조화 출력, lengthLimit 안으로 자름 | `DRAFT` |
+| `POST /ai/draft` | Claude, 구조화 출력. 공고 원문(`posting.content`)과 요구 역량별 근거 문장(`posting.required`)에 경험을 맞댄다. lengthLimit 을 넘기면 문장 경계에서 자름 | `DRAFT` (v2) |
 
 - **프롬프트 버저닝** — 프롬프트 문장을 고치면 `prompts.py`의 그 항목 `version`을 올린다. 응답 `promptVersion`과
   `GET /ai/prompts/versions`가 거기서 나가고, Spring은 그 값을 `ai_tasks.prompt_version`에 저장하고 멱등 키에 넣는다.

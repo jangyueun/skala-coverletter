@@ -70,7 +70,11 @@ class DraftTaskHandlerTest {
         assertThat(request.question().promptText()).isEqualTo("지원 동기를 쓰시오");
         assertThat(request.question().lengthLimit()).isEqualTo(700);
         assertThat(request.posting().company()).isEqualTo("세움테크");
-        assertThat(request.posting().requiredNames()).containsExactly("API 설계·연동");
+        assertThat(request.posting().content()).isEqualTo("본문");
+        assertThat(request.posting().required()).hasSize(1);
+        assertThat(request.posting().required().get(0).name()).isEqualTo("API 설계·연동");
+        assertThat(request.posting().required().get(0).weight()).isEqualByComparingTo("0.9");
+        assertThat(request.posting().required().get(0).evidenceLine()).isEqualTo("REST");
         // 남의 경험(4)은 빠지고, NULL 인 situation 은 빈 문자열로
         assertThat(request.experiences()).hasSize(1);
         assertThat(request.experiences().get(0).title()).isEqualTo("MSA 구축");

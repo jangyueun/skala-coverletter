@@ -59,7 +59,7 @@ def run(coro):
 def test_versions_come_from_prompt_constants():
     p, _ = provider()
     v = p.versions()
-    assert (v.posting_analysis, v.experience_intake, v.match, v.draft) == ("v2", "v1", "v1", "v1")
+    assert (v.posting_analysis, v.experience_intake, v.match, v.draft) == ("v2", "v1", "v1", "v2")
 
 
 def test_posting_analysis_drops_unknown_duplicate_and_blank_evidence():
@@ -130,7 +130,9 @@ def test_intake_resumes_pause_turn_and_normalizes_candidates():
 def draft_request(limit):
     return DraftRequest.model_validate({
         "question": {"promptText": "지원 동기", "lengthLimit": limit},
-        "posting": {"company": "세움테크", "position": "백엔드", "requiredNames": ["API 설계·연동"]},
+        "posting": {"company": "세움테크", "position": "백엔드", "content": "■ 담당 업무\n· 주문·정산 도메인 백엔드 개발",
+                    "required": [{"name": "Spring Boot", "weight": 0.7, "evidenceLine": ""},
+                                 {"name": "API 설계·연동", "weight": 0.9, "evidenceLine": "REST API 설계 및 운영"}]},
         "experiences": [{"title": "API 개발", "situation": "", "task": "목표", "action": "구현", "result": "배포"}],
     })
 
@@ -142,9 +144,25 @@ def test_draft_over_limit_is_cut_at_a_sentence_boundary():
 
     assert response.draft == "첫 문장입니다. 둘째 문장입니다!"
     assert response.char_count == len(response.draft) <= 25
-    assert response.prompt_version == "draft/v1"
-    assert "글자 수 제한: 25자" in fake.calls[0]["messages"][0]["content"]
-    assert "API 설계·연동" in fake.calls[0]["messages"][0]["content"]
+    assert response.prompt_version == "draft/v2"
+    prompt = fake.calls[0]["messages"][0]["content"]
+    assert "글자 수 제한: 25자" in prompt
+    assert "주문·정산 도메인 백엔드 개발" in prompt                              # 공고 원문
+    assert prompt.index("API 설계·연동 (가중치 0.9)") < prompt.index("Spring Boot (가중치 0.7)")   # 가중치 큰 순
+    assert '공고 근거: "REST API 설계 및 운영"' in prompt
+
+
+def test_draft_without_posting_content_still_works():
+    p, fake = provider(message({"draft": "초안"}))
+    request = DraftRequest.model_validate({
+        "question": {"promptText": "q", "lengthLimit": None},
+        "posting": {"company": "c", "position": "p"},          # content · required 생략 — 옛 호출도 422 가 아니다
+        "experiences": [],
+    })
+    response = run(p.draft(request))
+
+    assert response.draft == "초안"
+    assert "(원문 없음" in fake.calls[0]["messages"][0]["content"]
 
 
 def test_draft_falls_back_to_hard_cut_when_no_sentence_end_fits():
@@ -185,7 +203,7 @@ def test_unusable_responses_become_provider_error(bad):
     p, _ = provider(bad)
     request = DraftRequest.model_validate({
         "question": {"promptText": "q", "lengthLimit": None},
-        "posting": {"company": "c", "position": "p", "requiredNames": []},
+        "posting": {"company": "c", "position": "p"},
         "experiences": [],
     })
     with pytest.raises(ProviderError):

@@ -175,10 +175,18 @@ class DraftQuestion(Contract):
     length_limit: Annotated[int, Field(strict=True, gt=0, le=100_000)] | None
 
 
+class DraftRequirement(Contract):
+    name: Text
+    weight: Unit
+    evidence_line: str = ""
+
+
 class DraftPosting(Contract):
     company: Text
     position: Text
-    required_names: list[Text] = Field(max_length=500)
+    # 공고 원문 전문. 초안이 담당 업무·자격요건·인재상 문장에 경험을 맞대려면 이름만으로는 부족하다. 없으면 빈 문자열.
+    content: str = ""
+    required: list[DraftRequirement] = Field(default_factory=list, max_length=500)
 
 
 class DraftExperience(Contract):

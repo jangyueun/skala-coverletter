@@ -266,9 +266,20 @@ class ClaudeAiProvider:
 - R(결과): {e.result or '(비어 있음)'}"""
             for e in request.experiences
         )
+        required = sorted(request.posting.required, key=lambda r: -r.weight)
+        requirements = "\n".join(
+            f"- {r.name} (가중치 {r.weight:.1f})" + (f" — 공고 근거: \"{r.evidence_line}\"" if r.evidence_line else "")
+            for r in required
+        ) or "(명시 없음)"
+        content = request.posting.content.strip() or "(원문 없음 — 회사·직무·요구 역량만으로 쓴다)"
         user = f"""# 지원 공고
 {request.posting.company} · {request.posting.position}
-요구 역량: {', '.join(request.posting.required_names) or '(명시 없음)'}
+
+## 요구 역량 (가중치 큰 순)
+{requirements}
+
+## 공고 원문
+{content}
 
 # 문항
 {request.question.prompt_text}

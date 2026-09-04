@@ -10,6 +10,7 @@ import com.team.careerfit.integration.ai.dto.DraftRequest;
 import com.team.careerfit.integration.ai.dto.DraftRequest.DraftExperience;
 import com.team.careerfit.integration.ai.dto.DraftRequest.DraftPosting;
 import com.team.careerfit.integration.ai.dto.DraftRequest.DraftQuestion;
+import com.team.careerfit.integration.ai.dto.DraftRequest.DraftRequirement;
 import com.team.careerfit.integration.ai.dto.DraftResponse;
 import com.team.careerfit.job.entity.JobPosting;
 import com.team.careerfit.job.entity.JobPostingQuestion;
@@ -57,8 +58,8 @@ public class DraftTaskHandler implements AiTaskHandler {
                 .orElseThrow(() -> new IllegalStateException("문항을 찾을 수 없습니다: " + payload.questionId()));
         JobPosting posting = question.getJobPosting();
 
-        List<String> requiredNames = posting.getRequiredCompetencies().stream()
-                .map(required -> required.getCompetency().getName())
+        List<DraftRequirement> required = posting.getRequiredCompetencies().stream()
+                .map(pc -> new DraftRequirement(pc.getCompetency().getName(), pc.getWeight(), nz(pc.getEvidenceLine())))
                 .toList();
 
         // 요청한 순서를 지킨다 — 사용자가 고른 순서가 초안에서 다뤄지는 순서다. 남의 경험은 생성 시점에 걸렀지만 한 번 더.
@@ -78,7 +79,7 @@ public class DraftTaskHandler implements AiTaskHandler {
 
         DraftRequest request = new DraftRequest(
                 new DraftQuestion(question.getPromptText(), question.getLengthLimit()),
-                new DraftPosting(posting.getCompany().getName(), posting.getPosition(), requiredNames),
+                new DraftPosting(posting.getCompany().getName(), posting.getPosition(), nz(posting.getContent()), required),
                 draftExperiences);
         DraftResponse response = aiClient.draft(request);
 

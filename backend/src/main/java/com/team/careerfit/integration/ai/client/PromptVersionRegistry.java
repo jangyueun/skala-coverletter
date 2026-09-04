@@ -22,8 +22,8 @@ public class PromptVersionRegistry {
 
     private static final Logger log = LoggerFactory.getLogger(PromptVersionRegistry.class);
 
-    /** ai/app/services/prompts.py 의 현재 값. 서버에 못 물어볼 때만 쓴다. */
-    static final PromptVersions FALLBACK = new PromptVersions("v2", "v1", "v1", "v1");
+    /** ai/app/services/prompts.py(Claude 제공자)의 현재 값. 서버에 못 물어볼 때만 쓴다. */
+    static final PromptVersions FALLBACK = new PromptVersions("v2", "v1", "v1", "v2");
 
     private final AiProviderClient client;
     private volatile PromptVersions cached;
