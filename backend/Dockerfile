@@ -21,9 +21,9 @@ FROM eclipse-temurin:21-jre-alpine
 WORKDIR /app
 
 # root 로 띄우지 않는다. 컨테이너가 뚫려도 이미지 안의 파일 권한이 한 겹 남는다.
-RUN addgroup -S careerfit && adduser -S -G careerfit careerfit
-COPY --from=build --chown=careerfit:careerfit /src/build/libs/*.jar app.jar
-USER careerfit
+RUN addgroup -S careerlab && adduser -S -G careerlab careerlab
+COPY --from=build --chown=careerlab:careerlab /src/build/libs/*.jar app.jar
+USER careerlab
 
 # docker 프로필은 application.yml 의 ../.env 강제 import 를 끈다 — 컨테이너는 환경변수(compose env_file)로 받는다.
 ENV SPRING_PROFILES_ACTIVE=docker \
