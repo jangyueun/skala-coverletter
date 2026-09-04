@@ -9,7 +9,8 @@ html { -webkit-text-size-adjust: 100%; }
 
 body {
   margin: 0;
-  background: var(--panel);
+  /* 페이지는 종이, 카드·헤더·버튼은 흰색. 이 한 단 차이가 면을 띄운다. */
+  background: var(--paper);
   color: var(--ink);
   font-family: var(--sans);
   /* 스케일의 한 단이 아니라 rem·em 이 딛는 바닥이라 리터럴로 둔다. */
@@ -101,6 +102,7 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
 .panel--press:hover {
   border-color: var(--accent);
   box-shadow: inset 0 0 0 1px var(--accent);
+  background: var(--accent-soft);
 }
 .panel--press:active {
   background: var(--panel-sunken);
@@ -186,8 +188,10 @@ button, input, select, textarea { font: inherit; letter-spacing: inherit; color:
   font-size: var(--fs-2xs); font-weight: 500;
   letter-spacing: 0;
 }
-.tag--gap { border-color: var(--gap); color: var(--gap); }
-.tag--ok  { border-color: var(--ok);  color: var(--ok); }
+/* 뜻이 있는 태그는 옅게 채운다. 선만 있으면 회색 태그 사이에서 안 보인다.
+   테두리는 채움과 같은 색의 옅은 쪽으로 — 진한 선에 옅은 채움은 도장처럼 보인다. */
+.tag--gap { border-color: transparent; background: var(--gap-soft); color: var(--gap); }
+.tag--ok  { border-color: transparent; background: var(--ok-soft);  color: var(--ok); }
 .tag--ink { border-color: var(--ink); color: var(--ink); }
 
 /* D-day — 이 화면에서 유일하게 채워진 빨강 */

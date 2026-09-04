@@ -198,7 +198,7 @@ const list = computed(() => {
 .sh {
   display: flex; align-items: center; justify-content: space-between; gap: 10px;
   padding-bottom: 11px; border-bottom: 2px solid var(--ink);
-  position: sticky; top: 0; background: var(--panel); z-index: 1;
+  position: sticky; top: 0; background: var(--paper); z-index: 1;
 }
 /* 아래 범주 제목(직무 역량·기술·언어)과 같은 목소리. 모노 대문자는 여기 안 어울린다. */
 .sht {
