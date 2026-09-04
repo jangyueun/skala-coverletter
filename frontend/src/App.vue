@@ -1,6 +1,7 @@
 <script setup>
 import { RouterView, RouterLink, useRouter } from 'vue-router'
 import { useAuthStore } from '@/stores/auth.js'
+import AiTaskCenter from '@/components/ai/AiTaskCenter.vue'
 
 const auth = useAuthStore()
 const router = useRouter()
@@ -36,6 +37,9 @@ const nav = [
   <main class="wrap">
     <RouterView />
   </main>
+
+  <!-- AI 작업 대기 창 + 우측 하단 플로팅. 화면 어디에 있든 진행 상황이 보인다. -->
+  <AiTaskCenter />
 </template>
 
 <style scoped>

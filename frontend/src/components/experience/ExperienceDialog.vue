@@ -29,7 +29,9 @@ const errors = ref([])
 /* 저장 요청이 서버에 가 있는 동안 true. 버튼을 두 번 누르면 POST 가 두 번 나가 경험이 둘 생겼다 — 첫 요청이 끝날 때까지 막는다. */
 const busy = ref(false)
 
-function open(id) {
+/* wantTab='intake' 로 열면 포폴 탭에서 시작한다 — AI 작업 "결과 보기" 로 돌아올 때 쓴다.
+   수정(id 있음)은 인테이크 탭이 아예 없으므로 항상 직접 입력이다. */
+function open(id, wantTab) {
   editId.value = id ?? null
   Object.assign(form, blank())
   if (id != null) {
@@ -44,7 +46,7 @@ function open(id) {
     }
   }
   errors.value = []
-  tab.value = 'manual'
+  tab.value = editId.value == null && wantTab === 'intake' ? 'intake' : 'manual'
   el.value.showModal()
 }
 defineExpose({ open })
