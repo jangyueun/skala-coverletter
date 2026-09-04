@@ -15,7 +15,7 @@ uvicorn app.main:app --reload --port 8000
 | 계약 | 방식 | 프롬프트 |
 | --- | --- | --- |
 | `POST /ai/posting-analysis` | Claude, 구조화 출력 | `app/services/prompts.py` `POSTING_ANALYSIS` |
-| `POST /ai/experience-intake` | Claude + `web_fetch`(링크·파일 URL 을 모델이 직접 읽음), pause_turn 이어가기 | `EXPERIENCE_INTAKE` |
+| `POST /ai/experience-intake` | Claude + `web_fetch`(링크·파일 URL 을 모델이 직접 읽음) + **advisor**(Opus 5, 판단이 갈릴 때만), pause_turn 이어가기 | `EXPERIENCE_INTAKE` (v2) |
 | `POST /ai/match` | **LLM 없음** — 결정론 공식(`app/services/matching.py`), 프론트 카드와 같은 식 | 버전만 관리 |
 | `POST /ai/draft` | Claude, 구조화 출력. 공고 원문(`posting.content`)과 요구 역량별 근거 문장(`posting.required`)에 경험을 맞댄다. lengthLimit 을 넘기면 문장 경계에서 자름 | `DRAFT` (v2) |
 
@@ -27,6 +27,12 @@ uvicorn app.main:app --reload --port 8000
 - **기능별 모델** — 공고 분석·인테이크는 `claude-sonnet-5`, 초안은 `AI_MODEL`(기본 `claude-opus-5`)이다.
   `AI_MODEL_POSTING_ANALYSIS` · `AI_MODEL_EXPERIENCE_INTAKE` · `AI_MODEL_DRAFT` 로 따로 바꾸고, `AI_EFFORT_*` 로 생각 깊이를
   조절한다(`app/core/config.py`). 응답 `model` 은 실제로 답한 모델이라 작업마다 다를 수 있다.
+- **인테이크 advisor** — 실행 모델(Sonnet 5)이 자료를 읽고 문장을 쓰며, 여러 자료가 같은 프로젝트인지·후보를 나눌지 합칠지·
+  어떤 역량이 증명되는지 애매할 때만 advisor(Opus 5, `AI_ADVISOR_MODEL`)에게 묻는다(`AI_ADVISOR_MAX_USES`, 기본 2회).
+  advisor 는 실행 모델의 맥락을 그대로 받으므로 읽은 자료가 많을수록 한 번 부르는 값이 Opus 가격으로 커진다 — 그래서
+  횟수를 막고 프롬프트로 "판단이 갈리는 순간에만" 부르게 한다. Opus 5 의 조언은 암호화 블록으로 와서 우리가 읽을 수 없고
+  그대로 되돌려 보내기만 한다. 베타 헤더(`advisor-tool-2026-03-01`)가 필요해 인테이크만 `client.beta.messages` 로 간다.
+  로그에 `advisor 호출 N회` 가 남는다. `AI_ADVISOR_EXPERIENCE_INTAKE=0` 으로 끈다.
 - **프롬프트 캐시** — 시스템 프롬프트와 역량 사전(51개 · 약 5,700 토큰)은 호출마다 같아서 `system` 블록에 두고 마지막
   블록에 `cache_control` 을 단다. 공고 원문·경험처럼 매번 다른 것만 `messages` 로 간다. 사전은 id 순으로 고정한다 —
   캐시는 바이트 단위 접두사 일치라 순서가 흔들리면 매번 새로 쓴다. TTL 은 `AI_CACHE_TTL`(기본 `1h`).

@@ -42,10 +42,15 @@ class FakeMessages:
         return item
 
 
-def provider(*responses):
+def fake_client(fake):
+    """일반·베타 엔드포인트가 같은 FakeMessages 를 본다 — 어느 쪽으로 갔는지는 fake.calls 의 betas 로 안다."""
+    return SimpleNamespace(messages=fake, beta=SimpleNamespace(messages=fake), close=_noop)
+
+
+def provider(*responses, **overrides):
     fake = FakeMessages(*responses)
-    client = SimpleNamespace(messages=fake, close=_noop)
-    return ClaudeAiProvider(replace(Settings(), anthropic_api_key="k", model="claude-opus-5"), client=client), fake
+    settings = replace(Settings(), anthropic_api_key="k", model="claude-opus-5", **overrides)
+    return ClaudeAiProvider(settings, client=fake_client(fake)), fake
 
 
 async def _noop():
@@ -59,7 +64,7 @@ def run(coro):
 def test_versions_come_from_prompt_constants():
     p, _ = provider()
     v = p.versions()
-    assert (v.posting_analysis, v.experience_intake, v.match, v.draft) == ("v2", "v1", "v1", "v2")
+    assert (v.posting_analysis, v.experience_intake, v.match, v.draft) == ("v2", "v2", "v1", "v2")
 
 
 def test_posting_analysis_drops_unknown_duplicate_and_blank_evidence():
@@ -111,10 +116,18 @@ def test_intake_resumes_pause_turn_and_normalizes_candidates():
     response = run(p.experience_intake(request))
 
     assert len(fake.calls) == 2
-    assert fake.calls[0]["tools"][0]["type"] == "web_fetch_20260209"
-    # pause_turn 뒤에는 첫 사용자 메시지 + 멈춘 응답을 그대로 붙여 이어 간다
+    tools = fake.calls[0]["tools"]
+    assert tools[0]["type"] == "web_fetch_20260209"
+    # advisor 는 기본으로 켜져 있다 — Opus 5, 베타 헤더, 베타 엔드포인트
+    assert tools[1] == {
+        "type": "advisor_20260301", "name": "advisor", "model": "claude-opus-5", "max_uses": 2, "max_tokens": 4096,
+        "caching": {"type": "ephemeral", "ttl": "1h"},
+    }
+    assert fake.calls[0]["betas"] == ["advisor-tool-2026-03-01"]
+    # pause_turn 뒤에는 첫 사용자 메시지 + 멈춘 응답(암호화된 advisor 결과 포함)을 그대로 붙여 이어 간다. 도구 목록도 그대로.
     assert [m["role"] for m in fake.calls[1]["messages"]] == ["user", "assistant"]
     assert fake.calls[1]["messages"][1]["content"] is paused.content
+    assert fake.calls[1]["tools"] == tools
 
     first, second = response.candidates
     assert first.key == "repo-one" and second.key == "repo-one-2"
@@ -125,7 +138,33 @@ def test_intake_resumes_pause_turn_and_normalizes_candidates():
     assert first.situation == "상황"
     assert second.start_date is None                      # 못 읽는 날짜는 null
     assert second.duplicate_of_experience_id is None
-    assert response.prompt_version == "experience_intake/v1"
+    assert response.prompt_version == "experience_intake/v2"
+
+
+def test_intake_without_advisor_uses_plain_endpoint_and_no_beta():
+    p, fake = provider(message({"candidates": [], "unreadable": []}), advisor_experience_intake=False)
+    run(p.experience_intake(IntakeRequest.model_validate({
+        "links": ["https://github.com/me/repo"], "fileUrls": [], "existingExperiences": [], "competencies": DICTIONARY,
+    })))
+    call = fake.calls[0]
+    assert [t["name"] for t in call["tools"]] == ["web_fetch"]
+    assert "betas" not in call
+
+
+def test_advisor_max_tokens_never_below_api_minimum():
+    p, fake = provider(message({"candidates": [], "unreadable": []}), advisor_max_tokens=100, advisor_model="claude-opus-5")
+    run(p.experience_intake(IntakeRequest.model_validate({
+        "links": ["https://github.com/me/repo"], "fileUrls": [], "existingExperiences": [], "competencies": DICTIONARY,
+    })))
+    assert fake.calls[0]["tools"][1]["max_tokens"] == 1024      # 1024 미만이면 API 가 400 을 준다
+
+
+def test_other_features_do_not_get_the_advisor():
+    p, fake = provider(message({"required": []}), message({"draft": "x"}))
+    run(p.posting_analysis(PostingAnalysisRequest.model_validate({"postingId": 1, "content": "x", "competencies": DICTIONARY})))
+    run(p.draft(draft_request(None)))
+    for call in fake.calls:
+        assert "tools" not in call and "betas" not in call
 
 
 def draft_request(limit):
@@ -235,7 +274,7 @@ def test_each_feature_sends_its_own_model_and_effort():
         message({"candidates": [], "unreadable": []}, model="m-intake"),
         message({"draft": "초안"}, model="m-draft"),
     )
-    p = ClaudeAiProvider(settings, client=SimpleNamespace(messages=fake, close=_noop))
+    p = ClaudeAiProvider(settings, client=fake_client(fake))
 
     analysis = run(p.posting_analysis(PostingAnalysisRequest.model_validate({
         "postingId": 1, "content": "x", "competencies": DICTIONARY,
