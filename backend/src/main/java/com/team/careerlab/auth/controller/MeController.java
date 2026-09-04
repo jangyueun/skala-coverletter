@@ -6,6 +6,8 @@ import jakarta.servlet.http.HttpServletRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * 로그인 상태 확인.
@@ -15,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
  * 화면(랜딩)에서 콘솔에 빨간 401 이 찍히는 것을 피한다.
  */
 @RestController
+@Tag(name = "인증", description = "로그인 상태를 확인하고 Slack 로그인을 처리합니다.")
 public class MeController {
 
     private final CurrentUser currentUser;
@@ -24,6 +27,7 @@ public class MeController {
     }
 
     @GetMapping("/api/auth/me")
+    @Operation(summary = "로그인 상태 조회", description = "로그인되어 있으면 사용자 정보를, 로그아웃 상태면 null을 반환합니다.")
     public ResponseEntity<UserResponse> me(HttpServletRequest request) {
         return ResponseEntity.ok(currentUser.find(request).map(UserResponse::from).orElse(null));
     }

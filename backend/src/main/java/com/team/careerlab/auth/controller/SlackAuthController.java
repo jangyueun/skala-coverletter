@@ -25,6 +25,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 /**
  * Slack 로그인 엔드포인트.
@@ -41,6 +43,7 @@ import org.springframework.web.bind.annotation.RestController;
  */
 @RestController
 @RequestMapping("/api/auth")
+@Tag(name = "인증", description = "Slack OAuth 로그인과 로그아웃을 처리합니다.")
 public class SlackAuthController {
 
     private static final String STATE_COOKIE = "cf_oauth_state";
@@ -61,6 +64,7 @@ public class SlackAuthController {
 
     /** 프론트의 "Slack 으로 로그인" 버튼이 이 주소로 보낸다. */
     @GetMapping("/slack/start")
+    @Operation(summary = "Slack 로그인 시작", description = "Slack 동의 화면으로 리다이렉트합니다.")
     public ResponseEntity<Void> start(
             @RequestParam(value = "returnTo", required = false) String returnTo,
             HttpServletResponse response) {
@@ -79,6 +83,7 @@ public class SlackAuthController {
 
     /** Slack 이 사용자를 여기로 돌려보낸다. Slack App 설정의 Redirect URL 과 같아야 한다. */
     @GetMapping("/slack/callback")
+    @Operation(summary = "Slack 로그인 콜백", description = "Slack 인증 코드를 검증하고 로그인 세션을 생성합니다.")
     public ResponseEntity<Void> callback(
             @RequestParam(value = "code", required = false) String code,
             @RequestParam(value = "state", required = false) String state,
@@ -111,6 +116,7 @@ public class SlackAuthController {
 
     /** 쿠키만 지우지 않는다. 서버 세션을 폐기해야 이미 세션 ID 를 가진 쪽도 끊긴다. */
     @PostMapping("/logout")
+    @Operation(summary = "로그아웃", description = "현재 로그인 세션을 폐기합니다.")
     public ResponseEntity<Void> logout(HttpServletRequest request) {
         Optional.ofNullable(request.getSession(false)).ifPresent(HttpSession::invalidate);
         return ResponseEntity.noContent().build();
