@@ -1,6 +1,6 @@
 <script setup>
 import { ref, computed, watch } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { usePostingsStore } from '@/stores/postings.js'
 import { useAnswersStore } from '@/stores/answers.js'
 import { useDerivedStore } from '@/stores/derived.js'
@@ -19,6 +19,7 @@ const A = useAnswersStore()
 const D = useDerivedStore()
 const auth = useAuthStore()
 const router = useRouter()
+const route = useRoute()
 
 /* 문항은 공고 단위로 받는다(GET /api/postings/{id}/questions). 공고를 옮기면 그 공고 것을 받는다.
    로그인해야 주는 API 라 로그인이 확인된 뒤에 부른다 — 로그아웃 상태에서 401 을 오류로 그리지 않게. */
@@ -27,8 +28,11 @@ watch([() => props.id, () => auth.signedIn], ([id, signedIn]) => {
 }, { immediate: true })
 
 /* 탭은 라우트가 아니라 컴포넌트 상태다.
-   탭을 옮긴 뒤 뒤로 가기를 누르면 목록으로 돌아가야지 이전 탭으로 가면 안 된다. */
-const tab = ref('content')
+   탭을 옮긴 뒤 뒤로 가기를 누르면 목록으로 돌아가야지 이전 탭으로 가면 안 된다.
+   단, AI 작업 "결과 보기" 로 들어오면 ?tab=essay 를 달고 오므로 그때만 처음 탭을 그걸로 연다. */
+const tab = ref(['content', 'match', 'essay'].includes(route.query.tab) ? route.query.tab : 'content')
+/* 이미 이 공고 화면에 있는데 "결과 보기" 로 ?tab= 만 바뀌어 들어오면 setup 이 다시 안 도므로 여기서 탭을 맞춘다. */
+watch(() => route.query.tab, t => { if (['content', 'match', 'essay'].includes(t)) tab.value = t })
 const TABS = [
   { k: 'content', label: '공고 내용' },
   { k: 'match',   label: '매칭 상세 분석' },

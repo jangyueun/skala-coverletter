@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { usePostingsStore } from '@/stores/postings.js'
+import { useAiTasksStore } from '@/stores/aiTasks.js'
 import { groupByCategory } from '@/domain/competency.js'
 import Skeleton from '@/components/state/Skeleton.vue'
 import ErrorNote from '@/components/state/ErrorNote.vue'
@@ -13,8 +14,13 @@ import { useAuthStore } from '@/stores/auth.js'
 const E = useExperiencesStore()
 const P = usePostingsStore()
 const auth = useAuthStore()
+const aiTasks = useAiTasksStore()
 const filter = ref(null)          // 선택된 competencyId
 const dlg = ref(null)
+
+/* 인테이크 "결과 보기" 를 누르면 스토어의 신호가 오른다 — 다이얼로그를 포폴 탭에서 다시 연다.
+   다이얼로그가 뜨면 IntakePanel 이 스토어의 후보를 그대로 보여 준다(로컬 편집분도 살아 있다). */
+watch(() => aiTasks.intakeReopenSeq, () => dlg.value?.open(null, 'intake'))
 
 const tagged = computed(() => E.taggedCompetencyIds)
 

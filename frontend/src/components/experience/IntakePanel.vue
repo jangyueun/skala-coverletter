@@ -1,7 +1,8 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { usePostingsStore } from '@/stores/postings.js'
+import { useAiTasksStore } from '@/stores/aiTasks.js'
 import { api } from '@/api/index.js'
 import { computeMatch, SCORE } from '@/domain/matching.js'
 import { EXPERIENCE_CATEGORIES, categoryLabel, toMonth, fromMonth, periodValid } from '@/domain/experience.js'
@@ -11,6 +12,7 @@ import CompetencyPicker from './CompetencyPicker.vue'
 const emit = defineEmits(['done'])
 const E = useExperiencesStore()
 const P = usePostingsStore()
+const aiTasks = useAiTasksStore()
 
 const FIELDS = [
   { k: 'situation', l: 'S', d: '어떤 상황이었나', rows: 2 },
@@ -30,7 +32,20 @@ const committing = ref(false)
 const LINK_PLACEHOLDER = `https://github.com/내계정/프로젝트
 https://내도메인.dev/portfolio`
 
-const state = ref('idle')      // idle | running | done
+/* 분석 자체(요청·폴링·결과)는 전역 AI 작업 스토어가 안는다(stores/aiTasks.js) — 다이얼로그를 닫아도 계속 돌고, 우측 하단
+   플로팅으로 진행이 보이며, 완료 뒤 "결과 보기" 로 여기로 돌아온다. 이 패널은 그 결과 위에서 고르고 편집하는 화면이다.
+   그래서 running·candidates·unreadable·taskId·오류는 스토어의 인테이크 작업에서 읽고, 단계·선택·초안만 로컬로 둔다. */
+const job = computed(() => aiTasks.latestIntake)
+const state = computed(() => {
+  const j = job.value
+  if (!j || j.status === 'error') return 'idle'
+  return j.status === 'running' ? 'running' : 'done'
+})
+const cands = computed(() => job.value?.result?.candidates || [])
+const unreadable = computed(() => job.value?.result?.unreadable || [])
+const runError = computed(() => job.value?.error || fileError.value || null)
+const fileError = ref(null)    // 첨부 검증 실패 — 서버까지 안 간 것
+
 const step = ref(1)
 const chosen = ref(new Set())
 const drafts = reactive({})    // { key: {title, startMonth, endMonth, category, S,T,A,R, comp} }
@@ -75,10 +90,7 @@ const fileProblem = computed(() => {
 
 const linkCount = computed(() => links.value.split('\n').filter(s => s.trim()).length)
 
-const taskId = ref(null)       // 이 후보들을 만든 AI 작업 — 등록할 때 intakeTaskId 로 보낸다
-const cands = ref([])          // 분석이 돌아야 채워진다
-const unreadable = ref([])     // 읽지 못한 자료 — 조용히 빠뜨리지 않는다 (명세 밖, 오면 그린다)
-const runError = ref(null)
+const taskId = computed(() => job.value?.result?.taskId ?? null)   // 이 후보들을 만든 AI 작업 — 등록할 때 intakeTaskId 로 보낸다
 const candOf = k => cands.value.find(c => c.key === k)
 
 const aiOf = (c, f) => (c[f] || '').trim()
@@ -125,32 +137,34 @@ function missingOf(k) {
 }
 const isReady = k => missingOf(k).length === 0
 
-async function analyze() {
+function analyze() {
   // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
   if (!linkCount.value && !files.value.length) return
-  if (fileProblem.value) { runError.value = new Error(fileProblem.value); return }
+  if (fileProblem.value) { fileError.value = new Error(fileProblem.value); return }
+  fileError.value = null
 
-  state.value = 'running'; runError.value = null
-  try {
-    const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
-    /* 202 + taskId 를 받고 완료까지 폴링하는 건 api 층 몫이다 — 여기는 결과만 받는다. */
-    const r = await api.ai.intake(urls, files.value)
-    taskId.value = r.taskId ?? null
-    cands.value = r.candidates || []
-    unreadable.value = r.unreadable || []
-  } catch (e) {
-    runError.value = e
-    state.value = 'idle'
-    return
-  }
+  const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
+  const captured = files.value.slice()
 
-  state.value = 'done'
+  // 새 분석 — 옛 결과와 옛 초안을 비운다. 결과 자체는 스토어가 폴링해 채운다(다이얼로그를 닫아도 계속 돈다).
+  aiTasks.clearIntake()
   step.value = 1
   chosen.value = new Set()
-  Object.keys(drafts).forEach(k => delete drafts[k])   // 재분석 시 옛 초안이 되살아나지 않게
+  Object.keys(drafts).forEach(k => delete drafts[k])
   active.value = null
-  linksOpen.value = false
+  armed.value = null
+
+  aiTasks.start({
+    kind: 'intake',
+    title: '포폴 인테이크 분석',
+    subtitle: `링크 ${urls.length}${captured.length ? ` · 파일 ${captured.length}개` : ''}`,
+    view: { type: 'intake' },
+    run: () => api.ai.intake(urls, captured),
+  })
 }
+
+/* 분석이 끝나면 자료 입력 칸을 접는다("링크 N개 분석했습니다"). 스토어의 작업 상태가 done 으로 바뀌는 순간이다. */
+watch(state, v => { if (v === 'done') linksOpen.value = false })
 
 function toggle(k) {
   const next = new Set(chosen.value)
@@ -253,16 +267,14 @@ async function commit() {
    한 번 더 누르면 같은 경험이 새 id 로 또 들어간다.
    경험 삭제 경로가 없어 그렇게 생긴 중복은 세션 안에서 지울 수도 없다. */
 function reset() {
-  state.value = 'idle'
   step.value = 1
   chosen.value = new Set()
   Object.keys(drafts).forEach(k => delete drafts[k])
   active.value = null
   linksOpen.value = true
   armed.value = null
-  taskId.value = null
-  cands.value = []
-  unreadable.value = []
+  fileError.value = null
+  aiTasks.clearIntake()   // 분석 결과(스토어)도 비운다 — 플로팅에서도 사라진다
 }
 
 /* 초안이 한 글자라도 바뀌면 2단 확인 무장이 풀린다 */
