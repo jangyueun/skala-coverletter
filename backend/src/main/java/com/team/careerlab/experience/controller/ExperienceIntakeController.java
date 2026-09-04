@@ -14,9 +14,12 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
 
 @RestController
 @RequestMapping("/api/experience-intakes")
+@Tag(name = "경험 AI 인테이크", description = "GitHub 링크와 파일에서 자기소개서용 경험 후보를 추출합니다.")
 public class ExperienceIntakeController {
 
     private final CurrentUser currentUser;
@@ -28,6 +31,7 @@ public class ExperienceIntakeController {
     }
 
     @PostMapping(consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @Operation(summary = "경험 후보 추출 요청", description = "입력한 GitHub 링크 또는 PDF·MD·TXT 파일을 AI가 분석합니다. 즉시 결과가 오지 않고 taskId를 반환하므로 AI 작업 조회 API를 폴링해야 합니다.")
     public ResponseEntity<AiTaskCreatedResponse> intake(
             @RequestParam(value = "links", required = false) String links,
             @RequestParam(value = "files", required = false) List<MultipartFile> files,
