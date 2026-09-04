@@ -1,13 +1,12 @@
 import { fileURLToPath, URL } from 'node:url'
 import { defineConfig } from 'vite'
 import vue from '@vitejs/plugin-vue'
-import aiDevServer from './vite-plugins/aiDevServer.js'
 
 export default defineConfig({
-  // aiDevServer 는 apply:'serve' 라 빌드 산출물에 들어가지 않는다.
-  // 백엔드가 AI 엔드포인트를 서빙하기 시작하면 이 줄만 지우면 된다 —
-  // 아래 프록시가 /api 를 통째로 :8080 으로 넘기므로 프런트 코드는 안 고친다.
-  plugins: [vue(), aiDevServer()],
+  // AI(인테이크·초안)도 이제 Spring 이 서빙한다 — 아래 프록시가 /api 를 통째로 :8080 으로 넘긴다.
+  // 예전엔 dev 전용 vite 플러그인(aiDevServer)이 그 경로를 대신했는데, Spring 에 폴링 API 와 워커가 생기면서 지웠다.
+  // 그래서 real 모드(VITE_API_MOCK=0)로 AI 를 쓰려면 Spring 과 AI 서버(ai/, :8000)가 같이 떠 있어야 한다.
+  plugins: [vue()],
 
   resolve: {
     alias: { '@': fileURLToPath(new URL('./src', import.meta.url)) },

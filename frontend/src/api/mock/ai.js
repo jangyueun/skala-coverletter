@@ -1,24 +1,21 @@
 import { DATA } from './data.js'
 import { delay } from './_delay.js'
 
-/* 목 AI. 추출은 첫 공고의 required 를 돌려주고, 초안은 문항에 박힌 aiDraft 를 준다.
- * 실제 모델은 dev 에서 vite 플러그인이, 배포에서 Spring 이 서빙한다 (api/real/ai.js). */
+/* 목 AI. 실제(api/real/ai.js)는 202 + taskId 를 받고 GET /api/ai-tasks/{id} 를 폴링해 결과를 돌려주는데,
+   화면은 그 차이를 모른다 — 둘 다 결과가 담긴 Promise 하나다. 목은 taskId 를 지어낸다.
+   공고 분석은 v6 에서 내부 API(/internal/postings/{id}/analysis)라 프론트에 없다. */
+let nextTask = 900
 
-export async function extract() {
-  await delay('ai')
-  const p = DATA.postings[0]
-  return { required: p.required, newCompetencies: [], role: p.role }
-}
-
+/** 초안 — 문항에 미리 박아 둔 글을 준다. 근거 경험은 실제 서버가 쓰고 목은 무시한다. */
 export async function draft(questionId) {
   await delay('ai')
-  const q = DATA.questions.find(q => q.id === questionId)
-  if (!q?.aiDraft) throw new Error('이 문항은 아직 AI 초안이 없습니다')
-  return { draft: q.aiDraft }
+  const text = DATA.aiDrafts[questionId]
+  if (!text) throw new Error('이 문항은 아직 AI 초안이 없습니다')
+  return { taskId: nextTask++, draft: text, charCount: text.length }
 }
 
-/** 목 인테이크 — 링크를 읽는 척하고 고정 후보를 돌려준다. */
+/** 인테이크 — 링크·파일을 읽는 척하고 고정 후보를 돌려준다. */
 export async function intake() {
   await delay('ai')
-  return { candidates: DATA.intakeCandidates, unreadable: [] }
+  return { taskId: nextTask++, candidates: DATA.intakeCandidates }
 }

@@ -30,7 +30,7 @@ const text = () => {
 .en {
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
   padding: 16px 18px; border: 1px solid var(--gap); border-radius: var(--r);
-  background: var(--panel-raised);
+  background: var(--gap-soft);
 }
 .t { margin: 0; font-size: var(--fs-sm); font-weight: 700; color: var(--gap); }
 .m { margin: 0 0 6px; font-size: var(--fs-xs); color: var(--muted); font-family: var(--mono); }

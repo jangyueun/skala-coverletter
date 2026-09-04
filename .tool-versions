@@ -1,0 +1,4 @@
+# 팀 표준 버전 — docs/dev-environment.md. asdf · mise 가 읽는다. 기준은 각 Dockerfile 의 이미지 태그다.
+java temurin-21
+nodejs 24
+python 3.13

@@ -1,7 +1,8 @@
 <script setup>
-import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { usePostingsStore } from '@/stores/postings.js'
+import { useAiTasksStore } from '@/stores/aiTasks.js'
 import { groupByCategory } from '@/domain/competency.js'
 import Skeleton from '@/components/state/Skeleton.vue'
 import ErrorNote from '@/components/state/ErrorNote.vue'
@@ -13,8 +14,13 @@ import { useAuthStore } from '@/stores/auth.js'
 const E = useExperiencesStore()
 const P = usePostingsStore()
 const auth = useAuthStore()
+const aiTasks = useAiTasksStore()
 const filter = ref(null)          // 선택된 competencyId
 const dlg = ref(null)
+
+/* 인테이크 "결과 보기" 를 누르면 스토어의 신호가 오른다 — 다이얼로그를 포폴 탭에서 다시 연다.
+   다이얼로그가 뜨면 IntakePanel 이 스토어의 후보를 그대로 보여 준다(로컬 편집분도 살아 있다). */
+watch(() => aiTasks.intakeReopenSeq, () => dlg.value?.open(null, 'intake'))
 
 const tagged = computed(() => E.taggedCompetencyIds)
 
@@ -24,10 +30,10 @@ const chips = computed(() =>
   groupByCategory(
     P.competencies
       .filter(c => tagged.value.has(c.id))
-      .map(c => ({ ...c, n: E.list.filter(e => e.competencyIds.includes(c.id)).length }))))
+      .map(c => ({ ...c, n: E.list.filter(e => E.has(e, c.id)).length }))))
 
 const shown = computed(() =>
-  filter.value ? E.list.filter(e => e.competencyIds.includes(filter.value)) : E.list)
+  filter.value ? E.list.filter(e => E.has(e, filter.value)) : E.list)
 
 const filterName = computed(() =>
   filter.value ? P.competencies.find(c => c.id === filter.value)?.name : null)
@@ -90,9 +96,11 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
   </header>
 
   <Skeleton v-if="!auth.loaded || !E.loaded || !P.loaded" :rows="6" />
-  <ErrorNote v-else-if="E.error" :error="E.error" what="경험 불러오기" @retry="E.load()" />
+  <!-- 로그인 안내가 오류보다 먼저다. 실제 서버는 로그아웃 상태에 401 을 주는데,
+       그걸 "경험 불러오기에 실패했습니다" 로 그리면 고장으로 읽힌다. -->
   <SignInGate v-else-if="!auth.signedIn"
               desc="등록한 경험은 계정에 저장됩니다. 로그인하면 쌓아 둔 경험을 이어서 쓸 수 있습니다." />
+  <ErrorNote v-else-if="E.error" :error="E.error" what="경험 불러오기" @retry="E.load()" />
 
   <template v-else>
 
@@ -226,10 +234,11 @@ onBeforeUnmount(() => { document.removeEventListener('click', onDocClick); docum
 /* 필터 칩 — 눌린 채로 두는 것이 "지금 이걸로 좁혔다" 표시다 */
 .chip { cursor: pointer; font: inherit; font-size: var(--fs-2xs); font-weight: 600; }
 .chip:hover { border-color: var(--line-strong); color: var(--ink); }
+/* 고른 칩은 옅은 주황 위에 진한 주황 글자. 꽉 채운 주황은 D-day 의 몫이다. */
 .chip[aria-pressed='true'] {
-  background: var(--accent); border-color: var(--accent); color: var(--accent-ink);
+  background: var(--accent-soft); border-color: var(--accent); color: var(--accent-deep);
 }
-.chip[aria-pressed='true'] .n { color: var(--accent-ink); opacity: .7; }
+.chip[aria-pressed='true'] .n { color: var(--accent-deep); opacity: .75; }
 .n { margin-left: 6px; color: var(--muted); font-weight: 700; }
 
 .grid { display: grid; gap: 12px; margin: 18px 0 0; grid-template-columns: repeat(auto-fill, minmax(370px, 1fr)); }

@@ -1,0 +1,39 @@
+# Supabase 없이 띄우는 오버레이. Postgres 17 컨테이너를 붙이고 api 가 그걸 보게 한다.
+# Flyway 가 V1~V6 마이그레이션과 시드(IT 공고 10건 · 역량 사전)를 빈 DB 에 그대로 올린다.
+#
+#   docker compose -f compose.yaml -f compose.localdb.yaml up --build
+#   docker compose -f compose.yaml -f compose.localdb.yaml down -v     # DB 까지 지우고 처음부터
+#
+# Slack 로그인은 .env 의 SLACK_CLIENT_ID/SECRET 이 있어야 된다. 없으면 로그인만 안 되고 나머지는 뜬다.
+
+services:
+  db:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    ports:
+      # 호스트의 psql · DBeaver 용 — localhost:15432. 5432 는 로컬에 Postgres 를 깔아 둔 컴에서 이미 쓰고 있어 피한다.
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
+
+  api:
+    environment:
+      SUPABASE_DB_URL: jdbc:postgresql://db:5432/postgres
+      SUPABASE_DB_USERNAME: postgres
+      SUPABASE_DB_PASSWORD: postgres
+      # http://localhost 라 Secure 쿠키는 저장되지 않는다(docs/slack-oauth.md 6절).
+      SESSION_COOKIE_SECURE: "false"
+    depends_on:
+      db:
+        condition: service_healthy
+
+volumes:
+  pgdata:

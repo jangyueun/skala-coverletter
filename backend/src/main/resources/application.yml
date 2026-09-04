@@ -3,7 +3,7 @@
 
 spring:
   application:
-    name: careerfit
+    name: career-lab
   datasource:
     url: ${SUPABASE_DB_URL}
     username: ${SUPABASE_DB_USERNAME}
@@ -18,6 +18,12 @@ spring:
       # 공용 DB 스키마는 Flyway만 변경하고 Hibernate는 엔티티와의 일치만 검증한다.
       ddl-auto: validate
     open-in-view: false
+  servlet:
+    multipart:
+      # 실제 "10MB 초과" 판정(FILE_TOO_LARGE)은 서비스가 파일당 기준으로 한다. 여기는 그보다
+      # 넉넉하게 잡아 Spring이 먼저 잘라내지 않게만 한다(최대 5개 × 10MB + 여유분).
+      max-file-size: 15MB
+      max-request-size: 80MB
 
   # 로그인 세션 쿠키. HttpOnly 는 JS 가 못 읽게 하는 것이고,
   # SameSite=Lax 여야 Slack 콜백(외부 도메인 → 우리 서버)에 쿠키가 실린다.
@@ -31,7 +37,25 @@ server:
         secure: ${SESSION_COOKIE_SECURE:true}
       timeout: 14d
 
-careerfit:
+careerlab:
+  ai:
+    # 로컬은 ai/ 폴더의 FastAPI 서버(uvicorn app.main:app --port 8000). 배포 주소는 환경변수로.
+    base-url: ${AI_SERVER_BASE_URL:http://localhost:8000}
+    # Python 쪽 AI_INTERNAL_TOKEN과 같은 값. 비어 있으면 로컬 개발용 — Authorization 헤더를 안 붙인다.
+    internal-token: ${AI_INTERNAL_TOKEN:}
+    # 한 호출을 기다리는 상한. 인테이크는 AI 서버가 자료를 여러 번 읽어 몇 분이 걸릴 수 있다 — Python 의
+    # AI_REQUEST_TIMEOUT_SECONDS(기본 300초)보다 길게.
+    read-timeout: ${AI_READ_TIMEOUT:330s}
+  storage:
+    # DB 접속용 SUPABASE_DB_URL(풀러 JDBC 주소)과는 다르다 — 프로젝트 REST URL이다. 예: https://xxxx.supabase.co
+    url: ${SUPABASE_URL:}
+    # anon 키가 아니다. RLS를 우회해 서버가 대신 올려야 해서 서비스 롤 키가 필요하다.
+    service-role-key: ${SUPABASE_SERVICE_ROLE_KEY:}
+    bucket: ${SUPABASE_STORAGE_BUCKET:intake}
+  internal:
+    # 공고 수집기 등 신뢰할 수 있는 서버만 /internal/* 호출에 사용한다.
+    # 실제 토큰은 .env 또는 배포 환경변수에만 둔다.
+    token: ${INTERNAL_API_TOKEN:}
   auth:
     # 실제 값은 절대 여기 쓰지 않는다. .env 또는 배포 환경변수로 준다.
     client-id: ${SLACK_CLIENT_ID:}
@@ -45,10 +69,11 @@ careerfit:
     session-ttl: 14d
 
 ---
-# test 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
+# test · docker 외의 실행은 backend/ 기준 ../.env가 반드시 필요하다.
 # 파일이 없으면 Spring이 즉시 경로와 원인을 표시하고 종료한다.
+# docker 프로필(backend/Dockerfile 이 켠다)은 파일이 아니라 compose 의 env_file 로 같은 값을 환경변수로 받는다.
 spring:
   config:
     activate:
-      on-profile: "!test"
+      on-profile: "!test & !docker"
     import: file:../.env[.properties]

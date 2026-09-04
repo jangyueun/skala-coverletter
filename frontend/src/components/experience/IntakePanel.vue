@@ -1,15 +1,18 @@
 <script setup>
-import { ref, reactive, computed } from 'vue'
+import { ref, reactive, computed, watch } from 'vue'
 import { useExperiencesStore } from '@/stores/experiences.js'
 import { usePostingsStore } from '@/stores/postings.js'
+import { useAiTasksStore } from '@/stores/aiTasks.js'
 import { api } from '@/api/index.js'
 import { computeMatch, SCORE } from '@/domain/matching.js'
+import { EXPERIENCE_CATEGORIES, categoryLabel, toMonth, fromMonth, periodValid } from '@/domain/experience.js'
 import IntakeField from './IntakeField.vue'
 import CompetencyPicker from './CompetencyPicker.vue'
 
 const emit = defineEmits(['done'])
 const E = useExperiencesStore()
 const P = usePostingsStore()
+const aiTasks = useAiTasksStore()
 
 const FIELDS = [
   { k: 'situation', l: 'S', d: '어떤 상황이었나', rows: 2 },
@@ -24,13 +27,28 @@ const MINE_FALLBACK = ['task', 'result']
    **남의 저장소를 실제로 web_fetch 한다** — 모르는 사람 코드로 후보가 만들어지고
    토큰과 fetch 횟수도 그리로 나간다. 예시는 placeholder 로 보여준다. */
 const links = ref('')
+/* 등록 요청이 나가 있는 동안 true. 스토어의 saving 은 건별이라 여러 건을 동시에 보낼 때 먼저 끝난 건이 false 로 되돌린다. */
+const committing = ref(false)
 const LINK_PLACEHOLDER = `https://github.com/내계정/프로젝트
 https://내도메인.dev/portfolio`
 
-const state = ref('idle')      // idle | running | done
+/* 분석 자체(요청·폴링·결과)는 전역 AI 작업 스토어가 안는다(stores/aiTasks.js) — 다이얼로그를 닫아도 계속 돌고, 우측 하단
+   플로팅으로 진행이 보이며, 완료 뒤 "결과 보기" 로 여기로 돌아온다. 이 패널은 그 결과 위에서 고르고 편집하는 화면이다.
+   그래서 running·candidates·unreadable·taskId·오류는 스토어의 인테이크 작업에서 읽고, 단계·선택·초안만 로컬로 둔다. */
+const job = computed(() => aiTasks.latestIntake)
+const state = computed(() => {
+  const j = job.value
+  if (!j || j.status === 'error') return 'idle'
+  return j.status === 'running' ? 'running' : 'done'
+})
+const cands = computed(() => job.value?.result?.candidates || [])
+const unreadable = computed(() => job.value?.result?.unreadable || [])
+const runError = computed(() => job.value?.error || fileError.value || null)
+const fileError = ref(null)    // 첨부 검증 실패 — 서버까지 안 간 것
+
 const step = ref(1)
 const chosen = ref(new Set())
-const drafts = reactive({})    // { key: {title, period, category, S,T,A,R, comp} }
+const drafts = reactive({})    // { key: {title, startMonth, endMonth, category, S,T,A,R, comp} }
 const active = ref(null)
 const armed = ref(null)        // 2단 확인 무장 건수
 const linksOpen = ref(true)
@@ -38,8 +56,9 @@ const linksOpen = ref(true)
 /* 자료는 두 가지다 — 주소로 가리키는 것(저장소·포트폴리오)과 파일로 주는 것(발표자료·이력서).
    한 칸에 섞어 두면 "PDF 는 어디에 넣지" 를 매번 묻게 된다.
 
-   지금은 파일을 업로드하지 않는다. 이름과 크기만 들고 있다가 분석 요청에 함께 싣는다 —
-   백엔드가 생기면 여기가 multipart 로 바뀌고 화면은 안 바뀐다. */
+   파일은 multipart 로 서버에 올린다(v6). 서버가 Storage 에 두고 AI 에는 URL 만 넘기므로
+   여기서 base64 를 만들 일이 없다. 한도는 서버와 같다 — 파일당 10MB, 최대 5개.
+   넘으면 서버가 413 을 주지만, 올리기 전에 여기서 먼저 말해 준다. */
 const files = ref([])
 const fileEl = ref(null)
 const dragging = ref(false)
@@ -48,22 +67,8 @@ const dragging = ref(false)
    docx·pptx 는 아직 못 읽으므로 받지 않는다 — 받아 놓고 안 읽으면 그게 더 나쁘다. */
 const ACCEPT = '.pdf,.md,.txt'
 const okName = n => /\.(pdf|md|txt)$/i.test(n)
-const mediaOf = n => /\.pdf$/i.test(n) ? 'application/pdf' : 'text/plain'
-
-/* 업로드 스토리지가 없어 요청 본문에 base64 로 싣는다.
-   base64 는 원본의 4/3 이라 서버의 본문 상한(24MB)을 원본 기준으로 환산해야 한다 —
-   20MB 로 두면 17.2~20MB 구간이 여기를 통과하고 서버에서 죽는다.
-   "넘으면 서버가 아니라 여기서 말해 준다" 가 뒤집히는 자리였다. */
-const SERVER_BODY_LIMIT = 24_000_000
-const MAX_BYTES = Math.floor(SERVER_BODY_LIMIT * 3 / 4) - 512 * 1024   // 여유 0.5MB
-const fileBytes = computed(() => files.value.reduce((a, f) => a + f.size, 0))
-
-const readB64 = f => new Promise((ok, no) => {
-  const r = new FileReader()
-  r.onload = () => ok(String(r.result).split(',')[1])
-  r.onerror = () => no(new Error(`${f.name} 을 읽지 못했습니다`))
-  r.readAsDataURL(f)
-})
+const MAX_FILE = 10 * 1024 * 1024
+const MAX_FILES = 5
 
 function addFiles(list) {
   const add = [...list].filter(f => okName(f.name) && !files.value.some(x => x.name === f.name))
@@ -74,16 +79,24 @@ const dropFiles = e => addFiles(e.dataTransfer.files)
 const pickFiles = e => { addFiles(e.target.files); e.target.value = '' }
 const removeFile = name => { files.value = files.value.filter(f => f.name !== name) }
 const kb = n => (n < 1024 ? `${n}B` : n < 1024 * 1024 ? `${Math.round(n / 1024)}KB` : `${(n / 1048576).toFixed(1)}MB`)
+const fileBytes = computed(() => files.value.reduce((a, f) => a + f.size, 0))
+
+/** 서버가 거절할 첨부를 먼저 잡는다. 메시지는 서버의 400·413 과 같은 말이다. */
+const fileProblem = computed(() => {
+  if (files.value.length > MAX_FILES) return `첨부는 최대 ${MAX_FILES}개입니다 (${files.value.length}개).`
+  const big = files.value.find(f => f.size > MAX_FILE)
+  return big ? `${big.name} 이 ${kb(big.size)} 입니다 — 파일당 ${kb(MAX_FILE)} 까지입니다.` : null
+})
 
 const linkCount = computed(() => links.value.split('\n').filter(s => s.trim()).length)
 
-const cands = ref([])          // 분석이 돌아야 채워진다
-const unreadable = ref([])     // 읽지 못한 자료 — 조용히 빠뜨리지 않는다
-const runError = ref(null)
+const taskId = computed(() => job.value?.result?.taskId ?? null)   // 이 후보들을 만든 AI 작업 — 등록할 때 intakeTaskId 로 보낸다
 const candOf = k => cands.value.find(c => c.key === k)
 
 const aiOf = (c, f) => (c[f] || '').trim()
 const isAIField = (c, f) => AI_FIELDS.includes(f) && !!aiOf(c, f)
+/* 근거는 명세 밖이다(v6 8절엔 없다). 오면 그리고, 없어도 등록에는 지장이 없다. */
+const evidenceOf = c => c.evidence || []
 
 /* 본인이 채워야 하는 칸 — 필드명을 박아 넣지 않고 **AI 가 실제로 되물은 것**에서 파생한다.
    AX-4 가 언젠가 R 을 저장소에서 찾아내 questions 에서 빼면 규칙이 저절로 따라간다. */
@@ -106,7 +119,7 @@ function seed(k) {
   const comp = {}
   ;(c.suggestedCompetencyIds || []).forEach(id => { comp[id] = SCORE.PICK_STRENGTH })
   drafts[k] = {
-    title: c.title, period: c.period || '', category: c.category,
+    title: c.title, startMonth: toMonth(c.startDate), endMonth: toMonth(c.endDate), category: c.category,
     situation: c.situation || '', task: '', action: c.action || '', result: '', comp,
   }
 }
@@ -115,6 +128,7 @@ function missingOf(k) {
   const c = candOf(k), d = drafts[k], m = []
   if (!d) return [{ f: 'seed', l: '초안 없음' }]
   if (!d.title.trim()) m.push({ f: 'title', l: '제목' })
+  if (!periodValid(fromMonth(d.startMonth), fromMonth(d.endMonth))) m.push({ f: 'period', l: '기간' })
   requiredText(c).forEach(f => {
     if (!d[f].trim()) m.push({ f, l: FIELDS.find(x => x.k === f).l })
   })
@@ -123,36 +137,34 @@ function missingOf(k) {
 }
 const isReady = k => missingOf(k).length === 0
 
-async function analyze() {
+function analyze() {
   // 둘 중 하나만 있어도 분석한다. 링크만 세면 파일만 준 사람이 버튼을 눌러도 아무 일이 없다.
   if (!linkCount.value && !files.value.length) return
-  if (fileBytes.value > MAX_BYTES) {
-    runError.value = new Error(`첨부가 너무 큽니다 (${kb(fileBytes.value)}). ${kb(MAX_BYTES)} 아래로 줄여 주세요.`)
-    return
-  }
+  if (fileProblem.value) { fileError.value = new Error(fileProblem.value); return }
+  fileError.value = null
 
-  state.value = 'running'; runError.value = null
-  try {
-    const payload = await Promise.all(files.value.map(async f => ({
-      name: f.name, mediaType: mediaOf(f.name), data: await readB64(f),
-    })))
-    const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
-    const r = await api.ai.intake(urls, payload, P.competencies)
-    cands.value = r.candidates || []
-    unreadable.value = r.unreadable || []
-  } catch (e) {
-    runError.value = e
-    state.value = 'idle'
-    return
-  }
+  const urls = links.value.split('\n').map(s => s.trim()).filter(Boolean)
+  const captured = files.value.slice()
 
-  state.value = 'done'
+  // 새 분석 — 옛 결과와 옛 초안을 비운다. 결과 자체는 스토어가 폴링해 채운다(다이얼로그를 닫아도 계속 돈다).
+  aiTasks.clearIntake()
   step.value = 1
   chosen.value = new Set()
-  Object.keys(drafts).forEach(k => delete drafts[k])   // 재분석 시 옛 초안이 되살아나지 않게
+  Object.keys(drafts).forEach(k => delete drafts[k])
   active.value = null
-  linksOpen.value = false
+  armed.value = null
+
+  aiTasks.start({
+    kind: 'intake',
+    title: '포폴 인테이크 분석',
+    subtitle: `링크 ${urls.length}${captured.length ? ` · 파일 ${captured.length}개` : ''}`,
+    view: { type: 'intake' },
+    run: () => api.ai.intake(urls, captured),
+  })
 }
+
+/* 분석이 끝나면 자료 입력 칸을 접는다("링크 N개 분석했습니다"). 스토어의 작업 상태가 done 으로 바뀌는 순간이다. */
+watch(state, v => { if (v === 'done') linksOpen.value = false })
 
 function toggle(k) {
   const next = new Set(chosen.value)
@@ -178,8 +190,11 @@ const skipped = computed(() => chosen.value.size - readyKeys.value.length)
 const evidenceNote = computed(() => {
   if (!active.value) return ''
   const c = candOf(active.value), ed = editedFields(active.value)
+  if (!evidenceOf(c).length) {
+    return { tone: '', t: 'AI 가 자료에서 확인한 것만 S·A 에 채웠습니다. 사실과 다르면 그 자리에서 고치세요 — 고치면 표시가 남습니다.' }
+  }
   const kept = AI_FIELDS.filter(f => isAIField(c, f) && !ed.includes(f))
-  if (!kept.length) return { tone: 'gap', t: 'AI 가 쓴 문장이 남아 있지 않습니다 — 등록해도 아래 근거는 이 경험에 붙지 않습니다.' }
+  if (!kept.length) return { tone: 'gap', t: 'AI 가 쓴 문장이 남아 있지 않습니다 — 아래 근거는 지금 문장과 무관합니다.' }
   if (ed.length) return { tone: '', t: `아래 근거는 ${kept.map(f => FIELDS.find(x => x.k === f).l).join('·')} 에 대한 것입니다. ${ed.map(f => FIELDS.find(x => x.k === f).l).join('·')} 는 본인이 고쳤습니다 — 근거는 AI 원문 기준입니다.` }
   return { tone: '', t: '아래 근거에서 S·A 를 뽑았습니다. 사실과 다르면 그 자리에서 고치세요 — 고치면 표시가 남습니다.' }
 })
@@ -198,22 +213,17 @@ const compNote = computed(() => {
     : `${sug.size}개 모두 AI 제안 그대로입니다 — 매칭 점수를 움직이는 값이니 한 번 확인하세요.`
 })
 
+/* v6 POST /api/experiences 본문. intakeTaskId 가 붙어 서버는 aiTaskId 로 남긴다 —
+   출처 컬럼이 따로 없고, 어느 문장을 고쳤는지도 서버는 저장하지 않는다(그건 이 화면이 보여 준다). */
 function buildExp(k) {
-  const c = candOf(k), d = drafts[k]
-  const edited = editedFields(k)
-  const aiKept = AI_FIELDS.filter(f => isAIField(c, f) && !edited.includes(f))
+  const d = drafts[k]
   return {
-    title: d.title.trim(), period: d.period.trim() || '기간 미입력', category: d.category,
+    title: d.title.trim(), category: d.category,
+    startDate: fromMonth(d.startMonth), endDate: fromMonth(d.endMonth),
     situation: d.situation.trim(), task: d.task.trim(),
     action: d.action.trim(), result: d.result.trim(),
-    competencyIds: Object.keys(d.comp).map(Number),
-    strength: { ...d.comp },
-    usedInAnswers: 0,
-    source: 'AI_INTAKE',
-    editedFields: edited.map(f => FIELDS.find(x => x.k === f).l),
-    /* AI 원문이 남은 칸이 하나도 없으면 근거가 따라가지 않는다.
-       다시 쓴 문장에 'PR #412' 를 붙이면 근거가 아무 데나 찍히는 도장이 된다. */
-    evidenceRefs: aiKept.length ? c.evidence.map(e => `${e.type} · ${e.ref}`) : [],
+    competencies: Object.entries(d.comp).map(([id, strength]) => ({ competencyId: Number(id), strength })),
+    intakeTaskId: taskId.value,
   }
 }
 
@@ -232,7 +242,7 @@ const matchDelta = computed(() => {
 
 async function commit() {
   const ready = readyKeys.value
-  if (!ready.length) return
+  if (!ready.length || committing.value) return
   // 경험 삭제 경로가 없어 등록은 되돌릴 수 없다. 버리는 건이 있으면 한 번 멈춘다.
   if (skipped.value && armed.value !== ready.length) {
     armed.value = ready.length
@@ -240,8 +250,10 @@ async function commit() {
   }
   /* 한 건이라도 실패하면 등록된 것만 남고 패널은 그대로다 — 다시 누르면 된다.
      낙관적으로 먼저 지우면 실패한 건이 화면에서만 사라진다. */
+  committing.value = true
   try { await Promise.all(ready.map(k => E.create(buildExp(k)))) }
   catch { return }
+  finally { committing.value = false }
   armed.value = null
   emit('done', ready.length)
   reset()
@@ -255,15 +267,14 @@ async function commit() {
    한 번 더 누르면 같은 경험이 새 id 로 또 들어간다.
    경험 삭제 경로가 없어 그렇게 생긴 중복은 세션 안에서 지울 수도 없다. */
 function reset() {
-  state.value = 'idle'
   step.value = 1
   chosen.value = new Set()
   Object.keys(drafts).forEach(k => delete drafts[k])
   active.value = null
   linksOpen.value = true
   armed.value = null
-  cands.value = []
-  unreadable.value = []
+  fileError.value = null
+  aiTasks.clearIntake()   // 분석 결과(스토어)도 비운다 — 플로팅에서도 사라진다
 }
 
 /* 초안이 한 글자라도 바뀌면 2단 확인 무장이 풀린다 */
@@ -289,7 +300,7 @@ const onEdit = () => { armed.value = null }
           <ul v-if="files.length" class="fl">
             <li v-for="f in files" :key="f.name">
               <b class="fn">{{ f.name }}</b>
-              <span class="fs num">{{ kb(f.size) }}</span>
+              <span class="fs num" :class="{ over: f.size > MAX_FILE }">{{ kb(f.size) }}</span>
               <button type="button" class="rm" :aria-label="`${f.name} 빼기`" @click="removeFile(f.name)">×</button>
             </li>
           </ul>
@@ -297,6 +308,7 @@ const onEdit = () => { armed.value = null }
 
           <button type="button" class="btn btn--sm" @click="fileEl.click()">파일 고르기</button>
         </div>
+        <p v-if="fileProblem" class="rerr">{{ fileProblem }}</p>
       </div>
     </div>
 
@@ -307,15 +319,15 @@ const onEdit = () => { armed.value = null }
 
     <div class="run">
       <button type="button" class="btn btn--primary"
-              :disabled="state === 'running' || (!linkCount && !files.length)" @click="analyze">
+              :disabled="state === 'running' || (!linkCount && !files.length) || !!fileProblem" @click="analyze">
         {{ state === 'done' ? '다시 분석' : '분석' }}
       </button>
       <span class="tag" :class="state === 'done' ? 'tag--ok' : state === 'running' ? 'tag--gap' : ''">
-        {{ state === 'idle' ? '대기' : state === 'running' ? 'PENDING' : 'COMPLETED' }}
+        {{ state === 'idle' ? '대기' : state === 'running' ? 'RUNNING' : 'COMPLETED' }}
       </span>
       <span class="muted note">
-        링크는 AI 가 직접 열어 읽는다 · 첨부는 PDF · MD · TXT
-        <template v-if="fileBytes">· {{ (fileBytes / 1048576).toFixed(1) }}MB</template>
+        링크는 AI 가 직접 열어 읽는다 · 첨부는 PDF · MD · TXT · 파일당 10MB · 최대 5개
+        <template v-if="fileBytes">· {{ kb(fileBytes) }}</template>
       </span>
     </div>
 
@@ -340,6 +352,7 @@ const onEdit = () => { armed.value = null }
         저장소와 첨부에서 확인된 것만 채웠습니다.
         <b>목표와 수치는 코드에 없어 비워 두고 다음 화면에서 직접 씁니다</b> — 지어내면 면접에서 그대로 무너집니다.
       </p>
+      <p v-if="!cands.length" class="lead">후보를 하나도 뽑지 못했습니다. 자료에 본인이 한 일이 드러나는지 확인하고 다시 분석해 보세요.</p>
 
       <label v-for="c in cands" :key="c.key" class="cand"
              :class="{ dup: c.duplicateOfExperienceId, on: chosen.has(c.key) }">
@@ -350,12 +363,12 @@ const onEdit = () => { armed.value = null }
             <b class="ct">{{ c.title }}</b>
             <span v-if="c.duplicateOfExperienceId" class="tag">이미 등록됨</span>
             <span v-if="drafts[c.key]" class="tag tag--ink" title="체크를 풀어도 쓰던 내용은 남아 있습니다">작성 중</span>
-            <span class="tag">{{ c.category }}</span>
+            <span class="tag">{{ categoryLabel(c.category) }}</span>
           </div>
           <p class="cs"><b>S</b> {{ c.situation }}</p>
           <p class="cs"><b>A</b> {{ c.action }}</p>
-          <div class="evs">
-            <span v-for="(e, i) in c.evidence" :key="i" class="tag mono" :title="e.quote">{{ e.type }} · {{ e.ref }}</span>
+          <div v-if="evidenceOf(c).length" class="evs">
+            <span v-for="(e, i) in evidenceOf(c)" :key="i" class="tag mono" :title="e.quote">{{ e.type }} · {{ e.ref }}</span>
           </div>
         </div>
       </label>
@@ -399,11 +412,20 @@ const onEdit = () => { armed.value = null }
           <div class="row2">
             <label class="fld f2"><span class="lb">제목 *</span>
               <input v-model="drafts[active].title" class="inp" @input="onEdit"></label>
-            <label class="fld"><span class="lb">기간</span>
-              <input v-model="drafts[active].period" class="inp" @input="onEdit"></label>
+            <!-- 기간은 월 두 칸 — 직접 입력 폼과 같은 어법이다. AI 가 자료에서 못 읽으면 비어 온다. -->
+            <div class="fld">
+              <span :id="`period-lb-${active}`" class="lb">기간 <span class="lbn">비워도 됩니다</span></span>
+              <div class="months" role="group" :aria-labelledby="`period-lb-${active}`">
+                <input v-model="drafts[active].startMonth" type="month" class="inp" aria-label="시작 월"
+                       :max="drafts[active].endMonth || undefined" @input="onEdit">
+                <span class="dash" aria-hidden="true">–</span>
+                <input v-model="drafts[active].endMonth" type="month" class="inp" aria-label="종료 월"
+                       :min="drafts[active].startMonth || undefined" @input="onEdit">
+              </div>
+            </div>
             <label class="fld"><span class="lb">분류</span>
               <select v-model="drafts[active].category" class="inp">
-                <option v-for="c in ['팀 프로젝트','개인 프로젝트','실습 프로젝트','대외활동','인턴·근무','수상·자격']" :key="c">{{ c }}</option>
+                <option v-for="c in EXPERIENCE_CATEGORIES" :key="c.k" :value="c.k">{{ c.label }}</option>
               </select></label>
           </div>
 
@@ -420,7 +442,7 @@ const onEdit = () => { armed.value = null }
             </div>
 
             <p class="evnote" :class="evidenceNote.tone">{{ evidenceNote.t }}</p>
-            <p v-for="(e, i) in candOf(active).evidence" :key="i" class="evq" :title="e.quote">
+            <p v-for="(e, i) in evidenceOf(candOf(active))" :key="i" class="evq" :title="e.quote">
               <span class="mono">{{ e.type }} · {{ e.ref }}</span> — “{{ e.quote }}”
             </p>
 
@@ -459,8 +481,9 @@ const onEdit = () => { armed.value = null }
           <span v-if="!skipped && !matchDelta">되물은 칸을 채우면 등록 대상이 됩니다.</span>
         </template>
       </p>
-      <button type="button" class="btn btn--primary" :disabled="!readyKeys.length" @click="commit">
-        {{ armed !== null ? `${readyKeys.length}건만 등록 · 한 번 더`
+      <button type="button" class="btn btn--primary" :disabled="!readyKeys.length || committing" @click="commit">
+        {{ committing ? '등록 중…'
+           : armed !== null ? `${readyKeys.length}건만 등록 · 한 번 더`
            : readyKeys.length ? `${readyKeys.length}건 등록` : '등록할 건 없음' }}
       </button>
     </div>
@@ -492,6 +515,7 @@ const onEdit = () => { armed.value = null }
 .fl li { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .fn { font-size: var(--fs-2xs); font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .fs { font-size: var(--fs-3xs); color: var(--muted); flex: none; }
+.fs.over { color: var(--gap); font-weight: 700; }
 .rm {
   margin-left: auto; flex: none; border: none; background: none; cursor: pointer;
   color: var(--muted); font-size: var(--fs-sm); line-height: 1; padding: 0 2px;
@@ -508,13 +532,18 @@ const onEdit = () => { armed.value = null }
 .inp:hover { border-color: var(--line-strong); }
 .inp:focus { outline: none; border-color: var(--accent); background: var(--panel-raised); }
 
+/* 시작–종료 두 칸이 한 줄에 앉는다. 대시는 장식이지 입력이 아니다. */
+.months { display: flex; align-items: center; gap: 6px; }
+.months .inp { flex: 1; min-width: 0; }
+.dash { color: var(--muted); flex: none; }
+
 .fold { margin: 0; font-size: var(--fs-xs); color: var(--muted); display: flex; align-items: center; gap: 9px; }
 .run { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; }
 .note { font-size: var(--fs-2xs); margin-left: auto; text-align: right; }
 .rerr { margin: 0; font-size: var(--fs-xs); color: var(--gap); font-family: var(--mono); }
 
 /* 읽지 못한 자료는 조용히 빠뜨리지 않는다 — 사용자는 자기가 준 것이 반영됐는지 알아야 한다. */
-.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); }
+.unread { padding: 11px 13px; border: 1px solid var(--gap); border-radius: var(--r); background: var(--gap-soft); }
 .ut { margin: 0 0 5px; font-size: var(--fs-2xs); font-weight: 700; color: var(--gap); }
 .ul { margin: 0; font-size: var(--fs-2xs); color: var(--muted); }
 .ul b { color: var(--ink-2); font-weight: 600; }

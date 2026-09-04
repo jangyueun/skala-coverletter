@@ -1,6 +1,6 @@
 <script setup>
 import { ref } from 'vue'
-import { strLabel } from '@/domain/matching.js'
+import { strLabel, strengthOf } from '@/domain/matching.js'
 import { catShort } from '@/domain/competency.js'
 
 /* 목업의 구성을 그대로 가져왔다 — 표 + 누르면 펼쳐지는 근거.
@@ -78,7 +78,7 @@ function toggle(id) {
             <td colspan="5">
               <div class="d">
                 <p class="dk">공고 근거</p>
-                <p class="dv src">“{{ r.evidence }}”</p>
+                <p class="dv src">“{{ r.evidenceLine }}”</p>
               </div>
 
               <div class="d">
@@ -87,7 +87,7 @@ function toggle(id) {
                   <template v-if="r.evid.length">
                     <p v-for="e in r.evid" :key="e.id" class="ev">
                       <b class="et">{{ e.title }}</b>
-                      <i class="st">{{ strLabel(e.strength?.[r.competencyId] ?? 0.6) }}</i>
+                      <i class="st">{{ strLabel(strengthOf(e, r.competencyId)) }}</i>
                       <span class="res">{{ e.result }}</span>
                     </p>
                   </template>
@@ -131,7 +131,8 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 
 .mrow { cursor: pointer; transition: background var(--release) linear; }
 .mrow:hover { background: var(--panel-sunken); }
-.mrow.on { background: var(--panel-sunken); }
+/* 펼친 행은 hover 와 달라야 한다 — 옅은 주황이 "지금 이 줄을 보고 있다" 다 */
+.mrow.on { background: var(--accent-soft); }
 .mrow.on td { border-bottom-color: transparent; }
 
 .nm { font-size: var(--fs-sm); font-weight: 700; letter-spacing: var(--track-tight); }
@@ -140,7 +141,8 @@ td { padding: 11px 10px; border-bottom: 1px solid var(--line-soft); vertical-ali
 
 .mt { display: flex; align-items: center; gap: 9px; }
 .meter { flex: 1; min-width: 60px; height: 5px; background: var(--panel-sunken); border-radius: var(--pill); overflow: hidden; }
-.mrow:hover .meter, .mrow.on .meter { background: var(--line); }
+.mrow:hover .meter { background: var(--line); }
+.mrow.on .meter { background: var(--panel); }
 .meter i { display: block; height: 100%; background: var(--ink); }
 .meter.gap i { background: var(--gap); }
 .pct { font-size: var(--fs-xs); font-weight: 700; flex: none; min-width: 34px; text-align: right; }

@@ -1,0 +1,13 @@
+# node_modules 는 이미지 안에서 npm ci 로 다시 깐다 — 호스트 것(맥 arm64 바이너리)이 들어가면 alpine 에서 깨진다.
+node_modules/
+dist/
+dist-ssr/
+.vite/
+*.log
+.claude/
+.vscode/
+.idea/
+.DS_Store
+# ANTHROPIC_API_KEY 가 들어 있을 수 있는 파일. 이미지에 박히면 안 된다.
+.env
+.env.*

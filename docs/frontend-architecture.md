@@ -3,8 +3,8 @@
 **기준은 `frontend/src` 다.** 이 문서는 "지금 이렇게 생겼다" 가 아니라 "이렇게 재구성한다" 를 적는다.
 아래 계층대로 코드를 옮기고, 옮긴 뒤에는 이 문서가 곧 현재 상태다.
 
-같이 읽을 것 — [`slack-oauth.md`](./slack-oauth.md)(로그인 계약).
-AI 파이프라인은 `frontend/vite-plugins/aiDevServer.js` 의 주석이 설명한다.
+같이 읽을 것 — [`slack-oauth.md`](./slack-oauth.md)(로그인 계약), [`dev-environment.md`](./dev-environment.md)(세 서버 띄우기).
+AI 는 프론트가 직접 부르지 않는다 — Spring 에 작업을 만들고(202 + taskId) `GET /api/ai-tasks/{id}` 를 폴링한다. Spring 워커가 AI 서버(`ai/`)를 부른다.
 
 ---
 
@@ -63,7 +63,7 @@ domain/
 
 ### `api/` — 서버와 말하는 유일한 층
 
-함수마다 **Promise 를 돌려준다.** 반환 모양은 백엔드 DTO 를 그대로 따른다(변환은 스토어 몫).
+함수마다 **Promise 를 돌려준다.** 반환 모양은 백엔드 DTO(`docs/api-spec-v6.md`)를 그대로 따른다(변환은 스토어 몫). 목도 같은 모양을 준다 — 분류·범주는 코드값, 기간·마감은 ISO 문자열.
 
 ```
 api/
@@ -71,8 +71,8 @@ api/
   index.js          VITE_API_MOCK=0 이면 real, 아니면 mock — 여기서만 갈라진다
   real/
     auth.js         me() · signIn() · signOut()          ← 실제 백엔드 있음
-    ai.js           extract(text) · draft(questionId, usedExperienceIds)   ← dev 는 vite 플러그인이 서빙
-    (postings·experiences·answers 는 백엔드가 생기면 여기 추가)
+    ai.js           draft(questionId, experienceIds) · intake(links, files)   ← 202 + taskId 를 받아 /ai-tasks 폴링까지 안는다
+    postings.js · experiences.js · answers.js   ← §6
   mock/
     _delay.js       지연 · VITE_API_MOCK_FAIL
     data.js         옛 mockData.js
@@ -104,7 +104,7 @@ stores/
   auth.js         user · signedIn · loaded · load() · signIn() · signOut()
   postings.js     list · competencies(사전) · live · load()
   experiences.js  list · candidates · taggedCompetencyIds · load() · create() · update()
-  answers.js      applications · questions · drafts(버퍼) · savedAt · saving · load() · save(questionId)
+  answers.js      questions(공고별 postingId) · drafts(버퍼) · savedAt · saving · load() · save(questionId)
   ui.js           sort · bookmarks — 서버가 모르는 화면 상태
   derived.js      state 없음. 넷을 읽어 cards · myLists · topGap · matchFor · essayFor · usedIn
 ```
@@ -163,8 +163,9 @@ async load() {
 | 백엔드 붙여서 확인 | `VITE_API_MOCK=0 npm run dev` — 인증·AI 가 real 로. vite 프록시가 `/api` → `:8080`. 같은 오리진이라 CORS·쿠키 문제 없음 |
 | 로딩 상태를 오래 보고 싶다 | `VITE_API_MOCK_DELAY=3000` |
 | 실패 화면을 보고 싶다 | `VITE_API_MOCK_FAIL=postings` — 그 API 만 500 을 준다 |
-| AI 추출·초안 | `.env` 에 `ANTHROPIC_API_KEY` — vite 플러그인이 `/api/ai/*` 를 dev 에서 서빙. 키 없으면 503 + 이유 |
+| AI 인테이크·초안 (real) | Spring + AI 서버(`ai/`, :8000)가 같이 떠 있어야 한다. 키는 `ai/.env` 의 `ANTHROPIC_API_KEY` — 없으면 AI 서버가 Mock 으로 답한다. 목 모드는 `api/mock/ai.js` 가 고정 응답 |
 | 같은 Wi-Fi 팀원에게 보여주기 | `host: true` 라 `npm run dev` 가 찍는 Network 주소 |
+| 세 서버를 한 번에, 팀 표준 버전으로 | 루트에서 `docker compose up --build` — 웹은 nginx 가 서빙하고 `/api` 를 프록시한다. 컨테이너의 웹은 늘 real 모드다. `docs/dev-environment.md` |
 
 `VITE_` 접두사는 값이 빌드 산출물에 박히므로 **스위치에만** 쓴다. 키는 절대 안 된다(`.env.example` 참조).
 
@@ -186,22 +187,30 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 | `stores/` | 액션 → 상태. `api/mock` 주입 | node | `save()` 실패하면 버퍼가 남는가 · `load()` 두 번 불러도 요청 한 번인가 |
 | `components/` | 렌더 → DOM. 스토어는 pinia testing | jsdom | 로그아웃이면 `SignInGate` 가 뜨는가 · 마감 공고에 D-day 가 안 뜨는가 |
 
-**전부 쓰지 않는다.** 3일이다. 오늘 실제로 터진 것들부터 — `essayProgress` 가 주입된 questions 를 읽는가, `isClosed` 가 `-0` 에 안 속는가, 인테이크 등록 후 상태가 초기화되는가, `posting.required` 의 id 가 전부 사전에 있는가. 마지막 건 **데이터 검증 테스트**다 — 목 데이터가 사전과 어긋나면 빌드가 막힌다.
+**전부 쓰지 않는다.** 3일이다. 오늘 실제로 터진 것들부터 — `essayProgress` 가 주입된 questions 를 읽는가, `isClosed` 가 `-0` 에 안 속는가, 인테이크 등록 후 상태가 초기화되는가, `posting.requiredCompetencies` 의 id 가 전부 사전에 있는가. 마지막 건 **데이터 검증 테스트**다 — 목 데이터가 사전과 어긋나면 빌드가 막힌다.
 
 ---
 
-## 6. 백엔드가 붙는 날
+## 6. 백엔드가 붙은 뒤 (2026-09-04)
 
-| 파일 | 하는 일 |
-|---|---|
-| `api/real/postings.js` | `client.get('/postings')` — 5줄 |
-| `api/index.js` | `postings: REAL ? realPostings : mockPostings` — 한 줄 |
-| `stores/*` | **안 고침** — `await api.postings.list()` 는 그대로 |
-| `views/`, `components/` | **안 고침** |
-| `vite.config.js` | AI 를 Spring 이 서빙하기 시작하면 `aiDevServer()` 한 줄 삭제 |
-| `.env` | `VITE_API_MOCK=0` (백엔드 있는 환경) |
+`VITE_API_MOCK=0` 이면 다섯 자원 전부 Spring(:8080)으로 간다 — 인증·역량 사전·공고·경험·자소서 답변·AI.
+AI(인테이크·초안)는 Spring 이 작업을 만들고 워커가 AI 서버(`ai/`, :8000)를 부른 뒤 `GET /api/ai-tasks/{id}` 로 결과를 준다.
+예전에 dev 에서 그 경로를 대신하던 vite 플러그인(aiDevServer)은 지웠다 — real 모드로 AI 를 쓰려면 AI 서버도 같이 띄운다.
 
-응답 모양이 목과 다르면 **스토어에서 변환**한다. `api/` 는 DTO 를 그대로 넘기고 화면은 스토어 모양만 본다. 변환 지점이 한 곳이다.
+| 파일 | 실제 API | 목과 다른 점 |
+|---|---|---|
+| `api/real/postings.js` | `GET /competencies` · `GET /postings` · `GET /postings/{id}` · `PUT /postings/{id}/bookmark` | **목록에 상세를 합쳐 준다.** 카드의 매칭률·역량 태그·필터가 `requiredCompetencies` 로 브라우저에서 계산되는데 목록 DTO 에 그게 없고, 서버 `match` 는 MATCH 워커가 없어 늘 `null` 이다. 공고 수 + 1 번 요청. 워커가 붙으면 합치기를 지우고 `derived.matchFor` 가 `posting.match` 를 우선한다 |
+| `api/real/experiences.js` | `GET/POST /experiences` · `PUT /experiences/{id}` | 없음. PUT 은 `intakeTaskId` 를 뗀다 |
+| `api/real/answers.js` | `GET /postings/{id}/questions` · `PUT /questions/{id}/answer` | 전 공고 문항 API 가 없어 `list()` 는 `[]`. 문항은 공고를 열 때 `questions(postingId)` 로 받는다 |
+
+스토어·화면에서 바뀐 것 —
+
+- `stores/answers.js` `loadFor(postingId)` — 그 공고 문항을 갈아 끼우고 `loadedFor[postingId]` 를 켠다. 상세 화면이 로그인 확인 뒤 부른다. 목도 같은 길을 탄다.
+- `stores/derived.js` 가 서버 값과 브라우저 계산 중 고른다 — `essay` 는 `loadedFor` 면 브라우저, 아니면 목록 DTO 의 `essay` 요약; `usedIn` 은 브라우저 값과 `experience.usedInQuestions` 중 큰 쪽.
+- 즐겨찾기는 `ui.bookmarks`(Set) 에서 `postings.toggleBookmark` 로 — 공고 DTO 의 `bookmarked` 를 낙관적으로 뒤집고 `PUT` 이 거절하면 되돌린다.
+- 실제 서버는 `/api/**` 전부에 세션을 요구한다. 로그아웃 상태의 401 은 `ErrorNote` 가 아니라 `SignInGate` 로 그린다(홈·경험·상세 자소서 탭).
+
+응답 모양이 목과 다르면 **`api/real/*` 에서 목과 같은 모양으로 맞추고**, 두 값이 다 있는 자리(서버 계산 vs 브라우저 계산)는 `derived.js` 가 고른다. 화면은 여전히 스토어 모양만 본다.
 
 ---
 
@@ -216,8 +225,8 @@ npm run build     vitest run && vite build — 테스트 통과해야 빌드
 | `stores/authStore.js` | `stores/auth.js` | `load()` 가 `/api/auth/me` 를 실제로 부름. `signIn()` 은 `location.href = '/api/auth/slack/start'` |
 | (없음) | `api/{client,index}.js` · `api/real/{auth,ai}.js` · `api/mock/*` | 신설 |
 | (없음) | `components/state/{Skeleton,ErrorNote}.vue` | 신설 |
-| (없음) | `tests/` | `domain` 3파일 · `stores` 1파일 · 데이터 정합성 1파일 — 29개 |
+| (없음) | `tests/` | `domain` 3파일 · `stores` 1파일 · 데이터 정합성 1파일 — 32개 |
 
 옮기는 순서는 **아래에서 위로** — `domain` → `api` → `stores` → `views`. 각 단계에서 화면이 그대로 돌아야 한다.
 
-**옮겼다.** 위 표대로 재구성했고 `npm run build` 가 테스트 29개를 먼저 돌린다.
+**옮겼다.** 위 표대로 재구성했고 `npm run build` 가 테스트 32개를 먼저 돌린다.

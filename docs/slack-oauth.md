@@ -25,9 +25,9 @@
 ```java
 @SpringBootApplication
 @ConfigurationPropertiesScan          // ← 이 줄
-public class CareerfitApplication {
+public class CareerLabApplication {
     public static void main(String[] args) {
-        SpringApplication.run(CareerfitApplication.class, args);
+        SpringApplication.run(CareerLabApplication.class, args);
     }
 }
 ```
@@ -44,7 +44,7 @@ Initializr 가 만들어 준다. 우리는 `application.yml` 을 쓰니 둘 다 
 
 | 항목 | 값 |
 |---|---|
-| **OpenID Connect** → Redirect URLs | `http://localhost:8080/api/auth/slack/callback` (로컬)<br>배포 주소가 생기면 `https://.../api/auth/slack/callback` 추가 |
+| **OpenID Connect** → Redirect URLs | `http://localhost:5173/api/auth/slack/callback` (로컬 — vite 프록시·Docker nginx 가 `/api` 를 8080 으로 넘긴다)<br>배포 주소가 생기면 `https://.../api/auth/slack/callback` 추가 |
 | **User Token Scopes** | `openid`, `profile`, `email` |
 
 봇 토큰이나 `chat:write` 는 **요청하지 않는다.** 사람을 로그인시키는 것뿐이라 받을
@@ -72,7 +72,9 @@ cd backend
 ./gradlew bootRun
 ```
 
-브라우저에서 <http://localhost:8080/api/auth/slack/start> 로 들어가면 Slack 동의 화면이 뜬다.
+프론트(`npm run dev`, 5173)를 띄우고 로그인 버튼을 누르면 Slack 동의 화면이 뜬다. 백엔드만 확인하려면
+<http://localhost:8080/api/auth/slack/start> 로 직접 들어가도 동의 화면까지는 뜨지만, 콜백 주소가 5173 이라
+돌아온 뒤에는 프론트가 떠 있어야 한다. 세 서버를 Docker 로 한 번에 띄우는 법은 `docs/dev-environment.md`.
 
 ---
 
@@ -81,7 +83,7 @@ cd backend
 | 메서드 | 경로 | 하는 일 |
 |---|---|---|
 | GET | `/api/auth/slack/start?returnTo=/experiences` | Slack 동의 화면으로 302. `returnTo` 는 로그인 후 돌아올 **경로**(호스트 붙은 값은 버린다) |
-| GET | `/api/auth/slack/callback?code=..&state=..` | Slack 이 여기로 돌려보낸다. 세션 발급 후 `returnTo` 로 302 |
+| GET | `/api/auth/slack/callback?code=..&state=..` | Slack 이 여기로 돌려보낸다. 세션 발급 후 `returnTo` 로 302. state 가 틀리거나 만료됐으면 400 `STATE_MISMATCH` |
 | GET | `/api/auth/me` | 로그인 상태 확인. 로그인 안 됐으면 **200 + `null`** |
 | POST | `/api/auth/logout` | 서버 세션 폐기. 204 |
 
@@ -135,14 +137,27 @@ server: { proxy: { '/api': 'http://localhost:8080' } }
 | state 재사용 | 읽는 즉시 쿠키 삭제 | `clearHandshakeCookies` |
 | 쿠키 탈취(JS) | `HttpOnly` | 핸드셰이크 쿠키 · 세션 쿠키 |
 | 정보 노출 | 실패 사유는 로그에만, 응답은 한 문장 | `AuthException` |
+| 로그인 후 CSRF (교차 사이트 POST/PUT/PATCH/DELETE) | 세션 쿠키 `SameSite=Lax` + `Sec-Fetch-Site: cross-site` 거부 → 403 `CSRF_REJECTED` | `CsrfGuardInterceptor` |
+| `require()` 를 빠뜨린 새 컨트롤러 | `/api/**` 는 인터셉터가 먼저 세션을 확인 → 401 `LOGIN_REQUIRED` | `SessionAuthInterceptor` |
 
-### 아직 안 한 것
+### 로그인 뒤를 지키는 두 인터셉터 (`global/config/WebMvcConfig`)
 
-- **CSRF 토큰** — 로그인 자체는 `state` 로 막혀 있지만, 로그인 후의 상태 변경 API
-  (POST/PUT/DELETE)에는 별도 방어가 없다. `SameSite=Lax` 가 교차 사이트 POST 를 막아
-  주긴 하지만 그것만 믿을 건 아니다. 기능 API 를 붙일 때 같이 정하자.
-- **인가 필터** — 지금은 `CurrentUser.require()` 를 컨트롤러에서 직접 부르는 방식이다.
-  보호할 API 가 늘어나면 필터나 인터셉터로 옮기는 게 낫다.
+| 경로 | CSRF 가드 | 세션 필수 |
+|---|---|---|
+| `/api/**` | ○ | ○ |
+| `/api/auth/**` | ○ | ✕ — 로그인 전에 부르는 경로. `me` 는 200 + `null` |
+| `/internal/**` | ✕ | ✕ — 서버 간 호출. `X-Internal-Token` 으로 지킨다 |
+
+- **세션 필수** — 컨트롤러의 `currentUser.require(request)` 는 그대로 둔다(사용자 객체가 필요하다).
+  `CurrentUser` 가 첫 조회를 요청 속성에 두므로 인터셉터 + 컨트롤러여도 DB 는 한 번이다.
+- **CSRF 가드** — 토큰 대신 브라우저가 붙이는 Fetch Metadata(`Sec-Fetch-Site`)를 본다. 다른 사이트의
+  페이지가 쏜 요청은 `cross-site` 가 붙고 스크립트가 못 바꾼다. 프론트 코드 한 줄 없이 되고, 이미
+  있는 MockMvc 테스트들을 안 고쳐도 된다. 헤더가 없는 옛 브라우저(2023년 이전 Safari)에서는
+  `SameSite=Lax` 만 남는데, Lax 가 교차 사이트 POST 에 쿠키를 싣지 않으므로 그것만으로도 막힌다.
+  GET 은 안 본다 — Slack 콜백이 교차 사이트 GET 이다.
+
+오류 응답은 다른 도메인과 같은 `{"code", "message"}` 다 — `LOGIN_REQUIRED` · `LOGIN_FAILED` · `STATE_MISMATCH` ·
+`WORKSPACE_NOT_ALLOWED` · `CSRF_REJECTED` (api-spec-v6.md 9절).
 
 ---
 

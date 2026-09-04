@@ -92,6 +92,11 @@ v5 → v6 (회의 결정 반영)
 | `GET /api/ai-tasks/{taskId}` | Path | `{"taskId":821,"type":"DRAFT","status":"COMPLETED","createdAt":"...","completedAt":"...","attempts":1,"model":"claude-opus-5","promptVersion":"draft/v1","result":{"draft":"...","charCount":698},"error":null}` · FAILED면 `"error":{"code":"AI_PROVIDER_ERROR","message":"..."}` · type별 result: DRAFT `{draft, charCount}` · EXPERIENCE_INTAKE `{candidates[]}` · MATCH `{postingId, score, verdict}` · POSTING_ANALYSIS `{postingId, requiredCount}` | 200 · 401 · 403 · 404 `TASK_NOT_FOUND` |
 | `GET /api/ai-tasks` | Query `type?`, `status?` 반복, `since?` | `{"counts":{"pending":2,"running":1,"completed":4,"failed":0},"items":[{"taskId":813,"type":"MATCH","status":"RUNNING","postingId":9,"createdAt":"..."}]}` | 200 · 401 |
 
+구현 메모 (2026-09-04) — 워커(`AiTaskWorker`, 5초 주기)가 타입별 처리기로 완료한다: DRAFT `DraftTaskHandler` · EXPERIENCE_INTAKE
+`ExperienceIntakeTaskHandler` · MATCH `MatchTaskHandler`(요구 역량이 없는 공고는 `job_matches` 를 쓰지 않고 result 의 `score`·`verdict` 가 `null`) ·
+POSTING_ANALYSIS `PostingAnalysisTaskHandler`. 멱등 키에는 AI 서버의 promptVersion 이 들어간다(`PromptVersionRegistry`). 목록의 `attempts`
+는 재시도 수 + 1 이다.
+
 ## 7. 내부 (1개)
 
 | API | Request | Response | 상태 |
@@ -104,13 +109,15 @@ v5 → v6 (회의 결정 반영)
 
 AI 서버는 상태를 갖지 않는다. 요청을 받아 LLM을 호출하고 결과를 돌려줄 뿐이며, 작업 상태·재시도·결과 저장은 Spring의 `ai_tasks`가 맡는다. 모든 응답에 `promptVersion`·`model`을 싣는다. 실패는 `attempts`에 기록하고 최대 3회 지수 백오프 재시도, 소진 시 FAILED.
 
+구현 (2026-09-04) — `ai/.env` 의 `ANTHROPIC_API_KEY` 가 있으면 `ClaudeAiProvider`, 없으면 `MockAiProvider`. 공고 분석·인테이크는 Sonnet 5, 초안은 Opus 5(구조화 출력). 인테이크는 `web_fetch` 로 링크·파일 URL 을 직접 읽고, 판단이 갈릴 때만 advisor(Opus 5, 기본 2회)에게 묻는다. **매칭은 LLM 없이 결정론 공식**이다(프론트 카드와 같은 식, `ai/app/services/matching.py`). 프롬프트와 버전은 `ai/app/services/prompts.py` — 문장을 고치면 버전을 올린다. 시스템 프롬프트·역량 사전은 프롬프트 캐시. 한 호출 상한은 AI 서버 300초 · Spring 330초.
+
 | 계약 | Request | Response | 상태 |
 |---|---|---|---|
 | `GET /ai/prompts/versions` | 없음 | `{"posting_analysis":"v2","experience_intake":"v1","match":"v1","draft":"v1"}` · Spring이 시작 시 읽어 멱등 키 계산에 사용 | 200 |
 | `POST /ai/posting-analysis` | `{"postingId":9,"content":"...","competencies":[{"id":3,"name":"API 설계·연동","category":"ROLE","aliases":["REST API 개발"]}]}` | `{"required":[{"competencyId":3,"weight":0.9,"evidence":"REST API 설계 및 운영 경험"}],"promptVersion":"posting_analysis/v2","model":"claude-opus-5"}` · 사전 밖 ID는 Spring이 버린다 | 200 · 422 · 503 |
 | `POST /ai/experience-intake` | `{"links":["https://github.com/..."],"fileUrls":["https://.../intake/7/790/portfolio.pdf"],"existingExperiences":[{"id":1,"title":"...","startDate":"2026-08-01","endDate":null,"category":"TEAM_PROJECT"}],"competencies":[...]}` | `{"candidates":[{"key":"oss","title":"...","startDate":"2026-06-01","endDate":null,"category":"PERSONAL_PROJECT","situation":"...","action":"...","questions":[{"field":"task","q":"...","why":"..."}],"suggestedCompetencyIds":[14,6],"duplicateOfExperienceId":null}],"promptVersion":"experience_intake/v1","model":"..."}` | 200 · 422 · 503 |
 | `POST /ai/match` | `{"posting":{"id":9,"required":[{"competencyId":3,"weight":0.9,"evidenceLine":"..."}]},"experiences":[{"id":1,"title":"...","result":"...","competencies":[{"competencyId":3,"strength":0.8}]}]}` | `{"overall":0.75,"verdict":"CONDITIONAL","rows":[{"competencyId":3,"weight":0.9,"score":1.0,"isGap":false,"experienceIds":[1,2]}],"promptVersion":"match/v1","model":"..."}` · `overall`을 `match_score`에 저장 | 200 · 422 · 503 |
-| `POST /ai/draft` | `{"question":{"promptText":"...","lengthLimit":700},"posting":{"company":"세움테크","position":"...","requiredNames":["..."]},"experiences":[{"title":"...","situation":"...","task":"...","action":"...","result":"..."}]}` | `{"draft":"...","charCount":698,"promptVersion":"draft/v1","model":"..."}` | 200 · 422 · 503 |
+| `POST /ai/draft` | `{"question":{"promptText":"...","lengthLimit":700},"posting":{"company":"세움테크","position":"...","content":"[세움테크] 2026 하반기 ...","required":[{"name":"API 설계·연동","weight":0.9,"evidenceLine":"REST API 설계 및 운영 경험"}]},"experiences":[{"title":"...","situation":"...","task":"...","action":"...","result":"..."}]}` · `content` 는 공고 원문 전문(없으면 `""`), `required` 는 요구 역량 이름·가중치·근거 문장 — 초안이 공고의 담당 업무·인재상 문장에 경험을 맞대게 하려고 넣는다(2026-09-04, `requiredNames` 를 대체) | `{"draft":"...","charCount":698,"promptVersion":"draft/v2","model":"..."}` | 200 · 422 · 503 |
 
 ## 9. 오류 코드
 
@@ -118,11 +125,15 @@ AI 서버는 상태를 갖지 않는다. 요청을 받아 LLM을 호출하고 �
 |---|---|---|
 | `VALIDATION_FAILED` | 400 | `@Valid` 실패, 허용되지 않은 첨부 형식 |
 | `STATE_MISMATCH` | 400 | Slack 콜백 state 불일치 |
-| `LOGIN_REQUIRED` | 401 | 세션 없음. `/api/auth/me`만 200 + null |
+| `LOGIN_REQUIRED` | 401 | 세션 없음. `/api/auth/me`만 200 + null. `/api/**` 인터셉터가 컨트롤러 앞에서 준다 |
+| `LOGIN_FAILED` | 401 | Slack 토큰 교환·프로필 조회 실패, 콜백에 code 없음 |
 | `INTERNAL_TOKEN_INVALID` | 401 | `/internal/*` 토큰 불일치 |
 | `WORKSPACE_NOT_ALLOWED` | 403 | 허용 워크스페이스 아님 |
 | `FORBIDDEN` | 403 | 다른 사용자의 경험·답변·작업 |
+| `CSRF_REJECTED` | 403 | 다른 사이트에서 온 상태 변경 요청(POST·PUT·PATCH·DELETE, `Sec-Fetch-Site: cross-site`). 같은 오리진의 프론트에서는 나올 수 없다 |
 | `POSTING_NOT_FOUND` `QUESTION_NOT_FOUND` `EXPERIENCE_NOT_FOUND` `TASK_NOT_FOUND` | 404 | |
+| `NOT_FOUND` | 404 | 없는 경로 (예전엔 500 `INTERNAL_ERROR` 로 샜다) |
+| `METHOD_NOT_ALLOWED` | 405 | 있는 경로에 틀린 메서드 |
 | `DRAFT_ALREADY_RUNNING` `INTAKE_ALREADY_RUNNING` `ANALYSIS_ALREADY_RUNNING` | 409 | 같은 대상에 다른 입력으로 진행 중 |
 | `FILE_TOO_LARGE` | 413 | 인테이크 첨부 10 MB 초과 |
 | `AI_PROVIDER_ERROR` | 작업 FAILED | AI 서비스 4xx·5xx·타임아웃. 재시도 소진 후 폴링 응답의 `error` |

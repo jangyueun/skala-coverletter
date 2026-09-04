@@ -2,15 +2,21 @@
  *
  * 필요한 데이터는 전부 인자로 받는다. 기본 인자로 목 데이터를 잡던 시절에
  * 두 번 사고가 났다 — 스토어 사본이 아니라 원본을 읽어 저장해도 화면이 안 움직였고,
- * 옛 id 가 조용히 통과해 엉뚱한 역량을 그렸다. 안 받으면 터지는 게 맞다. */
+ * 옛 id 가 조용히 통과해 엉뚱한 역량을 그렸다. 안 받으면 터지는 게 맞다.
+ *
+ * 모양은 v6 DTO 다 —
+ *   posting.requiredCompetencies  [{ competencyId, weight, evidenceLine }]
+ *   experience.competencies       [{ competencyId, strength }]
+ * 실제 서버는 이 계산을 MATCH 작업으로 돌려 job_matches 에 두지만(GET /api/postings/{id}/match),
+ * 규칙은 같다. 경험을 등록한 직후에도 카드가 바로 움직여야 해서 브라우저가 같은 식을 돈다. */
 
 /** 판정 경계값. 화면 여기저기에 흩어 놓으면 한쪽만 고쳐진다. */
 export const SCORE = {
   GAP: 0.45,          // 이 아래면 "갭" 으로 본다
   WEAK: 0.70,
   STRONG: 0.90,
-  RECOMMEND: 0.85,    // 이 위면 지원 권장
-  CONDITIONAL: 0.62,
+  RECOMMEND: 0.85,    // 이 위면 지원 권장 (match_verdict RECOMMEND)
+  CONDITIONAL: 0.62,  // 조건부 지원 (CONDITIONAL), 그 아래는 보강 필요 (HOLD)
   DEFAULT_STRENGTH: 0.60,
   PICK_STRENGTH: 0.70,
 }
@@ -23,6 +29,13 @@ export const STR = [
 ]
 export const strLabel = v => (v >= 0.8 ? '강' : v >= 0.6 ? '중' : '약')
 
+/** 경험이 어떤 역량을 얼마나 강하게 증명하나. 태그만 있고 강도가 없으면 DEFAULT_STRENGTH. */
+export function strengthOf(experience, competencyId) {
+  return experience.competencies?.find(c => c.competencyId === competencyId)?.strength ?? SCORE.DEFAULT_STRENGTH
+}
+const hasCompetency = (experience, competencyId) =>
+  (experience.competencies || []).some(c => c.competencyId === competencyId)
+
 /**
  * 공고 하나에 대한 나의 매칭.
  *
@@ -30,8 +43,8 @@ export const strLabel = v => (v >= 0.8 ? '강' : v >= 0.6 ? '중' : '약')
  * overall = Σ(weight × score) / Σ weight — 가중 평균. 무겁게 요구되는 것을 못 채우면 크게 깎인다.
  * isGap   = 근거 없음 또는 score < GAP. "덮었다" 는 이 이진 판정이고, overall 과는 기준이 다르다.
  *
- * @param {object}   posting       required: [{competencyId, weight, evidence}]
- * @param {object[]} experiences   competencyIds, strength{[id]: 0~1}
+ * @param {object}   posting       requiredCompetencies: [{competencyId, weight, evidenceLine}]
+ * @param {object[]} experiences   competencies: [{competencyId, strength}]
  * @param {object[]} competencies  역량 사전
  */
 export function computeMatch(posting, experiences, competencies) {
@@ -39,16 +52,16 @@ export function computeMatch(posting, experiences, competencies) {
   /* 사전에 없는 id 는 그 행만 버린다.
      던지면 화면이 통째로 죽는다 — 이 함수는 derived.cards() 게터 안에서 불리고,
      게터는 렌더 중에 도니까 ErrorNote 가 못 잡는다(그건 스토어 액션의 rejected promise 만 받는다).
-     이 PR 안에 posting 9 이 옛 번호를 들고 있던 사고가 있고, postings 가 백엔드로 넘어가면
+     posting 9 이 옛 번호를 들고 있던 사고가 있고, postings 가 백엔드로 넘어가면
      tests/data.test.js 라는 게이트도 사라진다. 한 줄이 틀렸다고 홈이 하얘지면 안 된다. */
-  const rows = posting.required.flatMap(r => {
+  const rows = posting.requiredCompetencies.flatMap(r => {
     const comp = byId(r.competencyId)
     if (!comp) {
       console.warn(`[matching] 공고 ${posting.id} 의 요구 역량 ${r.competencyId} 이 사전에 없어 건너뜁니다`)
       return []
     }
-    const evid = experiences.filter(e => e.competencyIds.includes(r.competencyId))
-    const strength = evid.reduce((a, e) => a + (e.strength?.[r.competencyId] ?? SCORE.DEFAULT_STRENGTH), 0)
+    const evid = experiences.filter(e => hasCompetency(e, r.competencyId))
+    const strength = evid.reduce((a, e) => a + strengthOf(e, r.competencyId), 0)
     const score = Math.min(1, strength)
     return [{ ...r, comp, evid, score, isGap: evid.length === 0 || score < SCORE.GAP }]
   })

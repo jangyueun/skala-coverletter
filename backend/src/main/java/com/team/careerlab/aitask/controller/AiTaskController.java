@@ -1,0 +1,60 @@
+package com.team.careerlab.aitask.controller;
+
+import com.team.careerlab.aitask.dto.AiTaskListResponse;
+import com.team.careerlab.aitask.dto.AiTaskResponse;
+import com.team.careerlab.aitask.entity.AiTaskStatus;
+import com.team.careerlab.aitask.entity.AiTaskType;
+import com.team.careerlab.aitask.service.AiTaskService;
+import com.team.careerlab.global.security.CurrentUser;
+import com.team.careerlab.user.entity.User;
+import jakarta.servlet.http.HttpServletRequest;
+import java.time.Instant;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
+import org.springframework.format.annotation.DateTimeFormat;
+import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.tags.Tag;
+
+/**
+ * AI 작업 폴링(docs/api-spec-v6.md §6). 프론트는 초안·인테이크를 요청해 202 + taskId 를 받은 뒤
+ * {@code GET /api/ai-tasks/{taskId}} 를 1초 간격으로 부른다(api/real/ai.js waitFor).
+ */
+@RestController
+@RequestMapping("/api/ai-tasks")
+@Tag(name = "AI 작업", description = "AI 인테이크·초안·매칭 작업의 상태와 결과를 조회합니다.")
+public class AiTaskController {
+
+    private final CurrentUser currentUser;
+    private final AiTaskService aiTasks;
+
+    public AiTaskController(CurrentUser currentUser, AiTaskService aiTasks) {
+        this.currentUser = currentUser;
+        this.aiTasks = aiTasks;
+    }
+
+    @GetMapping("/{taskId}")
+    @Operation(summary = "AI 작업 결과 조회", description = "PENDING/RUNNING 상태면 진행 중이며, COMPLETED일 때 result, FAILED일 때 error를 반환합니다.")
+    public ResponseEntity<AiTaskResponse> find(@PathVariable Long taskId, HttpServletRequest request) {
+        User user = currentUser.require(request);
+        return ResponseEntity.ok(aiTasks.find(user.getId(), taskId));
+    }
+
+    @GetMapping
+    @Operation(summary = "AI 작업 목록 조회", description = "현재 로그인한 사용자의 AI 작업을 유형·상태·생성 시각으로 필터링합니다.")
+    public ResponseEntity<AiTaskListResponse> list(
+            @RequestParam(required = false) AiTaskType type,
+            @RequestParam(name = "status", required = false) List<AiTaskStatus> statuses,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant since,
+            HttpServletRequest request) {
+        User user = currentUser.require(request);
+        Set<AiTaskStatus> statusSet = statuses == null ? Set.of() : new HashSet<>(statuses);
+        return ResponseEntity.ok(aiTasks.list(user.getId(), type, statusSet, since));
+    }
+}

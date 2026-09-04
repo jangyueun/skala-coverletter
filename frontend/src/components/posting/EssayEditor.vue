@@ -1,16 +1,26 @@
 <script setup>
 import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
+import { useRoute } from 'vue-router'
 import { useAnswersStore } from '@/stores/answers.js'
 import { useExperiencesStore } from '@/stores/experiences.js'
+import { usePostingsStore } from '@/stores/postings.js'
+import { useAiTasksStore } from '@/stores/aiTasks.js'
 import { lengthState } from '@/domain/essay.js'
+import { categoryLabel, periodLabel } from '@/domain/experience.js'
 import { api } from '@/api/index.js'
 
 const props = defineProps({ questions: { type: Array, required: true } })
 const A = useAnswersStore()
 const E = useExperiencesStore()
+const P = usePostingsStore()
+const aiTasks = useAiTasksStore()
+const route = useRoute()
 
-const activeId = ref(props.questions[0]?.id ?? null)
+/* "결과 보기" 로 돌아오면 ?q=문항id 가 붙는다 — 그 문항을 편다. 없으면 첫 문항. */
+const wantedId = Number(route.query.q)
+const activeId = ref(props.questions.some(x => x.id === wantedId) ? wantedId : props.questions[0]?.id ?? null)
 const q = computed(() => props.questions.find(x => x.id === activeId.value) ?? null)
+const qNo = x => props.questions.indexOf(x) + 1
 
 /* 문항이 바뀌면(공고를 옮기면) 첫 문항으로 되돌린다.
    안 하면 다른 공고의 문항 id 를 들고 있어 화면이 빈다.
@@ -21,11 +31,17 @@ watch(() => props.questions, list => {
   if (!list.some(x => x.id === activeId.value)) activeId.value = list[0]?.id ?? null
 })
 
+/* AI 작업 "결과 보기" 로 ?q=문항id 를 달고 돌아오면 그 문항을 편다 — 이미 이 화면이 떠 있어도(같은 공고) 반응한다. */
+watch(() => route.query.q, id => {
+  const n = Number(id)
+  if (n && props.questions.some(x => x.id === n)) activeId.value = n
+})
+
 /* 화면은 버퍼를 읽고 쓴다. 저장 버튼을 누르기 전까지 커밋본은 안 바뀐다. */
-const buf = computed(() => (q.value ? A.draftOf(q.value.id) : { draft: '', usedExperienceIds: [] }))
+const buf = computed(() => (q.value ? A.draftOf(q.value.id) : { content: '', usedExperienceIds: [] }))
 const text = computed({
-  get: () => buf.value.draft,
-  set: v => { if (q.value) A.editDraft(q.value.id, { draft: v }) },
+  get: () => buf.value.content,
+  set: v => { if (q.value) A.editDraft(q.value.id, { content: v }) },
 })
 
 const len = computed(() => lengthState(text.value, q.value))
@@ -47,25 +63,31 @@ function toggleExp(id) {
   })
 }
 
-/* AI 초안.
+/* AI 초안 — 전역 AI 작업 스토어에 맡긴다(stores/aiTasks.js). 근거가 없으면 서버가 400 을 주므로 버튼을 미리 잠근다.
+   초안은 서버에 저장되지 않는다 — 완료되면 스토어가 버퍼에 넣고(onDone), 저장할 때 draftTaskId 로 출처가 남는다.
 
-   대기 중에 문항을 옮기면 엉뚱한 문항에 꽂히던 버그가 있었다 —
-   await 뒤에 q.value 를 다시 읽었기 때문이다. 시작할 때 대상을 붙잡는다.
-   잠금도 boolean 이 아니라 대상 id 로 둬서 다른 문항 버튼까지 잠기지 않게 한다.
-
-   결과는 커밋이 아니라 버퍼로 간다. 마음에 안 들면 Ctrl+Z 로 물리거나
-   저장하지 않으면 된다 — 확인 대화상자를 따로 만들 필요가 없다. */
-const draftingId = ref(null)
-const draftError = ref(null)
-async function makeDraft() {
+   기다리는 동안 이 화면을 떠나도(다른 공고·경험 탭으로) 작업은 스토어에서 계속 돈다. 우측 하단 플로팅으로 진행이 보이고,
+   완료 뒤 "결과 보기" 를 누르면 이 문항으로 돌아온다(?q=). 진행/실패 표시는 스토어에서 이 문항 것만 읽는다. */
+const drafting = computed(() => !!q.value && aiTasks.isDraftRunning(q.value.id))
+const draftError = computed(() => {
+  const job = q.value && aiTasks.draftJobFor(q.value.id)
+  return job && job.status === 'error' ? job.error : null
+})
+function makeDraft() {
   const target = q.value
   if (!target) return
-  draftingId.value = target.id; draftError.value = null
-  try {
-    const { draft } = await api.ai.draft(target.id, A.draftOf(target.id).usedExperienceIds)
-    A.editDraft(target.id, { draft })
-  } catch (e) { draftError.value = e }
-  finally { draftingId.value = null }
+  const experienceIds = A.draftOf(target.id).usedExperienceIds
+  if (!experienceIds.length) return
+  const posting = P.byId(target.postingId)
+  aiTasks.start({
+    kind: 'draft',
+    title: `AI 초안 · 문항 ${qNo(target)}`,
+    subtitle: posting ? `${posting.company} ${posting.position}` : '',
+    view: { type: 'draft', postingId: target.postingId, questionId: target.id },
+    run: () => api.ai.draft(target.id, experienceIds),
+    // 완료 즉시 버퍼로. 화면을 떠나 있어도 스토어 싱글턴이라 안전하다.
+    onDone: ({ draft, taskId }) => A.editDraft(target.id, { content: draft, draftTaskId: taskId ?? null }),
+  })
 }
 
 /* 되돌리기 버튼은 두지 않는다. 편집 중 되돌리기는 textarea 의 Ctrl+Z 가
@@ -87,29 +109,31 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
     <nav class="qtabs" aria-label="문항">
       <button v-for="x in questions" :key="x.id" class="btn btn--sm"
               :aria-pressed="x.id === activeId" @click="activeId = x.id">
-        문항 {{ questions.indexOf(x) + 1 }}
+        문항 {{ qNo(x) }}
         <span class="st"
-              :class="A.isDirty(x.id) ? 'dirty' : A.draftOf(x.id).draft.trim() ? 'on' : ''"
+              :class="A.isDirty(x.id) ? 'dirty' : A.draftOf(x.id).content.trim() ? 'on' : ''"
               :title="A.isDirty(x.id) ? '저장하지 않은 변경이 있습니다' : ''">
-          {{ A.draftOf(x.id).draft.trim() ? '●' : '○' }}
+          {{ A.draftOf(x.id).content.trim() ? '●' : '○' }}
         </span>
       </button>
     </nav>
 
     <div class="two">
       <div class="main">
-        <p class="prompt">{{ q.prompt }}</p>
+        <p class="prompt">{{ q.promptText }}</p>
 
-        <!-- 분량 — 막대와 숫자가 같은 판정을 쓴다 -->
+        <!-- 분량 — 막대와 숫자가 같은 판정을 쓴다. 제한이 없는 문항은 글자 수만 센다. -->
         <div class="meterrow">
           <div class="meter" :class="len.tone"><i :style="{ width: len.pct + '%' }" /></div>
-          <span class="num cnt" :class="len.tone">{{ len.n }} / {{ len.limit }}자</span>
-          <button class="btn btn--sm" :disabled="draftingId === q.id" @click="makeDraft">
-            {{ draftingId === q.id ? '생성 중…' : 'AI 초안' }}
+          <span class="num cnt" :class="len.tone">{{ len.n }}<template v-if="len.limit"> / {{ len.limit }}</template>자</span>
+          <button class="btn btn--sm" :disabled="drafting || !used.length"
+                  :title="used.length ? '' : '오른쪽에서 근거로 쓸 경험을 먼저 고르세요'" @click="makeDraft">
+            {{ drafting ? '생성 중…' : 'AI 초안' }}
           </button>
         </div>
 
-        <textarea v-model="text" class="inp" rows="12"></textarea>
+        <textarea v-model="text" class="inp" rows="12"
+                  :aria-label="`문항 ${qNo(q)} 답변`"></textarea>
         <p v-if="draftError" class="derr">AI 초안을 못 받았습니다 — {{ draftError.body?.message || draftError.message }}</p>
 
         <!-- 저장 — 이 화면의 유일한 주요 행동 -->
@@ -135,7 +159,7 @@ onBeforeUnmount(() => window.removeEventListener('beforeunload', guard))
           <input type="checkbox" :checked="used.includes(e.id)" @change="toggleExp(e.id)">
           <span class="min0">
             <b class="et">{{ e.title }}</b>
-            <span class="em">{{ e.category }} · {{ e.period }}</span>
+            <span class="em">{{ categoryLabel(e.category) }} · {{ periodLabel(e.startDate, e.endDate) }}</span>
           </span>
         </label>
       </aside>

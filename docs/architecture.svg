@@ -1,0 +1,167 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1720 1220" width="1720" height="1220"
+     font-family="Pretendard, 'Apple SD Gothic Neo', 'Noto Sans KR', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif">
+  <defs>
+    <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+      <path d="M0,0 L10,5 L0,10 z" fill="#7b8794"/>
+    </marker>
+    <marker id="ahs" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto">
+      <path d="M0,0 L10,5 L0,10 z" fill="#9aa5b1"/>
+    </marker>
+    <filter id="sh" x="-20%" y="-20%" width="140%" height="150%">
+      <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#0f172a" flood-opacity="0.08"/>
+    </filter>
+  </defs>
+
+  <rect width="1720" height="1220" fill="#ffffff"/>
+
+  <!-- ── 헤더 ───────────────────────────────────────────── -->
+  <text x="60" y="74" font-size="34" font-weight="700" fill="#111827">Career Lab · 시스템 아키텍처</text>
+  <text x="60" y="107" font-size="17" fill="#6b7280">Slack 로그인 → 공고 역량 추출 → 경험 매칭 → 자소서 초안 · AI 서버 구성 기준</text>
+
+  <line x1="1392" y1="60" x2="1424" y2="60" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+  <text x="1436" y="65" font-size="14" fill="#4b5563">동기 HTTP 호출</text>
+  <line x1="1392" y1="94" x2="1424" y2="94" stroke="#9aa5b1" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#ah)"/>
+  <text x="1436" y="99" font-size="14" fill="#4b5563">브라우저 리다이렉트</text>
+
+  <!-- ── Slack OAuth ────────────────────────────────────── -->
+  <rect x="540" y="150" width="460" height="104" rx="14" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="564" y="172" width="40" height="40" rx="10" fill="#4A154B"/>
+  <text x="584" y="199" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">S</text>
+  <text x="618" y="192" font-size="19" font-weight="700" fill="#111827">Slack OAuth · OpenID Connect</text>
+  <text x="618" y="215" font-size="13.5" fill="#6b7280">/api/auth/slack/start → callback → 서버 세션</text>
+  <text x="618" y="236" font-size="13.5" fill="#6b7280">허용 워크스페이스 밖 계정은 403 으로 막는다</text>
+
+  <!-- ── Client ─────────────────────────────────────────── -->
+  <rect x="60" y="330" width="310" height="330" rx="14" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5" filter="url(#sh)"/>
+  <polygon points="84,354 124,354 104,388" fill="#42B883"/>
+  <polygon points="94,354 114,354 104,371" fill="#35495E"/>
+  <text x="136" y="371" font-size="19" font-weight="700" fill="#111827">Vue 3 SPA</text>
+  <text x="136" y="392" font-size="13.5" fill="#6b7280">Pinia · Vue Router · Vite 8</text>
+  <line x1="84" y1="422" x2="346" y2="422" stroke="#eef2f6" stroke-width="1.5"/>
+  <text x="84" y="454" font-size="14" fill="#2b3440">views / components</text>
+  <text x="84" y="484" font-size="14" fill="#2b3440">stores — 상태 · loading · error</text>
+  <text x="84" y="514" font-size="14" fill="#2b3440">api — Promise 만 돌려준다</text>
+  <text x="84" y="544" font-size="14" fill="#2b3440">domain — 매칭 · 자소서 · 마감</text>
+  <text x="84" y="574" font-size="14" fill="#2b3440">ai-tasks 폴링 — 진행 · 완료 표시</text>
+  <text x="84" y="628" font-size="13" fill="#94a3b8">세션 쿠키는 HttpOnly — JS 가 못 읽는다</text>
+
+  <!-- ── Spring ─────────────────────────────────────────── -->
+  <rect x="540" y="330" width="460" height="330" rx="14" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5" filter="url(#sh)"/>
+  <rect x="564" y="354" width="40" height="40" rx="10" fill="#6DB33F"/>
+  <text x="584" y="381" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">S</text>
+  <text x="616" y="371" font-size="19" font-weight="700" fill="#111827">Spring Boot 4.1 · Java 21</text>
+  <text x="616" y="392" font-size="13.5" fill="#6b7280">REST /api/** · 공개 19 + 내부 1</text>
+  <line x1="564" y1="422" x2="976" y2="422" stroke="#eef2f6" stroke-width="1.5"/>
+  <text x="564" y="454" font-size="14" fill="#2b3440">auth · posting · experience · answer</text>
+  <text x="564" y="484" font-size="14" fill="#2b3440">세션 쿠키 HttpOnly · SameSite=Lax</text>
+  <text x="564" y="514" font-size="14" fill="#2b3440">JPA validate + Flyway</text>
+  <text x="564" y="544" font-size="14" fill="#2b3440">ai_tasks — 작업 상태 · 재시도 · 결과 저장</text>
+  <text x="564" y="574" font-size="14" fill="#2b3440">/internal/** — X-Internal-Token 배치</text>
+  <text x="564" y="628" font-size="13" fill="#94a3b8">AI 실패는 3회 지수 백오프 후 FAILED</text>
+
+  <!-- ── AI 그룹 ────────────────────────────────────────── -->
+  <rect x="1140" y="300" width="520" height="390" rx="18" fill="#f5faf6" stroke="#cfe3d3" stroke-width="1.5"/>
+
+  <rect x="1168" y="330" width="464" height="200" rx="12" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <rect x="1192" y="354" width="40" height="40" rx="10" fill="#3776AB"/>
+  <text x="1212" y="380" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">Py</text>
+  <text x="1244" y="371" font-size="19" font-weight="700" fill="#111827">AI 서버 · Python</text>
+  <text x="1244" y="392" font-size="13" fill="#6b7280">무상태 — 프롬프트 버전은 Spring 이 기동 시 조회</text>
+  <line x1="1192" y1="422" x2="1608" y2="422" stroke="#eef2f6" stroke-width="1.5"/>
+  <g font-family="'SF Mono', 'JetBrains Mono', Menlo, monospace" font-size="12.5" fill="#2b3440">
+    <text x="1192" y="448">/ai/posting-analysis</text>
+    <text x="1192" y="470">/ai/experience-intake</text>
+    <text x="1192" y="492">/ai/match</text>
+    <text x="1192" y="514">/ai/draft</text>
+  </g>
+  <g font-size="12.5" fill="#6b7280">
+    <text x="1400" y="448">공고 → 요구 역량</text>
+    <text x="1400" y="470">링크·PDF → 경험 후보</text>
+    <text x="1400" y="492">역량 × 경험 → 점수</text>
+    <text x="1400" y="514">문항 → 자소서 초안</text>
+  </g>
+
+  <line x1="1400" y1="530" x2="1400" y2="558" stroke="#7b8794" stroke-width="1.8" marker-end="url(#ah)"/>
+
+  <rect x="1168" y="560" width="464" height="104" rx="12" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <rect x="1192" y="584" width="40" height="40" rx="10" fill="#D97757"/>
+  <text x="1212" y="611" font-size="18" font-weight="700" fill="#ffffff" text-anchor="middle">C</text>
+  <text x="1244" y="602" font-size="19" font-weight="700" fill="#111827">Claude API · claude-opus-5</text>
+  <text x="1244" y="626" font-size="13" fill="#6b7280">구조화 출력으로 형태를 고정한다</text>
+  <text x="1244" y="646" font-size="13" fill="#6b7280">응답에 promptVersion · model 을 싣는다</text>
+
+  <!-- ── Supabase 그룹 ──────────────────────────────────── -->
+  <rect x="470" y="790" width="560" height="200" rx="18" fill="#f4fcf8" stroke="#c9e9db" stroke-width="1.5"/>
+
+  <rect x="498" y="818" width="250" height="146" rx="12" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <rect x="520" y="840" width="40" height="40" rx="10" fill="#336791"/>
+  <text x="540" y="866" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">PG</text>
+  <text x="572" y="866" font-size="17" font-weight="700" fill="#111827">PostgreSQL 17</text>
+  <text x="520" y="906" font-size="12.5" fill="#4b5563">13 테이블 · ERD v6</text>
+  <text x="520" y="928" font-size="12.5" fill="#4b5563">Flyway 마이그레이션</text>
+  <text x="520" y="950" font-size="12.5" fill="#4b5563">Session Pooler :5432</text>
+
+  <rect x="772" y="818" width="250" height="146" rx="12" fill="#ffffff" stroke="#dde3ea" stroke-width="1.5"/>
+  <rect x="794" y="840" width="40" height="40" rx="10" fill="#3ECF8E"/>
+  <text x="814" y="866" font-size="15" font-weight="700" fill="#ffffff" text-anchor="middle">St</text>
+  <text x="846" y="866" font-size="17" font-weight="700" fill="#111827">Storage</text>
+  <text x="794" y="906" font-size="12.5" fill="#4b5563">인테이크 첨부 PDF·MD·TXT</text>
+  <text x="794" y="928" font-size="12.5" fill="#4b5563">intake/{userId}/{taskId}/</text>
+  <text x="794" y="950" font-size="12.5" fill="#4b5563">AI 서버엔 URL 만 넘긴다</text>
+
+  <!-- ── 연결선 ─────────────────────────────────────────── -->
+  <line x1="372" y1="470" x2="538" y2="470" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text x="455" y="456" font-size="13" fill="#52606d" text-anchor="middle">/api/**</text>
+  <text x="455" y="494" font-size="12.5" fill="#8b96a3" text-anchor="middle">세션 쿠키 동봉</text>
+
+  <line x1="700" y1="328" x2="700" y2="256" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text x="714" y="296" font-size="12.5" fill="#8b96a3">OAuth 토큰 교환</text>
+
+  <path d="M215,328 V216 Q215,202 229,202 H510" fill="none" stroke="#9aa5b1" stroke-width="1.6" stroke-dasharray="5 5" marker-end="url(#ah)"/>
+  <text x="344" y="190" font-size="12.5" fill="#8b96a3" text-anchor="middle">로그인 버튼 → 302 리다이렉트</text>
+
+  <line x1="1002" y1="470" x2="1160" y2="470" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text x="1081" y="456" font-size="13" fill="#52606d" text-anchor="middle">AI 계약 4종</text>
+  <text x="1081" y="494" font-size="12" fill="#8b96a3" text-anchor="middle">200 · 422 · 503</text>
+
+  <line x1="880" y1="662" x2="880" y2="788" stroke="#7b8794" stroke-width="1.8" marker-start="url(#ah)" marker-end="url(#ah)"/>
+  <text x="894" y="736" font-size="12.5" fill="#8b96a3">JDBC · Storage API</text>
+
+  <!-- ── 컬럼 라벨 ──────────────────────────────────────── -->
+  <text x="215" y="716" font-size="15" font-weight="600" fill="#4b5563" text-anchor="middle">Client · 브라우저</text>
+  <text x="770" y="716" font-size="15" font-weight="600" fill="#4b5563" text-anchor="middle">웹 서버 · Spring (:8080)</text>
+  <text x="1400" y="716" font-size="15" font-weight="600" fill="#4b5563" text-anchor="middle">AI 서버</text>
+  <text x="750" y="1016" font-size="15" font-weight="600" fill="#4b5563" text-anchor="middle">Supabase — 데이터 · 파일</text>
+
+  <!-- ── AI 작업 흐름 ───────────────────────────────────── -->
+  <rect x="60" y="1046" width="1600" height="134" rx="16" fill="#f8fafc" stroke="#d9e0e8" stroke-width="1.5"/>
+  <text x="88" y="1080" font-size="16" font-weight="700" fill="#334155">AI 작업은 비동기다 — 202 로 받고 폴링으로 돌려준다</text>
+
+  <circle cx="101" cy="1108" r="13" fill="#e6edf5"/>
+  <text x="101" y="1113" font-size="13" font-weight="700" fill="#33506e" text-anchor="middle">1</text>
+  <text x="124" y="1113" font-size="14" font-weight="600" fill="#1f2933">작업 요청</text>
+  <text x="88" y="1140" font-size="13" fill="#6b7280">POST /api/questions/{id}/drafts</text>
+  <text x="88" y="1160" font-size="13" fill="#6b7280">같은 입력이면 200 + 기존 taskId</text>
+
+  <circle cx="503" cy="1108" r="13" fill="#e6edf5"/>
+  <text x="503" y="1113" font-size="13" font-weight="700" fill="#33506e" text-anchor="middle">2</text>
+  <text x="526" y="1113" font-size="14" font-weight="600" fill="#1f2933">202 + taskId</text>
+  <text x="490" y="1140" font-size="13" fill="#6b7280">ai_tasks 에 PENDING 으로 적고 즉시 응답</text>
+  <text x="490" y="1160" font-size="13" fill="#6b7280">다른 입력이 돌고 있으면 409</text>
+
+  <circle cx="905" cy="1108" r="13" fill="#e6edf5"/>
+  <text x="905" y="1113" font-size="13" font-weight="700" fill="#33506e" text-anchor="middle">3</text>
+  <text x="928" y="1113" font-size="14" font-weight="600" fill="#1f2933">AI 서버 호출</text>
+  <text x="892" y="1140" font-size="13" fill="#6b7280">AI 서버 → Claude → Spring 이 결과 저장</text>
+  <text x="892" y="1160" font-size="13" fill="#6b7280">실패는 3회 지수 백오프, 소진 시 FAILED</text>
+
+  <circle cx="1307" cy="1108" r="13" fill="#e6edf5"/>
+  <text x="1307" y="1113" font-size="13" font-weight="700" fill="#33506e" text-anchor="middle">4</text>
+  <text x="1330" y="1113" font-size="14" font-weight="600" fill="#1f2933">폴링</text>
+  <text x="1294" y="1140" font-size="13" fill="#6b7280">GET /api/ai-tasks/{taskId}</text>
+  <text x="1294" y="1160" font-size="13" fill="#6b7280">COMPLETED 면 result · FAILED 면 error</text>
+
+  <line x1="440" y1="1108" x2="478" y2="1108" stroke="#9aa5b1" stroke-width="1.5" marker-end="url(#ahs)"/>
+  <line x1="842" y1="1108" x2="880" y2="1108" stroke="#9aa5b1" stroke-width="1.5" marker-end="url(#ahs)"/>
+  <line x1="1244" y1="1108" x2="1282" y2="1108" stroke="#9aa5b1" stroke-width="1.5" marker-end="url(#ahs)"/>
+</svg>

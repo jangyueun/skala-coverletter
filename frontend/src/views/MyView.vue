@@ -1,14 +1,14 @@
 <script setup>
 import { computed } from 'vue'
 import { useAuthStore } from '@/stores/auth.js'
-import { useUiStore } from '@/stores/ui.js'
+import { usePostingsStore } from '@/stores/postings.js'
 import { useDerivedStore } from '@/stores/derived.js'
 import Skeleton from '@/components/state/Skeleton.vue'
 import SignInGate from '@/components/SignInGate.vue'
 import PostingCard from '@/components/posting/PostingCard.vue'
 
 const auth = useAuthStore()
-const ui = useUiStore()
+const P = usePostingsStore()
 const D = useDerivedStore()
 
 /* 로그아웃해도 이 화면에 머문다. 목록이 사라지고 그 자리에 로그인 안내가
@@ -40,7 +40,7 @@ const total = computed(() => lists.value.reduce((a, l) => a + l.items.length, 0)
     </header>
 
     <div v-if="l.items.length" class="grid">
-      <PostingCard v-for="c in l.items" :key="c.posting.id" :card="c" @bookmark="ui.toggleBookmark" />
+      <PostingCard v-for="c in l.items" :key="c.posting.id" :card="c" @bookmark="P.toggleBookmark" />
     </div>
 
     <!-- 비어 있으면 그 이유와 다음 행동을 말한다. 빈 상자만 두면 고장으로 읽힌다. -->

@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { usePostingsStore } from '@/stores/postings.js'
 import { useDerivedStore } from '@/stores/derived.js'
 import { strLabel } from '@/domain/matching.js'
+import { categoryLabel, periodLabel } from '@/domain/experience.js'
 
 const props = defineProps({ exp: { type: Object, required: true } })
 const emit = defineEmits(['edit'])
@@ -19,24 +20,19 @@ const STAR = [
 const used = computed(() => D.usedIn(props.exp.id))
 
 /* 인테이크로 만든 경험의 출처 표시.
-   AI 문장이 하나도 안 남았으면 근거를 달지 않는다 — 통째로 다시 쓴 문장에
-   'PR #412' 를 근거로 붙이면 근거가 아무 데나 찍히는 도장이 된다. */
-const origin = computed(() => {
-  if (props.exp.source !== 'AI_INTAKE') return null
-  const refs = props.exp.evidenceRefs || []
-  const edited = props.exp.editedFields || []
-  if (!refs.length) return { label: '포폴 인테이크 · 본인이 다시 씀', tone: '', title: 'AI 가 쓴 문장은 남아 있지 않습니다' }
-  return {
-    label: `포폴 인테이크${edited.length ? ' · 일부 수정' : ''}`,
-    tone: 'tag--ink',
-    title: refs.join(', ') + (edited.length ? ` · ${edited.join('·')} 문장은 본인이 고쳤습니다` : ''),
-  }
-})
+   v6 에는 출처 컬럼이 없다 — aiTaskId 가 있으면 인테이크로 등록한 것이다.
+   어느 문장을 AI 가 썼고 어디를 본인이 고쳤는지는 등록 화면에서 이미 봤고 서버는 그 구분을
+   저장하지 않는다. 그래서 카드는 "어디서 왔나" 만 말한다. */
+const origin = computed(() => (props.exp.aiTaskId == null ? null : {
+  label: '포폴 인테이크',
+  title: `AI 작업 #${props.exp.aiTaskId} 의 후보에서 등록. 문장은 등록 전에 본인이 확인했습니다`,
+}))
 
-const comps = computed(() => props.exp.competencyIds.map(id => ({
-  c: P.competencies.find(x => x.id === id),
-  s: props.exp.strength?.[id] ?? 0.6,
-})).filter(x => x.c))
+/* 역량 이름은 DTO 가 같이 준다(competencies[].name). 없으면 사전에서 찾는다 —
+   이름이 빠졌다고 칩이 조용히 사라지면 태그가 안 된 것으로 오해한다. */
+const comps = computed(() => props.exp.competencies
+  .map(c => ({ ...c, name: c.name ?? P.competencyById(c.competencyId)?.name }))
+  .filter(c => c.name))
 </script>
 
 <template>
@@ -45,8 +41,8 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
       <div class="min0">
         <h3 class="ttl">{{ exp.title }}</h3>
         <div class="meta">
-          <span class="tag">{{ exp.category }}</span>
-          <span v-if="origin" class="tag" :class="origin.tone" :title="origin.title">{{ origin.label }}</span>
+          <span class="tag">{{ categoryLabel(exp.category) }}</span>
+          <span v-if="origin" class="tag tag--ink" :title="origin.title">{{ origin.label }}</span>
           <span v-if="used.questions" class="tag tag--ok"
                 title="본문이 작성된 답변에 근거로 걸린 문항 수. 한 공고에서 여러 문항에 쓰였으면 그만큼 셉니다.">
             자소서 {{ used.questions }}개 문항에 사용
@@ -54,7 +50,7 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
         </div>
       </div>
       <div class="right">
-        <span class="mono period">{{ exp.period }}</span>
+        <span class="mono period">{{ periodLabel(exp.startDate, exp.endDate) }}</span>
         <button class="btn btn--sm" @click="emit('edit', exp.id)">수정</button>
       </div>
     </div>
@@ -67,8 +63,8 @@ const comps = computed(() => props.exp.competencyIds.map(id => ({
     </dl>
 
     <div class="chips">
-      <span v-for="{ c, s } in comps" :key="c.id" class="tag">
-        {{ c.name }}<b class="str">{{ strLabel(s) }}</b>
+      <span v-for="c in comps" :key="c.competencyId" class="tag">
+        {{ c.name }}<b class="str">{{ strLabel(c.strength) }}</b>
       </span>
     </div>
   </article>

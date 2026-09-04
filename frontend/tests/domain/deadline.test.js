@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
-import { deadlineAt, dday, isClosed } from '@/domain/deadline.js'
+import { deadlineAt, dday, isClosed, deadlineLabel } from '@/domain/deadline.js'
 
-/* 오늘 실제로 터진 것 — 마감 시각이 생기자 dday 로 마감을 판정하던 코드가 -0 에 속았다. */
+/* 실제로 터진 것 — 마감 시각이 생기자 dday 로 마감을 판정하던 코드가 -0 에 속았다. */
 describe('deadline', () => {
   const at = (s) => new Date(s.replace(' ', 'T') + ':00')
 
@@ -25,6 +25,22 @@ describe('deadline', () => {
   it('ISO 형식도 받는다 — 백엔드가 어떤 걸 줄지 모른다', () => {
     expect(deadlineAt('2026-09-21T18:00:00').getHours()).toBe(18)
     expect(isClosed('2026-09-21T18:00:00', at('2026-09-21 20:00'))).toBe(true)
+  })
+
+  it('오프셋이 붙은 ISO — v6 가 주는 형식 — 는 그 시간대의 시각으로 읽는다', () => {
+    /* '+09:00' 을 버리고 로컬로 읽으면 다른 시간대에서 마감이 몇 시간 어긋난다. */
+    expect(deadlineAt('2026-09-12T18:00:00+09:00').getTime()).toBe(Date.UTC(2026, 8, 12, 9, 0, 0))
+    const justAfter = new Date(Date.UTC(2026, 8, 12, 9, 0, 1))
+    expect(isClosed('2026-09-12T18:00:00+09:00', justAfter)).toBe(true)
+    expect(isClosed('2026-09-12T18:00:00+09:00', new Date(Date.UTC(2026, 8, 12, 8, 59)))).toBe(false)
+  })
+
+  it('deadlineLabel 은 보는 사람의 시간대로 YYYY-MM-DD HH:mm 을 만든다', () => {
+    const label = deadlineLabel('2026-09-12T18:00:00+09:00')
+    expect(label).toMatch(/^\d{4}-\d{2}-\d{2} \d{2}:\d{2}$/)
+    // 같은 순간을 다른 표기로 주면 같은 라벨이어야 한다 — 오프셋을 무시하면 여기서 갈린다
+    expect(deadlineLabel('2026-09-12T09:00:00Z')).toBe(label)
+    expect(deadlineLabel('2026-09-12T18:00:00+09:00')).not.toContain('+')
   })
 
   it('읽을 수 없는 형식은 열려 있는 척하지 않고 터진다', () => {
